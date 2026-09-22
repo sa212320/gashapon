@@ -108,6 +108,11 @@
 **沒有 `rename`**:改名字就是在設定的「其他」分頁編輯 `setup.name`,按確定時走 `replaceSetup`,
 不需要獨立的函式。
 
+**entries 的資料契約:必須是 JSON 可往返的純資料。** 所有設定最終都要經過
+`JSON.stringify` / `JSON.parse` 存進 localStorage,所以 entry 的欄位只能是字串、數字、布林、
+`null`、以及由這些組成的普通物件與陣列。`Map`、`Set`、`ArrayBuffer` 這類東西存進去再讀出來會
+變成 `{}`,結構上不可能合法出現在 entries 裡 —— `entriesChanged` 因此不為它們負責。
+
 3D 的隨機蛋色實作在該模式自己的 `makeItem` 裡 —— 結構上就不可能污染 `Prize`,
 model 第 3 條由此被保護。
 
