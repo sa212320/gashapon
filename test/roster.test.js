@@ -151,3 +151,11 @@ test('entriesChanged:陣列裡的巢狀物件,物件內 key 順序不算、陣�
 test('entriesChanged:同值不同型別(字串 vs 數字)算變', () => {
   assert.equal(entriesChanged([{ id: 'a', count: 1, x: '1' }], [{ id: 'a', count: 1, x: 1 }]), true);
 });
+
+// Object.create(null) 是合法的純資料(JSON 往返後會變成普通物件),
+// 跟 Date / RegExp 不一樣——isPlainObject 必須繼續認得它,這條要有測試守著。
+test('entriesChanged:Object.create(null) 仍然當成普通物件比內容', () => {
+  const mk = v => { const o = Object.create(null); o.k = v; return o; };
+  assert.equal(entriesChanged([{ id: 'a', count: 1, o: mk(1) }], [{ id: 'a', count: 1, o: mk(1) }]), false);
+  assert.equal(entriesChanged([{ id: 'a', count: 1, o: mk(1) }], [{ id: 'a', count: 1, o: mk(2) }]), true);
+});
