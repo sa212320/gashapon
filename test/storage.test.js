@@ -108,6 +108,10 @@ test('存檔指向一台不存在的機台時,會退回第一台', () => {
   assert.equal(getActiveMachine(load(store)).id, load(store).machines[0].id);
 });
 
+test('拿不到 storage 時 save 回 false,不能因為 ?. 短路就騙自己存成功了', () => {
+  assert.equal(save(createInitialState(), null), false);
+});
+
 test('空間爆掉時 save 不丟例外(設定面板不能被卡死)', () => {
   const store = fakeStorage();
   store.setItem = () => { throw new DOMException('full', 'QuotaExceededError'); };

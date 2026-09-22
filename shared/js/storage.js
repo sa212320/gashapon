@@ -32,7 +32,10 @@ export function createStore({ key, schema, sanitize, seed }) {
   function save(state, storage) {
     try {
       const resolved = resolveStorage(storage);
-      resolved?.setItem(key, JSON.stringify({ schema, state }));
+      // 拿不到 storage(resolveStorage 回 null)就什麼都沒存到,
+      // 不能因為 ?. 短路就回 true 騙自己存成功了。
+      if (!resolved) return false;
+      resolved.setItem(key, JSON.stringify({ schema, state }));
       return true;
     } catch {
       // 配額爆掉或被瀏覽器擋住:功能照常,只是這次沒存到

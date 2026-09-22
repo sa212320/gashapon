@@ -61,6 +61,10 @@ test('空間爆掉時 save 不丟例外,並回 false', () => {
   assert.equal(result, false);
 });
 
+test('拿不到 storage 時 save 回 false,不能因為 ?. 短路就騙自己存成功了', () => {
+  assert.equal(store.save({ items: [] }, null), false);
+});
+
 test('兩個 store 用不同 key,互不干擾', () => {
   const other = createStore({
     key: 'other.v1', schema: 1,
