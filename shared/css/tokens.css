@@ -88,6 +88,26 @@
 }
 .dialog__head h2 { margin: 0; font-size: 20px; }
 
+/* 設定組下拉,由 shared/js/dialog.js 驅動,五個模式共用 */
+.picker {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--cream-deep);
+}
+.picker__select {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-weight: 700;
+  padding: 10px 12px;
+  min-height: 44px;
+  border: 4px solid var(--ink);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--ink);
+}
+
 .dialog__body { overflow-y: auto; padding: 16px; min-height: 0; -webkit-overflow-scrolling: touch; }
 
 .dialog__foot {

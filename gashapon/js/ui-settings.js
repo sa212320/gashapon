@@ -1,7 +1,10 @@
 // 設定對話框。裡面的修改都先進 draft,按「確定」才會真的套用;
 // 按「取消」或關掉就整包丟掉。切換機台是例外 —— 那是立即生效的。
+// 分頁切換、機台下拉、取消/確定、切換與新增時的 dirty 確認交給 shared/js/dialog.js 的骨殼;
+// 這裡只留三個分頁自己的渲染,以及「什麼算 dirty」「確定時要不要重建池子」這兩件機台自己的事。
 import { RARITIES, RARITY_META } from './constants.js';
 import { createPrize, prizesChanged, needsRebuild, remaining } from './state.js';
+import { createDialogShell } from '../../shared/js/dialog.js';
 
 const clonePrizes = prizes => prizes.map(p => ({ ...p }));
 
@@ -26,19 +29,6 @@ export function createSettingsDialog({ els, ask, actions }) {
       || draft.removeOnDraw !== m.removeOnDraw
       || draft.soundOn !== actions.getState().soundOn
       || prizesChanged(m.prizes, draft.prizes);
-  }
-
-  /* ---------- 機台下拉 ---------- */
-  function renderPicker() {
-    const state = actions.getState();
-    els.machineSelect.replaceChildren(...state.machines.map(m => {
-      const opt = document.createElement('option');
-      opt.value = m.id;
-      opt.textContent = m.name || '沒有名字的扭蛋機';
-      opt.selected = m.id === state.activeMachineId;
-      return opt;
-    }));
-    els.deleteMachineBtn.disabled = state.machines.length <= 1;
   }
 
   /* ---------- 剩下什麼 ---------- */
@@ -136,24 +126,28 @@ export function createSettingsDialog({ els, ask, actions }) {
     els.soundInput.checked = draft.soundOn;
   }
 
-  function renderAll() {
-    renderPicker();
+  function renderPanels() {
     renderList();
     renderEdit();
     renderOther();
   }
 
-  function showTab(name) {
-    els.tabs.querySelectorAll('.tab').forEach(t => t.classList.toggle('is-active', t.dataset.tab === name));
-    els.dialog.querySelectorAll('.panel').forEach(p => { p.hidden = p.dataset.panel !== name; });
+  /* ---------- 確定時要不要重建池子,機台自己決定 ---------- */
+  async function applyDraft() {
+    const m = machine();
+    const willRebuild = needsRebuild(m.prizes, draft.prizes);
+    if (willRebuild && !await ask('獎項改了,扭蛋機會重新裝滿喔!要嗎?')) return false;
+
+    actions.applyDraft({
+      name: draft.name.trim() || '我的扭蛋機',
+      removeOnDraw: draft.removeOnDraw,
+      prizes: draft.prizes.map(p => ({ ...p, name: p.name.trim() || '神祕獎項' })),
+      rebuildPool: willRebuild,
+      soundOn: draft.soundOn,
+    });
   }
 
-  /* ---------- 事件 ---------- */
-  els.tabs.addEventListener('click', e => {
-    const tab = e.target.closest('.tab');
-    if (tab) showTab(tab.dataset.tab);
-  });
-
+  /* ---------- 分頁各自的欄位,直接綁 draft ---------- */
   els.nameInput.addEventListener('input', () => { draft.name = els.nameInput.value; });
   els.removeOnDrawInput.addEventListener('change', () => { draft.removeOnDraw = els.removeOnDrawInput.checked; });
   els.soundInput.addEventListener('change', () => { draft.soundOn = els.soundInput.checked; });
@@ -164,67 +158,46 @@ export function createSettingsDialog({ els, ask, actions }) {
     els.editList.lastElementChild?.querySelector('input')?.focus();
   });
 
-  els.machineSelect.addEventListener('change', async () => {
-    const id = els.machineSelect.value;
-    if (isDirty() && !await ask('還沒按確定的修改會不見喔,要換一台嗎?')) {
-      renderPicker();
-      return;
-    }
-    actions.switchMachine(id);
-    snapshot();
-    renderAll();
-  });
-
-  els.addMachineBtn.addEventListener('click', async () => {
-    if (isDirty() && !await ask('還沒按確定的修改會不見喔,要新增一台嗎?')) return;
-    actions.addMachine();
-    snapshot();
-    renderAll();
-    showTab('other');
-    els.nameInput.focus();
-    els.nameInput.select();
-  });
-
-  els.deleteMachineBtn.addEventListener('click', async () => {
-    const m = machine();
-    if (!await ask(`要刪掉「${m.name || '這台扭蛋機'}」嗎?刪掉就找不回來了。`)) return;
-    actions.deleteMachine(m.id);
-    snapshot();
-    renderAll();
-  });
-
   els.listRefillBtn.addEventListener('click', async () => {
     if (!await ask('要把扭蛋機重新裝滿嗎?已經抽掉的都會放回去。')) return;
     actions.refill();
-    renderList();
-    renderPicker();
+    shell.refresh();
   });
 
-  async function confirm() {
-    const m = machine();
-    const willRebuild = needsRebuild(m.prizes, draft.prizes);
-    if (willRebuild && !await ask('獎項改了,扭蛋機會重新裝滿喔!要嗎?')) return;
-
-    actions.applyDraft({
-      name: draft.name.trim() || '我的扭蛋機',
-      removeOnDraw: draft.removeOnDraw,
-      prizes: draft.prizes.map(p => ({ ...p, name: p.name.trim() || '神祕獎項' })),
-      rebuildPool: willRebuild,
-      soundOn: draft.soundOn,
-    });
-    els.dialog.close();
-  }
-
-  els.confirmBtn.addEventListener('click', confirm);
-  els.cancelBtn.addEventListener('click', () => els.dialog.close());
-  els.closeBtn.addEventListener('click', () => els.dialog.close());
+  const shell = createDialogShell({
+    els: {
+      dialog: els.dialog,
+      setupSelect: els.machineSelect,
+      addSetupBtn: els.addMachineBtn,
+      deleteSetupBtn: els.deleteMachineBtn,
+      tabsNav: els.tabs,
+      confirmBtn: els.confirmBtn,
+      cancelBtn: els.cancelBtn,
+      closeBtn: els.closeBtn,
+    },
+    ask,
+    actions: {
+      getState: () => {
+        const state = actions.getState();
+        return { setups: state.machines, activeSetupId: state.activeMachineId };
+      },
+      getActiveSetup: machine,
+      switchSetup: id => actions.switchMachine(id),
+      addSetup: () => actions.addMachine(),
+      deleteSetup: id => actions.deleteMachine(id),
+      snapshot,
+      isDirty,
+      applyDraft,
+      renderPanels,
+    },
+    tabs: [
+      { name: 'list', panelEl: els.dialog.querySelector('[data-panel="list"]') },
+      { name: 'edit', panelEl: els.dialog.querySelector('[data-panel="edit"]') },
+      { name: 'other', panelEl: els.dialog.querySelector('[data-panel="other"]') },
+    ],
+  });
 
   return {
-    open() {
-      snapshot();
-      renderAll();
-      showTab('list');
-      els.dialog.showModal();
-    },
+    open() { shell.open(); },
   };
 }
