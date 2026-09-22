@@ -1,8 +1,10 @@
 // 設定對話框的骨殼。分頁、設定組下拉、取消/確定、dirty 確認 —— 五個模式都一樣。
 // 什麼欄位算 dirty、按確定時要不要重建池子,全部由各模式的 isDirty / applyDraft 決定,
 // 這裡一概不知道。
-
-export function createDialogShell({ els, ask, actions, tabs }) {
+//
+// onSetupAdded(可選):新增一組設定之後呼叫,讓各模式自己決定要跳去哪個分頁、
+// 要 focus 哪個欄位。不給的話預設「停在目前分頁」,不會自作主張跳頁。
+export function createDialogShell({ els, ask, actions, tabs, onSetupAdded }) {
   function renderSetupPicker() {
     const state = actions.getState();
     els.setupSelect.replaceChildren(...state.setups.map(setup => {
@@ -48,7 +50,7 @@ export function createDialogShell({ els, ask, actions, tabs }) {
     actions.addSetup();
     actions.snapshot();
     refresh();
-    showTab(tabs.at(-1).name);
+    onSetupAdded?.();
   });
 
   els.deleteSetupBtn.addEventListener('click', async () => {
@@ -78,5 +80,6 @@ export function createDialogShell({ els, ask, actions, tabs }) {
     },
     close() { els.dialog.close(); },
     refresh,
+    showTab,
   };
 }

@@ -195,6 +195,12 @@ export function createSettingsDialog({ els, ask, actions }) {
       { name: 'edit', panelEl: els.dialog.querySelector('[data-panel="edit"]') },
       { name: 'other', panelEl: els.dialog.querySelector('[data-panel="other"]') },
     ],
+    // 新增一組扭蛋機之後,跳到「其他」分頁改名字,游標順便帶過去。
+    onSetupAdded: () => {
+      shell.showTab('other');
+      els.nameInput.focus();
+      els.nameInput.select();
+    },
   });
 
   return {
