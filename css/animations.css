@@ -1,0 +1,32 @@
+@keyframes idle-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+@keyframes nudge {
+  0%, 88%, 100% { transform: scale(1); }
+  92%           { transform: scale(1.06) rotate(-2deg); }
+  96%           { transform: scale(1.06) rotate(2deg); }
+}
+
+@keyframes shimmer {
+  to { filter: hue-rotate(360deg) saturate(1.15); }
+}
+
+@keyframes float-capsule {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+
+.machine__capsules circle { animation: float-capsule 2.8s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .machine,
+  .btn--draw,
+  .empty-state__egg,
+  .machine__capsules circle,
+  .capsule[data-rarity="UR"] .capsule__half,
+  .prize-card__badge[data-rarity="UR"] {
+    animation: none !important;
+  }
+}

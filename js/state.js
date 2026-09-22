@@ -60,6 +60,16 @@ export function prizesChanged(before, after) {
   return a.some((k, i) => k !== b[i]);
 }
 
+// 池子的形狀變了嗎?只在乎「有哪些獎項」跟「各幾顆」。
+// 改名字、改稀有度不會改變池子裡有幾顆蛋,所以不該沒收已經抽掉的進度。
+export function needsRebuild(before, after) {
+  const key = p => `${p.id}|${p.count}`;
+  const a = before.map(key).sort();
+  const b = after.map(key).sort();
+  if (a.length !== b.length) return true;
+  return a.some((k, i) => k !== b[i]);
+}
+
 export function createInitialState() {
   const machine = createSeedMachine();
   return { machines: [machine], activeMachineId: machine.id, soundOn: true };

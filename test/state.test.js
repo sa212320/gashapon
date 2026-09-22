@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   createPrize, createMachine, buildPool, refillMachine,
-  prizesChanged, remaining, createInitialState,
+  prizesChanged, needsRebuild, remaining, createInitialState,
   addMachine, removeMachine, getActiveMachine,
 } from '../js/state.js';
 
@@ -129,4 +129,39 @@ test('removeMachine 刪到一台都不剩時,自動補一台種子機台', () =>
 test('每個獎項與機台都有自己的 id', () => {
   const ids = [...prizes(), ...prizes()].map(p => p.id);
   assert.equal(new Set(ids).size, 4);
+});
+
+// needsRebuild 問的是「池子的形狀變了嗎」,比 prizesChanged 嚴格:
+// 改名字、改稀有度不影響池子裡有幾顆蛋,就不該沒收小孩的進度。
+test('needsRebuild:只改名字不需要重建池子', () => {
+  const before = prizes();
+  const after = before.map(p => ({ ...p }));
+  after[0].name = '拖地';
+  assert.equal(needsRebuild(before, after), false);
+});
+
+test('needsRebuild:只改稀有度不需要重建池子', () => {
+  const before = prizes();
+  const after = before.map(p => ({ ...p }));
+  after[0].rarity = 'SSR';
+  assert.equal(needsRebuild(before, after), false);
+});
+
+test('needsRebuild:改數量一定要重建', () => {
+  const before = prizes();
+  const after = before.map(p => ({ ...p }));
+  after[0].count = 5;
+  assert.equal(needsRebuild(before, after), true);
+});
+
+test('needsRebuild:新增或刪除獎項一定要重建', () => {
+  const before = prizes();
+  assert.equal(needsRebuild(before, [...before, createPrize({})]), true);
+  assert.equal(needsRebuild(before, [before[0]]), true);
+});
+
+test('needsRebuild:什麼都沒動就不用重建', () => {
+  const before = prizes();
+  assert.equal(needsRebuild(before, before.map(p => ({ ...p }))), false);
+  assert.equal(needsRebuild(before, [...before].reverse().map(p => ({ ...p }))), false);
 });
