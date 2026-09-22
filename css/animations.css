@@ -20,13 +20,3 @@
 
 .machine__capsules circle { animation: float-capsule 2.8s ease-in-out infinite; }
 
-@media (prefers-reduced-motion: reduce) {
-  .machine,
-  .btn--draw,
-  .empty-state__egg,
-  .machine__capsules circle,
-  .capsule[data-rarity="UR"] .capsule__half,
-  .prize-card__badge[data-rarity="UR"] {
-    animation: none !important;
-  }
-}

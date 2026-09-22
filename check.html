@@ -32,6 +32,11 @@
 <button id="soundBtn" type="button">② 播放測試音(應該聽到「叮」)</button>
 <ul id="results2"></ul>
 
+<h1>③ 扭蛋機本人的音效</h1>
+<p class="sub">上面兩個是獨立寫的測試;這一段用的是扭蛋機實際在跑的那份程式。</p>
+<ul id="results3"></ul>
+<button id="appSoundBtn" type="button">③ 用扭蛋機的音效模組發出聲音</button>
+
 <p id="ua"></p>
 
 <script type="module">window.__moduleOK = true;</script>
@@ -131,6 +136,43 @@ document.getElementById('soundBtn').addEventListener('click', async () => {
 });
 
 document.getElementById('ua').textContent = navigator.userAgent;
+window.__addRow = add;
+</script>
+
+<script type="module">
+import { sfx, unlock, audioState, setEnabled } from './js/sound.js';
+
+const rows3 = document.getElementById('results3');
+const add = (label, value, state) => window.__addRow(rows3, label, value, state);
+
+// 扭蛋機存檔裡的音效開關到底是什麼?
+let stored = null;
+try { stored = JSON.parse(localStorage.getItem('gashapon.v1')); } catch { /* 沒存檔 */ }
+add('存檔裡的 soundOn',
+    stored ? String(stored.soundOn) : '還沒有存檔(等同預設 true)',
+    !stored || stored.soundOn !== false ? 'ok' : 'bad');
+
+// 完全照扭蛋機的做法:第一次碰畫面就 unlock
+document.addEventListener('pointerdown', () => unlock(), { once: true });
+add('unlock 的觸發事件', 'pointerdown(跟扭蛋機一樣)');
+
+document.getElementById('appSoundBtn').addEventListener('click', () => {
+  const before = audioState();
+  setEnabled(true);
+  sfx.crank();
+  sfx.upgrade(3);
+  sfx.burst(2);
+  const after = audioState();
+  add('按下去之前', `${before.state} / currentTime ${before.currentTime}`,
+      before.state === 'running' ? 'ok' : 'warn');
+  add('按下去之後', `${after.state} / currentTime ${after.currentTime}`,
+      after.state === 'running' ? 'ok' : 'bad');
+  setTimeout(() => {
+    const later = audioState();
+    add('一秒後', `${later.state} / currentTime ${later.currentTime}`,
+        later.state === 'running' && later.currentTime > 0 ? 'ok' : 'bad');
+  }, 1000);
+});
 </script>
 </body>
 </html>

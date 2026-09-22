@@ -7,15 +7,15 @@ const DURATION = {
   drop: 700, shake: 360, upgrade: 480, crack: 420, burst: 900, show: 320,
 };
 
-const prefersReducedMotion = () =>
-  globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-
 export function createRevealer(els) {
   let skipping = false;
   let playing = false;
   const running = new Set();
+  const created = new Set();
 
-  const isSkipping = () => skipping || prefersReducedMotion();
+  // 只有使用者自己點「跳過」、或分頁被切到背景,才會快轉。
+  // 系統的「減少動態」不列入考慮 —— 這是一台扭蛋機,演出就是它的全部。
+  const isSkipping = () => skipping;
 
   // 分頁被切到背景時瀏覽器會暫停動畫,anim.finished 就永遠不會 resolve。
   // 小孩切去別的 App 再切回來不能卡死在遮罩上,所以補一道逾時保險。
@@ -31,6 +31,7 @@ export function createRevealer(els) {
       ...options,
       duration: ms,
     });
+    created.add(anim);
 
     if (skip) {
       anim.finish();
@@ -57,6 +58,12 @@ export function createRevealer(els) {
   }
 
   function reset() {
+    // 上一次演出的動畫是 fill: 'forwards',效果層級高於 inline style,
+    // 不先取消掉的話下一顆蛋會是隱形的。
+    created.forEach(anim => { try { anim.cancel(); } catch { /* 已經沒了 */ } });
+    created.clear();
+    running.clear();
+
     els.capsule.hidden = false;
     els.capsule.dataset.rarity = 'N';
     els.capsule.style.transform = 'translateY(-46vh)';
@@ -184,7 +191,6 @@ export function createRevealer(els) {
     async play(steps) {
       playing = true;
       skipping = false;
-      running.clear();
       reset();
       try {
         for (const step of steps) {

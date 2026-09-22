@@ -66,6 +66,11 @@ function noise({ dur = 0.2, gain = 0.15, from = 3000, to = 400, delay = 0 }) {
 // 每升一階音就更高一點,小孩一聽就知道情況不妙(好的那種)
 const UPGRADE_SCALE = [523.25, 659.25, 783.99, 1046.5];
 
+// 診斷用:讓 check.html 看得到音效模組真正的狀態
+export function audioState() {
+  return { enabled, created: !!ctx, state: ctx ? ctx.state : 'no context', currentTime: ctx ? ctx.currentTime : null };
+}
+
 export const sfx = {
   crank() {
     for (let i = 0; i < 5; i++) {
