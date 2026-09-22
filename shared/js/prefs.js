@@ -16,20 +16,17 @@ function migrate(storage) {
   }
 }
 
-let migrationStorage = null;
-
 const store = createStore({
   key: 'prefs.v1',
   schema: 1,
-  seed: () => migrate(migrationStorage),
+  seed: storage => migrate(storage),
   sanitize: parsed => ({ soundOn: parsed.soundOn !== false }),
 });
 
-export function loadPrefs(storage = globalThis.localStorage) {
-  migrationStorage = storage;
+export function loadPrefs(storage) {
   return store.load(storage);
 }
 
-export function savePrefs(prefs, storage = globalThis.localStorage) {
+export function savePrefs(prefs, storage) {
   return store.save(prefs, storage);
 }

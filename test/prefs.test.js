@@ -55,3 +55,34 @@ test('遷移不會去改動舊的 gashapon.v1', () => {
   loadPrefs(s);
   assert.equal(s.getItem('gashapon.v1'), before);
 });
+
+test('localStorage 這個 getter 本身就丟例外時,loadPrefs 回預設值而不是炸出來', () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    get() { throw new DOMException('The operation is insecure.', 'SecurityError'); },
+  });
+  try {
+    assert.doesNotThrow(() => loadPrefs());
+    assert.equal(loadPrefs().soundOn, true, '拿不到 localStorage 時音效預設是開的');
+    assert.doesNotThrow(() => savePrefs({ soundOn: false }));
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'localStorage', original);
+    else delete globalThis.localStorage;
+  }
+});
+
+test('遷移拿到的是呼叫 loadPrefs 時傳進去的那個 storage,不是別次呼叫的', () => {
+  const a = fakeStorage({ 'gashapon.v1': JSON.stringify({ schema: 1, soundOn: false }) });
+  const b = fakeStorage({ 'gashapon.v1': JSON.stringify({ schema: 1, soundOn: true }) });
+  assert.equal(loadPrefs(a).soundOn, false);
+  assert.equal(loadPrefs(b).soundOn, true);
+  assert.equal(loadPrefs(a).soundOn, false, '交錯呼叫不可以讀到另一個 storage 的資料');
+});
+
+test('savePrefs 單獨呼叫時完全不碰舊的 gashapon.v1', () => {
+  const before = JSON.stringify({ schema: 1, soundOn: false, machines: [], activeMachineId: 'x' });
+  const s = fakeStorage({ 'gashapon.v1': before });
+  savePrefs({ soundOn: true }, s);
+  assert.equal(s.getItem('gashapon.v1'), before);
+});

@@ -17,12 +17,12 @@ export function createStore({ key, schema, sanitize, seed }) {
     try {
       const resolved = resolveStorage(storage);
       const raw = resolved?.getItem(key);
-      if (!raw) return seed();
+      if (!raw) return seed(resolved);
       const parsed = JSON.parse(raw);
-      if (!parsed || parsed.schema !== schema) return seed();
-      return sanitize(parsed.state) ?? seed();
+      if (!parsed || parsed.schema !== schema) return seed(resolved);
+      return sanitize(parsed.state) ?? seed(resolved);
     } catch {
-      return seed();
+      return seed(undefined);
     }
   }
 
