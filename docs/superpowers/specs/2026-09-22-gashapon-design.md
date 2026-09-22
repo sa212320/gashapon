@@ -64,15 +64,15 @@
 
 | 檔案 | 職責 | 自動測試 |
 |---|---|---|
-| `js/constants.js` | 稀有度順序與配色、儲存 key、種子資料 | — |
-| `js/state.js` | 純函式:建機台/建獎項/展開 pool/重置/dirty 比對 | ✅ |
-| `js/gacha.js` | 純函式:抽一顆 + 產 revealSteps | ✅ |
-| `js/storage.js` | localStorage 讀寫、容錯、persist() | ✅ |
-| `js/reveal.js` | WAAPI 播放 revealSteps、跳過、reduced-motion | 手動 |
-| `js/sound.js` | Web Audio 合成 | 手動 |
-| `js/ui-machine.js` | 主畫面 | 手動 |
-| `js/ui-settings.js` | 設定對話框 | 手動 |
-| `js/main.js` | 啟動與接線,持有唯一的可變 state | 手動 |
+| `gashapon/js/constants.js` | 稀有度順序與配色、儲存 key、種子資料 | — |
+| `gashapon/js/state.js` | 純函式:建機台/建獎項/展開 pool/重置/dirty 比對 | ✅ |
+| `gashapon/js/gacha.js` | 純函式:抽一顆 + 產 revealSteps | ✅ |
+| `gashapon/js/storage.js` | localStorage 讀寫、容錯、persist() | ✅ |
+| `gashapon/js/reveal.js` | WAAPI 播放 revealSteps、跳過、reduced-motion | 手動 |
+| `shared/js/sound.js` | Web Audio 合成 | 手動 |
+| `gashapon/js/ui-machine.js` | 主畫面 | 手動 |
+| `gashapon/js/ui-settings.js` | 設定對話框 | 手動 |
+| `gashapon/js/main.js` | 啟動與接線,持有唯一的可變 state | 手動 |
 
 `state.js` 與 `gacha.js` 全為純函式、不就地改動輸入,因此可以在 Node 裡直接測。
 
