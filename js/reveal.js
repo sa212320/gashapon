@@ -19,22 +19,40 @@ export function createRevealer(els) {
 
   // 分頁被切到背景時瀏覽器會暫停動畫,anim.finished 就永遠不會 resolve。
   // 小孩切去別的 App 再切回來不能卡死在遮罩上,所以補一道逾時保險。
+  // 分頁在背景時瀏覽器不跑 rendering step,anim.finished 永遠不會 settle
+  // ——— 連呼叫過 finish() 也一樣。所以這裡自己掌握 promise 的解除時機:
+  // 動畫正常結束、按了跳過、或逾時保險,三者先到先算。
   function animate(el, keyframes, duration, options = {}) {
-    const ms = isSkipping() ? 1 : duration;
+    const skip = isSkipping();
+    const ms = skip ? 1 : duration;
     const anim = el.animate(keyframes, {
       easing: 'ease-out',
       fill: 'forwards',
       ...options,
       duration: ms,
     });
-    running.add(anim);
 
-    const settled = anim.finished.catch(() => {});
-    const guard = new Promise(resolve => setTimeout(resolve, ms + 1500));
+    if (skip) {
+      anim.finish();
+      return Promise.resolve();
+    }
 
-    return Promise.race([settled, guard]).then(() => {
-      try { anim.finish(); } catch { /* 已經結束了 */ }
-      running.delete(anim);
+    return new Promise(resolve => {
+      let timer = null;
+      let settled = false;
+      const entry = {
+        finish() {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          running.delete(entry);
+          try { anim.finish(); } catch { /* 已經結束了 */ }
+          resolve();
+        },
+      };
+      running.add(entry);
+      anim.finished.then(() => entry.finish(), () => entry.finish());
+      timer = setTimeout(() => entry.finish(), ms + 1500);
     });
   }
 
@@ -160,7 +178,7 @@ export function createRevealer(els) {
     requestSkip() {
       if (!playing) return;
       skipping = true;
-      running.forEach(anim => { try { anim.finish(); } catch { /* 已經結束了 */ } });
+      [...running].forEach(entry => entry.finish());
     },
 
     async play(steps) {

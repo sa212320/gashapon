@@ -95,6 +95,12 @@ async function doDraw() {
 
 $('drawBtn').addEventListener('click', doDraw);
 
+// 小孩切去別的 App 時瀏覽器會暫停動畫,演出等於停在半路。
+// 直接快轉到結果,切回來就看得到抽到什麼。
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') revealer.requestSkip();
+});
+
 $('againBtn').addEventListener('click', e => {
   e.stopPropagation();
   closeOverlay();
