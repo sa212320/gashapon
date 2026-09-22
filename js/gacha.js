@@ -5,7 +5,7 @@
 // rarity 從頭到尾不參與任何計算,它只決定演出。
 import { RARITIES } from './constants.js';
 
-export function draw(machine, rng = Math.random) {
+export function draw(machine, rng = Math.random, { turn = true } = {}) {
   const candidates = [];
   machine.pool.forEach((capsule, index) => {
     if (machine.removeOnDraw && capsule.drawn) return;
@@ -21,15 +21,17 @@ export function draw(machine, rng = Math.random) {
     ? machine.pool.map((c, i) => (i === index ? { ...c, drawn: true } : c))
     : machine.pool;
 
-  return { capsule, prize, pool, revealSteps: buildRevealSteps(prize.rarity, prize) };
+  return { capsule, prize, pool, revealSteps: buildRevealSteps(prize.rarity, prize, { turn }) };
 }
 
 // 從已知的最終稀有度往回推出演出腳本。
 // 骰子只擲一次(在 draw 裡),這裡純粹是把結果編排成一連串動作。
 // 規則:搖一次升一階,升到目標階才裂開 —— 所以「搖越多次 = 越大獎」。
-export function buildRevealSteps(rarity, prize = null) {
+// turn = 轉把手那段扭蛋機本體的演出。按「再抽一次」時不重播,免得小孩每次都要等。
+// 注意 'turn'(轉把手)跟 'crack'(蛋裂開)是兩回事,別看錯。
+export function buildRevealSteps(rarity, prize = null, { turn = true } = {}) {
   const target = Math.max(0, RARITIES.indexOf(rarity));
-  const steps = [{ type: 'drop' }];
+  const steps = turn ? [{ type: 'turn' }, { type: 'drop' }] : [{ type: 'drop' }];
 
   if (target === 0) {
     steps.push({ type: 'shake', tension: 0 });

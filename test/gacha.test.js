@@ -37,12 +37,27 @@ test('buildRevealSteps:升階依序經過 R → SR → SSR → UR', () => {
   assert.deepEqual(steps.filter(s => s.type === 'upgrade').map(s => s.to), ['R', 'SR', 'SSR', 'UR']);
 });
 
-test('buildRevealSteps:開頭是掉落,結尾固定是 crack → burst → show', () => {
+test('buildRevealSteps:開頭是轉把手再掉蛋,結尾固定是 crack → burst → show', () => {
   for (const rarity of ['N', 'R', 'SR', 'SSR', 'UR']) {
     const steps = buildRevealSteps(rarity);
-    assert.equal(steps[0].type, 'drop', `${rarity} 的第一步`);
+    assert.deepEqual(steps.slice(0, 2).map(s => s.type), ['turn', 'drop'], `${rarity} 的開頭`);
     assert.deepEqual(steps.slice(-3).map(s => s.type), ['crack', 'burst', 'show'], `${rarity} 的收尾`);
   }
+});
+
+test('按「再抽一次」時跳過扭蛋機本體的動畫,直接從掉蛋開始', () => {
+  const steps = buildRevealSteps('SSR', null, { turn: false });
+  assert.equal(steps[0].type, 'drop');
+  assert.equal(steps.filter(s => s.type === 'turn').length, 0);
+  // 其他部分一個都不能少
+  assert.equal(steps.filter(s => s.type === 'upgrade').length, 3);
+  assert.deepEqual(steps.slice(-3).map(s => s.type), ['crack', 'burst', 'show']);
+});
+
+test('draw 預設帶轉把手,明講不要時就不帶', () => {
+  const machine = createMachine({ removeOnDraw: false, prizes: [createPrize({ name: '揃', count: 1, rarity: 'N' })] });
+  assert.equal(draw(machine, seeded(2)).revealSteps[0].type, 'turn');
+  assert.equal(draw(machine, seeded(2), { turn: false }).revealSteps[0].type, 'drop');
 });
 
 test('buildRevealSteps:每次搖的 tension 逐次遞增', () => {

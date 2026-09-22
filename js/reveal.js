@@ -4,7 +4,7 @@ import { RARITIES, RARITY_META } from './constants.js';
 import { sfx } from './sound.js';
 
 const DURATION = {
-  drop: 700, shake: 360, upgrade: 480, crack: 420, burst: 900, show: 320,
+  turn: 1000, drop: 720, shake: 360, upgrade: 480, crack: 420, burst: 900, show: 320,
 };
 
 export function createRevealer(els) {
@@ -57,6 +57,16 @@ export function createRevealer(els) {
     });
   }
 
+  // 蛋是從扭蛋機的出蛋口滾出來的,所以要現場量出口相對於畫面正中央的位移
+  function slotOffset() {
+    const machine = els.machine.getBoundingClientRect();
+    const capsule = els.capsule.getBoundingClientRect();
+    return {
+      x: (machine.left + machine.width / 2) - (capsule.left + capsule.width / 2),
+      y: (machine.top + machine.height * 0.84) - (capsule.top + capsule.height / 2),
+    };
+  }
+
   function reset() {
     // 上一次演出的動畫是 fill: 'forwards',效果層級高於 inline style,
     // 不先取消掉的話下一顆蛋會是隱形的。
@@ -64,14 +74,15 @@ export function createRevealer(els) {
     created.clear();
     running.clear();
 
+    els.dim.style.opacity = '0';
     els.capsule.hidden = false;
     els.capsule.dataset.rarity = 'N';
-    els.capsule.style.transform = 'translateY(-46vh)';
+    els.capsule.style.transform = '';
     els.top.style.transform = '';
     els.bottom.style.transform = '';
     els.top.style.opacity = '1';
     els.bottom.style.opacity = '1';
-    els.capsule.style.opacity = '1';
+    els.capsule.style.opacity = '0';
     els.aura.hidden = true;
     els.aura.dataset.rarity = 'N';
     els.particles.replaceChildren();
@@ -114,13 +125,43 @@ export function createRevealer(els) {
   }
 
   const stepHandlers = {
-    async drop() {
+    // 轉把手:把手轉一圈、機身晃一下、圓頂裡的蛋被攪動。
+    // 這段畫面不變暗,因為重點就是要看扭蛋機本體。
+    async turn() {
       sfx.crank();
-      await animate(els.capsule,
-        [{ transform: 'translateY(-46vh) rotate(-25deg)' },
-         { transform: 'translateY(6px) rotate(8deg)', offset: 0.72 },
-         { transform: 'translateY(0) rotate(0deg)' }],
-        DURATION.drop, { easing: 'cubic-bezier(.34,1.3,.64,1)' });
+      await Promise.all([
+        animate(els.knob,
+          [{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }],
+          DURATION.turn, { easing: 'cubic-bezier(.45,0,.2,1)', fill: 'none' }),
+        animate(els.machine, [
+          { transform: 'rotate(0deg) translateY(0)' },
+          { transform: 'rotate(-1.8deg) translateY(-4px)' },
+          { transform: 'rotate(1.8deg) translateY(2px)' },
+          { transform: 'rotate(-1.1deg) translateY(-2px)' },
+          { transform: 'rotate(0deg) translateY(0)' },
+        ], DURATION.turn, { easing: 'ease-in-out', fill: 'none' }),
+        animate(els.capsuleGroup, [
+          { transform: 'translate(0,0) rotate(0deg)' },
+          { transform: 'translate(4px,3px) rotate(3deg)' },
+          { transform: 'translate(-4px,1px) rotate(-3deg)' },
+          { transform: 'translate(3px,4px) rotate(2deg)' },
+          { transform: 'translate(0,0) rotate(0deg)' },
+        ], DURATION.turn, { easing: 'ease-in-out', fill: 'none' }),
+      ]);
+      sfx.clunk();
+    },
+
+    async drop() {
+      const from = slotOffset();
+      await Promise.all([
+        animate(els.dim, [{ opacity: 0 }, { opacity: 1 }], 460),
+        animate(els.capsule, [
+          { transform: `translate(${from.x}px, ${from.y}px) scale(.4) rotate(-20deg)`, opacity: 0 },
+          { transform: `translate(${from.x * .7}px, ${from.y * .7}px) scale(.6) rotate(-10deg)`, opacity: 1, offset: .18 },
+          { transform: `translate(${from.x * .1}px, ${from.y * .08}px) scale(1.08) rotate(6deg)`, offset: .72 },
+          { transform: 'translate(0,0) scale(1) rotate(0deg)', opacity: 1 },
+        ], DURATION.drop, { easing: 'cubic-bezier(.34,1.25,.64,1)' }),
+      ]);
       sfx.drop();
     },
 

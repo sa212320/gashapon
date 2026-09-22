@@ -31,6 +31,10 @@ const view = createMachineView({
 });
 
 const revealer = createRevealer({
+  machine: $('machine'),
+  knob: $('knob'),
+  capsuleGroup: $('capsuleGroup'),
+  dim: $('dim'),
   capsule: $('capsule'),
   top: $('capsuleTop'),
   bottom: $('capsuleBottom'),
@@ -68,7 +72,9 @@ function closeOverlay() {
   render();
 }
 
-async function doDraw() {
+// turn = 要不要先播「轉把手」那段扭蛋機本體的演出。
+// 按「再抽一次」時不播,免得小孩連抽的時候每次都要重看一遍。
+async function doDraw({ turn = true } = {}) {
   // 連按:先把正在播的這次快轉完,不要疊在一起
   if (revealer.isPlaying) {
     revealer.requestSkip();
@@ -76,7 +82,7 @@ async function doDraw() {
   }
 
   const machine = getActiveMachine(state);
-  const result = draw(machine);
+  const result = draw(machine, Math.random, { turn });
   if (!result) {
     sfx.empty();
     render();
@@ -93,7 +99,7 @@ async function doDraw() {
   view.render(getActiveMachine(state));
 }
 
-$('drawBtn').addEventListener('click', doDraw);
+$('drawBtn').addEventListener('click', () => doDraw());
 
 // 小孩切去別的 App 時瀏覽器會暫停動畫,演出等於停在半路。
 // 直接快轉到結果,切回來就看得到抽到什麼。
@@ -104,7 +110,7 @@ document.addEventListener('visibilitychange', () => {
 $('againBtn').addEventListener('click', e => {
   e.stopPropagation();
   closeOverlay();
-  doDraw();
+  doDraw({ turn: false });
 });
 
 overlay.addEventListener('click', () => {
@@ -124,8 +130,11 @@ $('soundBtn').addEventListener('click', () => {
   commit();
 });
 
-// 手機要在使用者手勢裡才准開 AudioContext
-document.addEventListener('pointerdown', () => { if (state.soundOn) unlock(); }, { once: true });
+// iOS 只承認 click / touchend,pointerdown 跟 touchstart 都不算數,
+// 所以兩個都綁上去,誰先來就用誰把音效叫醒。
+const unlockOnce = () => { if (state.soundOn) unlock(); };
+document.addEventListener('touchend', unlockOnce, { once: true, passive: true });
+document.addEventListener('click', unlockOnce, { once: true });
 
 /* ---------- 設定 ---------- */
 const settings = createSettingsDialog({

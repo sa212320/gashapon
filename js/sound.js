@@ -3,10 +3,17 @@
 let ctx = null;
 let enabled = true;
 
-// 手機瀏覽器要求 AudioContext 必須在使用者手勢裡建立,
-// 所以第一次碰畫面時就先把它開起來。
+// iOS 的 WebKit 只承認 click / touchend 這類手勢,touchstart 跟 pointerdown 都不算;
+// 而且光是 resume() 還不夠,要真的推一段(無聲的)聲音出去,它才算真的醒過來。
 export function unlock() {
-  ensure();
+  const ac = ensure();
+  if (!ac) return;
+  try {
+    const src = ac.createBufferSource();
+    src.buffer = ac.createBuffer(1, 1, 22050);
+    src.connect(ac.destination);
+    src.start(0);
+  } catch { /* 解鎖失敗不該讓整個 App 掛掉 */ }
 }
 
 export function setEnabled(value) {
@@ -101,6 +108,10 @@ export const sfx = {
     [0, 4, 7, 12].slice(0, 2 + level).forEach((semi, i) => {
       tone({ freq: root * 2 ** (semi / 12), dur: 0.6, type: 'sine', gain: 0.14, delay: i * 0.07 });
     });
+  },
+  clunk() {
+    tone({ freq: 180, to: 90, dur: 0.14, type: 'triangle', gain: 0.22 });
+    noise({ dur: 0.1, gain: 0.1, from: 900, to: 150 });
   },
   empty() {
     tone({ freq: 300, to: 160, dur: 0.35, type: 'sine', gain: 0.18 });
