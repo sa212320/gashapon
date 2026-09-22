@@ -58,6 +58,8 @@
   box-shadow: 0 5px 0 var(--ink);
 }
 .icon-btn:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); }
+.icon-btn--light { border-width: 0; box-shadow: none; background: transparent; color: #fff; }
+.icon-btn--light:active { transform: none; }
 
 /* ---------- dialog ---------- */
 .dialog {
@@ -95,6 +97,13 @@
   background: var(--cream-deep);
 }
 .dialog__foot .btn { flex: 1; }
+
+/* shared/js/ask.js 驅動的確認框,結構跟 .dialog 一樣,只是尺寸與排版不同 */
+.dialog--ask { width: min(88vw, 340px); display: none; }
+.dialog--ask[open] { display: block; padding: 24px 22px; }
+.ask__text { margin: 0 0 20px; font-size: 18px; text-align: center; line-height: 1.6; }
+.ask__buttons { display: flex; gap: 12px; }
+.ask__buttons .btn { flex: 1; }
 
 /* ---------- tabs / panel ---------- */
 .tabs { display: flex; background: var(--cream-deep); }
@@ -163,3 +172,4 @@
   white-space: nowrap;
 }
 .chip:disabled { opacity: .35; cursor: default; }
+.chip--danger { color: #C03A2B; }

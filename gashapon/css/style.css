@@ -253,8 +253,6 @@ body {
 }
 .btn--draw:disabled { animation: none; }
 
-.icon-btn--light { border-width: 0; box-shadow: none; background: transparent; color: #fff; }
-.icon-btn--light:active { transform: none; }
 .is-muted { opacity: .45; }
 
 /* ---------- dialog (machine-specific bits) ---------- */
@@ -276,7 +274,6 @@ body {
   background: #fff;
   color: var(--ink);
 }
-.chip--danger { color: #C03A2B; }
 
 .prize-list, .edit-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 
@@ -369,12 +366,6 @@ body {
   color: #C03A2B;
   cursor: pointer;
 }
-
-.dialog--ask { width: min(88vw, 340px); display: none; }
-.dialog--ask[open] { display: block; padding: 24px 22px; }
-.ask__text { margin: 0 0 20px; font-size: 18px; text-align: center; line-height: 1.6; }
-.ask__buttons { display: flex; gap: 12px; }
-.ask__buttons .btn { flex: 1; }
 
 @media (max-height: 560px) {
   .machine { width: min(52vw, 40vh, 240px); }
