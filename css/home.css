@@ -1,0 +1,131 @@
+/* 首頁沿用 shared/css/tokens.css 的顏色與描邊風格,這裡不再另外定義一套視覺語言 */
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 12% 18%, #FFE9C9 0 22%, transparent 22.5%),
+    radial-gradient(circle at 88% 12%, #FFDCD2 0 16%, transparent 16.5%),
+    radial-gradient(circle at 78% 86%, #E4F6E2 0 20%, transparent 20.5%),
+    var(--cream);
+  color: var(--ink);
+  font-family: ui-rounded, "Hiragino Maru Gothic ProN", "PingFang TC",
+    "Noto Sans TC", system-ui, sans-serif;
+  font-weight: 700;
+  -webkit-text-size-adjust: 100%;
+}
+
+.home-head {
+  padding: max(28px, env(safe-area-inset-top)) 18px 8px;
+  text-align: center;
+}
+.home-head h1 {
+  margin: 0;
+  font-size: clamp(24px, 6vw, 32px);
+  letter-spacing: .04em;
+}
+
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  padding: 18px max(18px, env(safe-area-inset-left)) max(28px, env(safe-area-inset-bottom));
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.card {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 22px 12px;
+  min-height: 44px;
+  text-decoration: none;
+  color: var(--ink);
+  background: var(--cream);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 0 var(--ink);
+  transition: transform .08s, box-shadow .08s;
+}
+.card:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 var(--ink);
+}
+
+.card__name {
+  font-size: 18px;
+}
+.card__desc {
+  font-size: 13px;
+  font-weight: 400;
+  color: #9A8778;
+  text-align: center;
+}
+
+/* ---------- 圖示:純 CSS 畫,不引任何圖檔 ---------- */
+.card__art {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  border: var(--stroke) solid var(--ink);
+}
+
+/* 扭蛋機:上白下彩,跟膠囊造型呼應 */
+.card__art--gashapon {
+  background: linear-gradient(to bottom, #fff 50%, var(--coral) 50%);
+}
+
+/* 立體扭蛋機:加一顆高光,做出球體感 */
+.card__art--gashapon3d {
+  background: radial-gradient(circle at 34% 28%, #fff 0 14%, var(--mint) 15% 60%, var(--coral-deep) 100%);
+}
+
+/* 一番賞:一張直立的籤紙,右上角折角 */
+.card__art--ichiban {
+  width: 52px;
+  height: 68px;
+  border-radius: 10px;
+  background: var(--sun);
+  position: relative;
+  overflow: hidden;
+}
+.card__art--ichiban::after {
+  content: "";
+  position: absolute;
+  top: -14px;
+  right: -14px;
+  width: 26px;
+  height: 26px;
+  background: var(--cream);
+  border: var(--stroke) solid var(--ink);
+  transform: rotate(45deg);
+}
+
+/* 阿彌陀籤:一格一格的直排線條 */
+.card__art--ghostleg {
+  background:
+    repeating-linear-gradient(90deg,
+      var(--ink) 0 4px, transparent 4px 20px)
+    var(--blush);
+}
+
+/* 大亂鬥:尖角碰撞的星芒 */
+.card__art--smash {
+  border: none;
+  border-radius: 0;
+  clip-path: polygon(
+    50% 0%, 63% 35%, 100% 35%, 71% 57%,
+    82% 95%, 50% 72%, 18% 95%, 29% 57%,
+    0% 35%, 37% 35%
+  );
+  background: var(--sun);
+}
+
+@media (max-width: 380px) {
+  .home-grid { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+}
