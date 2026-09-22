@@ -53,7 +53,8 @@ const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const AC = window.AudioContext || window.webkitAudioContext;
 let ctx = null;
 
-add(rows, 'ES module 有載入', window.__moduleOK ? '是' : '否', window.__moduleOK ? 'ok' : 'bad');
+const moduleSupported = 'noModule' in HTMLScriptElement.prototype;
+add(rows, '支援 ES module', moduleSupported ? '是' : '否 ← 整個 App 都不會動', moduleSupported ? 'ok' : 'bad');
 add(rows, '減少動態 (Reduce Motion)', reduced ? '開著 ← 動畫會被關掉' : '關著', reduced ? 'bad' : 'ok');
 add(rows, 'Element.animate', typeof document.body.animate === 'function' ? '有' : '沒有',
     typeof document.body.animate === 'function' ? 'ok' : 'bad');
@@ -72,11 +73,27 @@ import('./js/gacha.js').then(m => {
   add(rows, '主程式模組', `載入成功,UR 有 ${shakes} 次搖`, shakes === 4 ? 'ok' : 'bad');
 }).catch(e => add(rows, '主程式模組', '載入失敗:' + e.message, 'bad'));
 
-// rAF 到底有沒有在跑
+// module script 是 deferred,所以要等 load 之後才問
+addEventListener('load', () => {
+  add(rows, 'module script 真的執行了', window.__moduleOK ? '是' : '否 ← App 不會動',
+      window.__moduleOK ? 'ok' : 'bad');
+});
+
+// rAF 到底有沒有在跑。就算一格都沒有也一定要回報,不然這行會消失
 let frames = 0;
+let reported = false;
+const report = () => {
+  if (reported) return;
+  reported = true;
+  add(rows, '每秒畫格數 (rAF)', String(frames) + (frames === 0 ? ' ← 動畫整個被凍住' : ''),
+      frames > 30 ? 'ok' : frames > 0 ? 'warn' : 'bad');
+};
 const t0 = performance.now();
-(function tick() { frames++; if (performance.now() - t0 < 1000) requestAnimationFrame(tick);
-  else add(rows, '每秒畫格數 (rAF)', String(frames), frames > 30 ? 'ok' : frames > 0 ? 'warn' : 'bad'); })();
+(function tick() {
+  frames++;
+  if (performance.now() - t0 < 1000) requestAnimationFrame(tick); else report();
+})();
+setTimeout(report, 1600);
 
 const box = document.getElementById('box');
 document.getElementById('animBtn').addEventListener('click', async () => {
