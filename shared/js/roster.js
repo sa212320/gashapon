@@ -28,6 +28,29 @@ export function needsRebuild(before, after) {
   return a.some((k, i) => k !== b[i]);
 }
 
+// 「普通物件」:字面量 `{}` 或 `Object.create(null)`,列舉它的 key 有意義。
+// Date、RegExp 這類物件不算——它們的值藏在內部 slot,不是自身可列舉的 key
+// (Object.keys(new Date()) 是 []),所以不能靠 typeof === 'object' 來判斷,
+// 一律走「列舉 key」會把所有 Date 序列化成同一個 '{}'。用原型判斷才準確。
+function isPlainObject(value) {
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+// 普通物件以外的物件(Date、RegExp、…):用型別標籤 + 物件自己的值序列化,
+// 不要列舉 key。Date 用 getTime()(Invalid Date 的 getTime() 是 NaN,跟數字
+// NaN 的表示法一致地標成 'NaN',但因為前面帶了 tag,不會跟數字 NaN 混淆);
+// RegExp 用 String(value)(能同時抓到 pattern 與 flags);其他不預期出現在
+// entries 裡的物件類型,一樣用「tag + String(value)」保底,避免拋例外。
+function serializeNonPlainObject(value) {
+  const tag = Object.prototype.toString.call(value);
+  if (tag === '[object Date]') {
+    const t = value.getTime();
+    return `${tag}:${Number.isNaN(t) ? 'NaN' : t}`;
+  }
+  return `${tag}:${String(value)}`;
+}
+
 // 遞迴、型別安全的序列化器,專門給 entriesChanged 用。
 // 不能用 JSON.stringify:它會把 undefined 跟 NaN 都變成 null,
 // 而且只會照物件原本的 key 順序輸出,巢狀物件的 key 換個順序就會被誤判成「變了」。
@@ -44,6 +67,7 @@ function stableSerialize(value) {
     return `[${value.map(stableSerialize).join(',')}]`;
   }
   if (typeof value === 'object') {
+    if (!isPlainObject(value)) return serializeNonPlainObject(value);
     const keys = Object.keys(value).sort();
     return `{${keys.map(k => `${JSON.stringify(k)}:${stableSerialize(value[k])}`).join(',')}}`;
   }
