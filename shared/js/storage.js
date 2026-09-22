@@ -14,15 +14,18 @@ function resolveStorage(storage) {
 
 export function createStore({ key, schema, sanitize, seed }) {
   function load(storage) {
+    // resolved 宣告在 try 外面,這樣 catch 才能拿到「已經解析成功」的那個 storage
+    // (例外可能是後面 JSON.parse / sanitize 丟的,不代表 storage 本身拿不到)。
+    let resolved;
     try {
-      const resolved = resolveStorage(storage);
+      resolved = resolveStorage(storage);
       const raw = resolved?.getItem(key);
       if (!raw) return seed(resolved);
       const parsed = JSON.parse(raw);
       if (!parsed || parsed.schema !== schema) return seed(resolved);
       return sanitize(parsed.state) ?? seed(resolved);
     } catch {
-      return seed(undefined);
+      return seed(resolved);
     }
   }
 

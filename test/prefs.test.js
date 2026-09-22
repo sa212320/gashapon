@@ -86,3 +86,23 @@ test('savePrefs 單獨呼叫時完全不碰舊的 gashapon.v1', () => {
   savePrefs({ soundOn: true }, s);
   assert.equal(s.getItem('gashapon.v1'), before);
 });
+
+test('prefs.v1 壞掉但舊的 gashapon.v1 完好時,仍然要讀得到舊的音效設定', () => {
+  const s = fakeStorage({
+    'prefs.v1': '{壞掉的 JSON',
+    'gashapon.v1': JSON.stringify({ schema: 1, soundOn: false, machines: [], activeMachineId: 'x' }),
+  });
+  assert.equal(loadPrefs(s).soundOn, false, 'prefs 壞掉不該讓使用者關掉的音效被打開');
+});
+
+test('prefs.v1 的 schema 版本不認得但舊的 gashapon.v1 完好時,一樣讀得到', () => {
+  const s = fakeStorage({
+    'prefs.v1': JSON.stringify({ schema: 999, state: { soundOn: true } }),
+    'gashapon.v1': JSON.stringify({ schema: 1, soundOn: false }),
+  });
+  assert.equal(loadPrefs(s).soundOn, false);
+});
+
+test('prefs.v1 壞掉、也沒有舊存檔時,退回預設的開啟', () => {
+  assert.equal(loadPrefs(fakeStorage({ 'prefs.v1': '{壞掉' })).soundOn, true);
+});
