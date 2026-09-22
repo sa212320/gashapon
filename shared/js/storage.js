@@ -1,22 +1,35 @@
 // localStorage 讀寫。原則:讀進來的東西一律當成不可信,
 // 壞掉就回種子資料,絕不讓小孩看到白畫面。
 
+// 存取 localStorage 這個 getter 本身就可能丟例外(Safari 封鎖所有 Cookie 時),
+// 所以連「拿到它」都要保護,不能放在預設參數裡 —— 那是在 try 之外求值的。
+function resolveStorage(storage) {
+  if (storage !== undefined) return storage;
+  try {
+    return globalThis.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function createStore({ key, schema, sanitize, seed }) {
-  function load(storage = globalThis.localStorage) {
+  function load(storage) {
     try {
-      const raw = storage?.getItem(key);
+      const resolved = resolveStorage(storage);
+      const raw = resolved?.getItem(key);
       if (!raw) return seed();
       const parsed = JSON.parse(raw);
       if (!parsed || parsed.schema !== schema) return seed();
-      return sanitize(parsed) ?? seed();
+      return sanitize(parsed.state) ?? seed();
     } catch {
       return seed();
     }
   }
 
-  function save(state, storage = globalThis.localStorage) {
+  function save(state, storage) {
     try {
-      storage?.setItem(key, JSON.stringify({ schema, ...state }));
+      const resolved = resolveStorage(storage);
+      resolved?.setItem(key, JSON.stringify({ schema, state }));
       return true;
     } catch {
       // 配額爆掉或被瀏覽器擋住:功能照常,只是這次沒存到
@@ -25,10 +38,11 @@ export function createStore({ key, schema, sanitize, seed }) {
   }
 
   // 打字時不要每個按鍵都寫一次 localStorage
-  function createDebouncedSave(storage = globalThis.localStorage, delay = 200) {
+  function createDebouncedSave(storage, delay = 200) {
     let timer = null;
     return state => {
       clearTimeout(timer);
+      // storage 要在真正寫入的當下才解析,不是在建立 debouncer 時就解析掉
       timer = setTimeout(() => save(state, storage), delay);
     };
   }

@@ -73,3 +73,52 @@ test('兩個 store 用不同 key,互不干擾', () => {
   assert.deepEqual(store.load(s), { items: ['甲'] });
   assert.deepEqual(other.load(s), { n: 7 });
 });
+
+test('storage 這個 getter 本身就丟例外時,load 回種子資料而不是炸出來', () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    get() { throw new DOMException('The operation is insecure.', 'SecurityError'); },
+  });
+  try {
+    assert.doesNotThrow(() => store.load());
+    assert.deepEqual(store.load(), { items: ['種子'] });
+    assert.doesNotThrow(() => store.save({ items: [] }));
+    assert.doesNotThrow(() => store.createDebouncedSave());
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'localStorage', original);
+    else delete globalThis.localStorage;
+  }
+});
+
+test('domain state 裡剛好有一個叫 schema 的欄位時,存檔不會被毀掉', () => {
+  const s = fakeStorage();
+  store.save({ items: ['甲'], schema: '這是使用者自己的欄位' }, s);
+  const back = store.load(s);
+  assert.deepEqual(back.items, ['甲'], '使用者的資料必須完整讀回來');
+});
+
+test('存檔格式是巢狀的,版本號跟資料分開放', () => {
+  const s = fakeStorage();
+  store.save({ items: ['甲'] }, s);
+  const raw = JSON.parse(s.getItem('demo.v1'));
+  assert.equal(raw.schema, 1);
+  assert.deepEqual(raw.state.items, ['甲']);
+});
+
+test('debounced save 觸發時 localStorage getter 丟例外,也不會炸出來', async () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    get() { throw new DOMException('The operation is insecure.', 'SecurityError'); },
+  });
+  try {
+    const debouncedSave = store.createDebouncedSave(undefined, 1);
+    assert.doesNotThrow(() => debouncedSave({ items: ['甲'] }));
+    // 等 debounce 的 setTimeout 真的觸發、走到 save() 內部去解析 storage
+    await new Promise(resolve => setTimeout(resolve, 20));
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'localStorage', original);
+    else delete globalThis.localStorage;
+  }
+});
