@@ -104,3 +104,50 @@ test('removeSetup 刪到一組都不剩時,用 makeSeed 補一組', () => {
   assert.equal(state.setups.length, 1);
   assert.equal(getActive(state).id, 'seed');
 });
+
+// --- entriesChanged:修正 JSON.stringify 誤判(undefined/NaN 序列化成 null、只排序頂層 key) ---
+
+test('entriesChanged:undefined 與 null 是不同的值', () => {
+  assert.equal(entriesChanged([{ id: 'a', count: 1, x: undefined }], [{ id: 'a', count: 1, x: null }]), true);
+});
+
+test('entriesChanged:NaN 與 null 是不同的值', () => {
+  assert.equal(entriesChanged([{ id: 'a', count: 1, x: NaN }], [{ id: 'a', count: 1, x: null }]), true);
+});
+
+test('entriesChanged:NaN 跟自己比算沒變', () => {
+  assert.equal(entriesChanged([{ id: 'a', count: 1, x: NaN }], [{ id: 'a', count: 1, x: NaN }]), false);
+});
+
+test('entriesChanged:巢狀物件內容一樣、key 順序不同,不算變', () => {
+  assert.equal(entriesChanged(
+    [{ id: 'a', count: 1, style: { color: 'red', size: 'big' } }],
+    [{ id: 'a', count: 1, style: { size: 'big', color: 'red' } }]), false);
+});
+
+test('entriesChanged:巢狀物件內容不一樣就算變', () => {
+  assert.equal(entriesChanged(
+    [{ id: 'a', count: 1, style: { color: 'red' } }],
+    [{ id: 'a', count: 1, style: { color: 'blue' } }]), true);
+});
+
+test('entriesChanged:陣列的順序有意義', () => {
+  assert.equal(entriesChanged([{ id: 'a', count: 1, tags: ['x', 'y'] }], [{ id: 'a', count: 1, tags: ['y', 'x'] }]), true);
+});
+
+test('entriesChanged:物件多了或少了一個 key 也算變', () => {
+  assert.equal(entriesChanged([{ id: 'a', count: 1 }], [{ id: 'a', count: 1, extra: 'x' }]), true);
+});
+
+test('entriesChanged:陣列裡的巢狀物件,物件內 key 順序不算、陣列順序算', () => {
+  assert.equal(entriesChanged(
+    [{ id: 'a', count: 1, list: [{ color: 'red', size: 'big' }] }],
+    [{ id: 'a', count: 1, list: [{ size: 'big', color: 'red' } ] }]), false);
+  assert.equal(entriesChanged(
+    [{ id: 'a', count: 1, list: [{ x: 1 }, { x: 2 }] }],
+    [{ id: 'a', count: 1, list: [{ x: 2 }, { x: 1 }] }]), true);
+});
+
+test('entriesChanged:同值不同型別(字串 vs 數字)算變', () => {
+  assert.equal(entriesChanged([{ id: 'a', count: 1, x: '1' }], [{ id: 'a', count: 1, x: 1 }]), true);
+});

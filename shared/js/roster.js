@@ -28,12 +28,34 @@ export function needsRebuild(before, after) {
   return a.some((k, i) => k !== b[i]);
 }
 
+// 遞迴、型別安全的序列化器,專門給 entriesChanged 用。
+// 不能用 JSON.stringify:它會把 undefined 跟 NaN 都變成 null,
+// 而且只會照物件原本的 key 順序輸出,巢狀物件的 key 換個順序就會被誤判成「變了」。
+// 物件的 key 遞迴排序後再比對(順序不重要);陣列保留原本順序(順序本身有意義)。
+function stableSerialize(value) {
+  if (value === undefined) return 'u';
+  if (value === null) return 'n';
+  if (typeof value === 'number') {
+    return Number.isNaN(value) ? 'NaN' : `num:${value}`;
+  }
+  if (typeof value === 'string') return `str:${JSON.stringify(value)}`;
+  if (typeof value === 'boolean') return `bool:${value}`;
+  if (Array.isArray(value)) {
+    return `[${value.map(stableSerialize).join(',')}]`;
+  }
+  if (typeof value === 'object') {
+    const keys = Object.keys(value).sort();
+    return `{${keys.map(k => `${JSON.stringify(k)}:${stableSerialize(value[k])}`).join(',')}}`;
+  }
+  // function、symbol、bigint 等其他型別:不預期出現在 entries 裡,保底處理避免拋例外。
+  return `${typeof value}:${String(value)}`;
+}
+
 // 內容有沒有動過,給「按確定時要不要做事」用。不在乎排列順序。
 export function entriesChanged(before, after) {
   if (before.length !== after.length) return true;
-  const key = e => JSON.stringify(Object.keys(e).sort().map(k => [k, e[k]]));
-  const a = before.map(key).sort();
-  const b = after.map(key).sort();
+  const a = before.map(stableSerialize).sort();
+  const b = after.map(stableSerialize).sort();
   return a.some((k, i) => k !== b[i]);
 }
 
