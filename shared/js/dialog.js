@@ -4,7 +4,55 @@
 //
 // onSetupAdded(可選):新增一組設定之後呼叫,讓各模式自己決定要跳去哪個分頁、
 // 要 focus 哪個欄位。不給的話預設「停在目前分頁」,不會自作主張跳頁。
+//
+// els 需要下面這些鍵,對應的 markup 可以直接照抄這份骨架(class 名稱、
+// dialog__head / picker / tabs / dialog__body / dialog__foot 這一套排版
+// 都吃 shared/css/tokens.css 的樣式;每個模式自己的分頁內容放進
+// `[data-panel]`,名字要跟傳給 createDialogShell 的 `tabs` 陣列對上):
+//
+//   <dialog class="dialog" id="...">                      -- els.dialog
+//     <header class="dialog__head">
+//       <h2>OO設定</h2>
+//       <button class="icon-btn icon-btn--light" id="..." -- els.closeBtn
+//               type="button" aria-label="關閉">✕</button>
+//     </header>
+//
+//     <div class="picker">
+//       <select class="picker__select" id="..."           -- els.setupSelect
+//               aria-label="選擇..."></select>
+//       <button class="chip" id="..." type="button">      -- els.addSetupBtn
+//         ＋ 新增</button>
+//       <button class="chip chip--danger" id="..."        -- els.deleteSetupBtn
+//               type="button">刪除</button>
+//     </div>
+//
+//     <nav class="tabs" id="...">                          -- els.tabsNav
+//       <button class="tab is-active" data-tab="第一個分頁的 name" type="button">...</button>
+//       <button class="tab" data-tab="..." type="button">...</button>
+//     </nav>
+//
+//     <div class="dialog__body">
+//       <section class="panel" data-panel="第一個分頁的 name">...</section>
+//       <section class="panel" data-panel="..." hidden>...</section>
+//     </div>
+//
+//     <footer class="dialog__foot">
+//       <button class="btn btn--ghost" id="..." type="button">取消</button>   -- els.cancelBtn
+//       <button class="btn btn--primary" id="..." type="button">確定</button> -- els.confirmBtn
+//     </footer>
+//   </dialog>
+const REQUIRED_ELS = [
+  'dialog', 'setupSelect', 'addSetupBtn', 'deleteSetupBtn',
+  'tabsNav', 'confirmBtn', 'cancelBtn', 'closeBtn',
+];
+
 export function createDialogShell({ els, ask, actions, tabs, onSetupAdded }) {
+  // 開發期檢查:els 抄漏一個鍵,這個 module 就會整個掛掉 = 白紙一片。
+  // 白屏是我們最怕的事,所以這裡只 warn、不 throw,讓抄漏的人至少看得到錯在哪。
+  for (const key of REQUIRED_ELS) {
+    if (!els[key]) console.warn(`createDialogShell: els.${key} 不見了,對話框可能沒辦法動。`);
+  }
+
   function renderSetupPicker() {
     const state = actions.getState();
     els.setupSelect.replaceChildren(...state.setups.map(setup => {
