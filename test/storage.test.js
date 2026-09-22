@@ -46,20 +46,46 @@ test('schema 版本不認得時回種子資料', () => {
   assert.equal(load(store).machines.length, 1);
 });
 
-test('存了再讀,機台、進度、音效開關都還在', () => {
+test('存了再讀,機台、進度都還在', () => {
   const store = fakeStorage();
   let state = addMachine(createInitialState(), '第二台');
-  state.soundOn = false;
   state.machines[0].pool[0].drawn = true;
   state.machines[0].removeOnDraw = false;
   save(state, store);
 
   const loaded = load(store);
   assert.equal(loaded.machines.length, 2);
-  assert.equal(loaded.soundOn, false);
   assert.equal(getActiveMachine(loaded).name, '第二台');
   assert.equal(loaded.machines[0].pool[0].drawn, true);
   assert.equal(loaded.machines[0].removeOnDraw, false);
+});
+
+// soundOn 搬去 shared/js/prefs.js 的 prefs.v1 了。這裡的存檔只讀不寫那個舊欄位
+// (shared/js/prefs.js 的 migrate() 會讀),save() 絕對不能把它寫回去 ——
+// 否則舊使用者遷移前的設定會在遷移發生前就被抹掉。
+test('save 不會把 soundOn 寫進存檔,就算 state 上帶著這個欄位', () => {
+  const store = fakeStorage();
+  const state = { ...createInitialState(), soundOn: false };
+  save(state, store);
+  const raw = JSON.parse(store.getItem(STORAGE_KEY));
+  assert.equal('soundOn' in raw, false);
+});
+
+test('load 回來的 state 不會帶 soundOn 欄位', () => {
+  const store = fakeStorage({
+    [STORAGE_KEY]: JSON.stringify({ schema: 1, soundOn: false, machines: [], activeMachineId: 'x' }),
+  });
+  assert.equal('soundOn' in load(store), false);
+});
+
+test('讀了再存一輪之後,舊存檔裡的 soundOn 不會被改寫成別的值,而是單純消失', () => {
+  const store = fakeStorage({
+    [STORAGE_KEY]: JSON.stringify({ schema: 1, soundOn: false, machines: [], activeMachineId: 'x' }),
+  });
+  // 模擬遷移完成前,使用者做了別的操作觸發存檔
+  save(load(store), store);
+  const raw = JSON.parse(store.getItem(STORAGE_KEY));
+  assert.equal('soundOn' in raw, false);
 });
 
 test('存檔裡的機台缺了 pool 時,會依 prizes 重新裝滿而不是壞掉', () => {

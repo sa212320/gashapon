@@ -11,13 +11,18 @@ import { createMachineView } from './ui-machine.js';
 import { createSettingsDialog } from './ui-settings.js';
 import { createAsk } from '../../shared/js/ask.js';
 import { setEnabled, unlock, sfx } from '../../shared/js/sound.js';
+import { loadPrefs, savePrefs } from '../../shared/js/prefs.js';
 
 const $ = id => document.getElementById(id);
 
 let state = load();
 const persist = createDebouncedSave();
 
-setEnabled(state.soundOn);
+// soundOn 是全站共用的偏好,住在 shared/js/prefs.js 的 prefs.v1,
+// 不是這台機器自己的存檔 —— 四個模式上線後都要讀寫同一份。
+let prefs = loadPrefs();
+
+setEnabled(prefs.soundOn);
 requestPersistence();
 
 const view = createMachineView({
@@ -55,7 +60,7 @@ const ask = createAsk({
 
 function render() {
   view.render(getActiveMachine(state));
-  view.setSoundIcon(state.soundOn);
+  view.setSoundIcon(prefs.soundOn);
 }
 
 function commit() {
@@ -126,14 +131,15 @@ $('refillBtn').addEventListener('click', () => {
 
 /* ---------- 音效 ---------- */
 $('soundBtn').addEventListener('click', () => {
-  state = { ...state, soundOn: !state.soundOn };
-  setEnabled(state.soundOn);
-  commit();
+  prefs = { ...prefs, soundOn: !prefs.soundOn };
+  setEnabled(prefs.soundOn);
+  savePrefs(prefs);
+  render();
 });
 
 // iOS 只承認 click / touchend,pointerdown 跟 touchstart 都不算數,
 // 所以兩個都綁上去,誰先來就用誰把音效叫醒。
-const unlockOnce = () => { if (state.soundOn) unlock(); };
+const unlockOnce = () => { if (prefs.soundOn) unlock(); };
 document.addEventListener('touchend', unlockOnce, { once: true, passive: true });
 document.addEventListener('click', unlockOnce, { once: true });
 
@@ -159,7 +165,9 @@ const settings = createSettingsDialog({
   },
   ask,
   actions: {
-    getState: () => state,
+    // 這裡把 prefs.soundOn 併進 state 的形狀給 ui-settings.js 看,
+    // 它不需要知道音效開關實際上住在哪個 store 裡。
+    getState: () => ({ ...state, soundOn: prefs.soundOn }),
     getActiveMachine: () => getActiveMachine(state),
 
     switchMachine(id) {
@@ -186,9 +194,10 @@ const settings = createSettingsDialog({
       const machine = getActiveMachine(state);
       const next = { ...machine, name, removeOnDraw, prizes };
       state = replaceMachine(state, rebuildPool ? refillMachine(next) : next);
-      if (soundOn !== state.soundOn) {
-        state = { ...state, soundOn };
+      if (soundOn !== prefs.soundOn) {
+        prefs = { ...prefs, soundOn };
         setEnabled(soundOn);
+        savePrefs(prefs);
       }
       commit();
     },

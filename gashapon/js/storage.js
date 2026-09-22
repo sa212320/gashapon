@@ -66,15 +66,19 @@ export function load(storage) {
       ? parsed.activeMachineId
       : machines[0].id;
 
-    return { machines, activeMachineId, soundOn: parsed.soundOn !== false };
+    return { machines, activeMachineId };
   } catch {
     return createInitialState();
   }
 }
 
+// soundOn 已經搬去 shared/js/prefs.js 的 prefs.v1 管了。這裡的存檔格式
+// 只讀不寫那個舊欄位(migrate() 會讀),絕對不能在這裡把它寫回去,
+// 否則舊使用者遷移前的設定會被目前的 state(根本不帶 soundOn)蓋掉。
 export function save(state, storage) {
   try {
-    resolveStorage(storage)?.setItem(STORAGE_KEY, JSON.stringify({ schema: SCHEMA_VERSION, ...state }));
+    const { soundOn, ...rest } = state;
+    resolveStorage(storage)?.setItem(STORAGE_KEY, JSON.stringify({ schema: SCHEMA_VERSION, ...rest }));
     return true;
   } catch {
     // 配額爆掉或被瀏覽器擋住:功能照常,只是這次沒存到

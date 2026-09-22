@@ -92,7 +92,6 @@ test('prizesChanged:只是順序不同,內容一樣,不算變(不該沒收小孩
 test('createInitialState 給一台種子機台,並指向它', () => {
   const s = createInitialState();
   assert.equal(s.machines.length, 1);
-  assert.equal(s.soundOn, true);
   assert.equal(getActiveMachine(s).id, s.machines[0].id);
   assert.ok(remaining(s.machines[0]) > 0);
 });

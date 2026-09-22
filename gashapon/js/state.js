@@ -72,7 +72,7 @@ export function needsRebuild(before, after) {
 
 export function createInitialState() {
   const machine = createSeedMachine();
-  return { machines: [machine], activeMachineId: machine.id, soundOn: true };
+  return { machines: [machine], activeMachineId: machine.id };
 }
 
 export function getActiveMachine(state) {
