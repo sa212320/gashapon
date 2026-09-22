@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>扭蛋機 診斷</title>
+<style>
+  body { font-family: -apple-system, "PingFang TC", system-ui, sans-serif; margin: 0; padding: 16px;
+         background: #FFF6E9; color: #3A2E29; font-size: 17px; line-height: 1.5; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.sub { margin: 0 0 16px; color: #8A7A6E; font-size: 14px; }
+  ul { list-style: none; margin: 0 0 20px; padding: 0; }
+  li { padding: 9px 0; border-bottom: 1px solid #E8DBC9; display: flex; gap: 10px; align-items: baseline; }
+  li b { flex: 1; font-weight: 600; }
+  li span { text-align: right; font-family: ui-monospace, monospace; font-size: 14px; word-break: break-all; max-width: 58%; }
+  .ok { color: #2F8F52; } .bad { color: #C0392B; } .warn { color: #B8860B; }
+  button { font: inherit; font-weight: 700; width: 100%; padding: 16px; margin-bottom: 12px;
+           border: 4px solid #3A2E29; border-radius: 16px; background: #FFD166; color: #3A2E29; }
+  #box { width: 64px; height: 64px; border-radius: 16px; background: #FF7A5C;
+         border: 4px solid #3A2E29; margin: 0 auto 14px; }
+  #ua { font-size: 12px; color: #8A7A6E; word-break: break-all; margin-top: 20px; }
+</style>
+</head>
+<body>
+<h1>扭蛋機 診斷</h1>
+<p class="sub">在出問題的那支手機上打開這一頁,然後把整頁截圖給我。</p>
+
+<ul id="results"></ul>
+
+<div id="box"></div>
+<button id="animBtn" type="button">① 跑一次動畫(方塊應該滑動並變色)</button>
+<button id="soundBtn" type="button">② 播放測試音(應該聽到「叮」)</button>
+<ul id="results2"></ul>
+
+<p id="ua"></p>
+
+<script type="module">window.__moduleOK = true;</script>
+<script>
+const rows = document.getElementById('results');
+const rows2 = document.getElementById('results2');
+function add(list, label, value, state) {
+  const li = document.createElement('li');
+  const b = document.createElement('b'); b.textContent = label;
+  const s = document.createElement('span'); s.textContent = value;
+  if (state) s.className = state;
+  li.append(b, s); list.appendChild(li);
+}
+
+addEventListener('error', e => add(rows2, 'JS 錯誤', String(e.message), 'bad'));
+addEventListener('unhandledrejection', e => add(rows2, 'Promise 錯誤', String(e.reason), 'bad'));
+
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const AC = window.AudioContext || window.webkitAudioContext;
+let ctx = null;
+
+add(rows, 'ES module 有載入', window.__moduleOK ? '是' : '否', window.__moduleOK ? 'ok' : 'bad');
+add(rows, '減少動態 (Reduce Motion)', reduced ? '開著 ← 動畫會被關掉' : '關著', reduced ? 'bad' : 'ok');
+add(rows, 'Element.animate', typeof document.body.animate === 'function' ? '有' : '沒有',
+    typeof document.body.animate === 'function' ? 'ok' : 'bad');
+add(rows, 'AudioContext', AC ? (window.AudioContext ? '有' : '有 (webkit)') : '沒有', AC ? 'ok' : 'bad');
+add(rows, 'dialog.showModal', typeof HTMLDialogElement !== 'undefined'
+    && typeof HTMLDialogElement.prototype.showModal === 'function' ? '有' : '沒有',
+    typeof HTMLDialogElement !== 'undefined' ? 'ok' : 'bad');
+try { localStorage.setItem('__t','1'); localStorage.removeItem('__t'); add(rows,'localStorage','可寫','ok'); }
+catch (e) { add(rows, 'localStorage', '不能寫:' + e.name, 'bad'); }
+add(rows, '螢幕', `${innerWidth}×${innerHeight} @${devicePixelRatio}x`);
+
+// 主程式的模組真的載得起來嗎,而且演出腳本算得對嗎
+import('./js/gacha.js').then(m => {
+  const steps = m.buildRevealSteps('UR');
+  const shakes = steps.filter(s => s.type === 'shake').length;
+  add(rows, '主程式模組', `載入成功,UR 有 ${shakes} 次搖`, shakes === 4 ? 'ok' : 'bad');
+}).catch(e => add(rows, '主程式模組', '載入失敗:' + e.message, 'bad'));
+
+// rAF 到底有沒有在跑
+let frames = 0;
+const t0 = performance.now();
+(function tick() { frames++; if (performance.now() - t0 < 1000) requestAnimationFrame(tick);
+  else add(rows, '每秒畫格數 (rAF)', String(frames), frames > 30 ? 'ok' : frames > 0 ? 'warn' : 'bad'); })();
+
+const box = document.getElementById('box');
+document.getElementById('animBtn').addEventListener('click', async () => {
+  const start = performance.now();
+  const anim = box.animate(
+    [{ transform: 'translateX(-90px)', background: '#FF7A5C' },
+     { transform: 'translateX(90px)', background: '#8B5CF6' }],
+    { duration: 1200, easing: 'ease-in-out', fill: 'forwards' });
+  let settled = 'finished 沒回來';
+  await Promise.race([
+    anim.finished.then(() => { settled = `finished 回來了,花了 ${Math.round(performance.now() - start)}ms`; }),
+    new Promise(r => setTimeout(r, 3000)),
+  ]);
+  add(rows2, '動畫測試', settled, settled.startsWith('finished 回來') ? 'ok' : 'bad');
+  add(rows2, '動畫測試 playState', anim.playState, anim.playState === 'finished' ? 'ok' : 'bad');
+});
+
+document.getElementById('soundBtn').addEventListener('click', async () => {
+  if (!AC) { add(rows2, '音效測試', '這台沒有 AudioContext', 'bad'); return; }
+  if (!ctx) ctx = new AC();
+  const before = ctx.state;
+  try { await ctx.resume(); } catch (e) { add(rows2, 'resume 失敗', e.name, 'bad'); }
+  const osc = ctx.createOscillator();
+  const amp = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = 880;
+  amp.gain.setValueAtTime(0.0001, ctx.currentTime);
+  amp.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + 0.02);
+  amp.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.7);
+  osc.connect(amp).connect(ctx.destination);
+  osc.start(); osc.stop(ctx.currentTime + 0.75);
+  add(rows2, '音效測試', `建立前 ${before} → 現在 ${ctx.state}`, ctx.state === 'running' ? 'ok' : 'bad');
+  add(rows2, 'audioSession 可設定', 'audioSession' in navigator ? '有 (可繞過靜音鍵)' : '沒有',
+      'audioSession' in navigator ? 'ok' : 'warn');
+});
+
+document.getElementById('ua').textContent = navigator.userAgent;
+</script>
+</body>
+</html>
