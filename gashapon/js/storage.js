@@ -3,6 +3,17 @@
 import { STORAGE_KEY, SCHEMA_VERSION, RARITIES } from './constants.js';
 import { createInitialState, buildPool } from './state.js';
 
+// 存取 localStorage 這個 getter 本身就可能丟例外(Safari 封鎖所有 Cookie 時),
+// 所以連「拿到它」都要保護,不能放在預設參數裡 —— 那是在 try 之外求值的。
+function resolveStorage(storage) {
+  if (storage !== undefined) return storage;
+  try {
+    return globalThis.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function sanitizePrize(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const id = typeof raw.id === 'string' && raw.id ? raw.id : null;
@@ -39,9 +50,9 @@ function sanitizeMachine(raw) {
   };
 }
 
-export function load(storage = globalThis.localStorage) {
+export function load(storage) {
   try {
-    const raw = storage?.getItem(STORAGE_KEY);
+    const raw = resolveStorage(storage)?.getItem(STORAGE_KEY);
     if (!raw) return createInitialState();
 
     const parsed = JSON.parse(raw);
@@ -61,9 +72,9 @@ export function load(storage = globalThis.localStorage) {
   }
 }
 
-export function save(state, storage = globalThis.localStorage) {
+export function save(state, storage) {
   try {
-    storage?.setItem(STORAGE_KEY, JSON.stringify({ schema: SCHEMA_VERSION, ...state }));
+    resolveStorage(storage)?.setItem(STORAGE_KEY, JSON.stringify({ schema: SCHEMA_VERSION, ...state }));
     return true;
   } catch {
     // 配額爆掉或被瀏覽器擋住:功能照常,只是這次沒存到
@@ -72,7 +83,7 @@ export function save(state, storage = globalThis.localStorage) {
 }
 
 // 打字時不要每個按鍵都寫一次 localStorage
-export function createDebouncedSave(storage = globalThis.localStorage, delay = 200) {
+export function createDebouncedSave(storage, delay = 200) {
   let timer = null;
   return state => {
     clearTimeout(timer);

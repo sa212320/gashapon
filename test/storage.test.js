@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { load, save } from '../gashapon/js/storage.js';
+import { load, save, createDebouncedSave } from '../gashapon/js/storage.js';
 import { createInitialState, addMachine, getActiveMachine, remaining } from '../gashapon/js/state.js';
 import { STORAGE_KEY } from '../gashapon/js/constants.js';
 
@@ -95,4 +95,21 @@ test('存進去的獎項不會被池子污染:count 還是原本的', () => {
   state.machines[0].pool.forEach(c => { c.drawn = true; });
   save(state, store);
   assert.deepEqual(load(store).machines[0].prizes.map(p => p.count), before);
+});
+
+test('localStorage 這個 getter 本身就丟例外時,load 回種子資料而不是炸出來', () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    get() { throw new DOMException('The operation is insecure.', 'SecurityError'); },
+  });
+  try {
+    assert.doesNotThrow(() => load());
+    assert.ok(remaining(load().machines[0]) > 0, '拿不到 localStorage 時要回種子機台');
+    assert.doesNotThrow(() => save(createInitialState()));
+    assert.doesNotThrow(() => createDebouncedSave());
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'localStorage', original);
+    else delete globalThis.localStorage;
+  }
 });
