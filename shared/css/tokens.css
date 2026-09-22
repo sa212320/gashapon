@@ -27,6 +27,21 @@
 /* 作者端的 display 會蓋掉 hidden 屬性的 UA 樣式,所以要明講一次 */
 [hidden] { display: none !important; }
 
+/* 五個模式共用的底色、文字顏色、字體、字重。各模式自己的 body 只留
+   layout(display / grid-template-rows / min-height / padding / overflow 那些)。 */
+body {
+  background:
+    radial-gradient(circle at 12% 18%, #FFE9C9 0 22%, transparent 22.5%),
+    radial-gradient(circle at 88% 12%, #FFDCD2 0 16%, transparent 16.5%),
+    radial-gradient(circle at 78% 86%, #E4F6E2 0 20%, transparent 20.5%),
+    var(--cream);
+  color: var(--ink);
+  font-family: ui-rounded, "Hiragino Maru Gothic ProN", "PingFang TC",
+    "Noto Sans TC", system-ui, sans-serif;
+  font-weight: 700;
+  -webkit-text-size-adjust: 100%;
+}
+
 /* ---------- buttons ---------- */
 .btn {
   font: inherit;

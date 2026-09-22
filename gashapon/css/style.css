@@ -7,16 +7,6 @@ body {
   min-height: 100dvh;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  background:
-    radial-gradient(circle at 12% 18%, #FFE9C9 0 22%, transparent 22.5%),
-    radial-gradient(circle at 88% 12%, #FFDCD2 0 16%, transparent 16.5%),
-    radial-gradient(circle at 78% 86%, #E4F6E2 0 20%, transparent 20.5%),
-    var(--cream);
-  color: var(--ink);
-  font-family: ui-rounded, "Hiragino Maru Gothic ProN", "PingFang TC",
-    "Noto Sans TC", system-ui, sans-serif;
-  font-weight: 700;
-  -webkit-text-size-adjust: 100%;
   overflow: hidden;
 }
 
