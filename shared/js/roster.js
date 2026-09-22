@@ -29,26 +29,11 @@ export function needsRebuild(before, after) {
 }
 
 // 「普通物件」:字面量 `{}` 或 `Object.create(null)`,列舉它的 key 有意義。
-// Date、RegExp 這類物件不算——它們的值藏在內部 slot,不是自身可列舉的 key
-// (Object.keys(new Date()) 是 []),所以不能靠 typeof === 'object' 來判斷,
-// 一律走「列舉 key」會把所有 Date 序列化成同一個 '{}'。用原型判斷才準確。
+// 用原型判斷,而不是 value.constructor === Object——null-prototype 物件
+// 沒有 constructor,那樣判會誤傷 Object.create(null)。
 function isPlainObject(value) {
   const proto = Object.getPrototypeOf(value);
   return proto === Object.prototype || proto === null;
-}
-
-// 普通物件以外的物件(Date、RegExp、…):用型別標籤 + 物件自己的值序列化,
-// 不要列舉 key。Date 用 getTime()(Invalid Date 的 getTime() 是 NaN,跟數字
-// NaN 的表示法一致地標成 'NaN',但因為前面帶了 tag,不會跟數字 NaN 混淆);
-// RegExp 用 String(value)(能同時抓到 pattern 與 flags);其他不預期出現在
-// entries 裡的物件類型,一樣用「tag + String(value)」保底,避免拋例外。
-function serializeNonPlainObject(value) {
-  const tag = Object.prototype.toString.call(value);
-  if (tag === '[object Date]') {
-    const t = value.getTime();
-    return `${tag}:${Number.isNaN(t) ? 'NaN' : t}`;
-  }
-  return `${tag}:${String(value)}`;
 }
 
 // 遞迴、型別安全的序列化器,專門給 entriesChanged 用。
@@ -67,7 +52,8 @@ function stableSerialize(value) {
     return `[${value.map(stableSerialize).join(',')}]`;
   }
   if (typeof value === 'object') {
-    if (!isPlainObject(value)) return serializeNonPlainObject(value);
+    // 非普通物件(Date、RegExp、…)不保證比對得出正確結果,詳見 entriesChanged 上方註解。
+    if (!isPlainObject(value)) return 'object';
     const keys = Object.keys(value).sort();
     return `{${keys.map(k => `${JSON.stringify(k)}:${stableSerialize(value[k])}`).join(',')}}`;
   }
@@ -75,6 +61,12 @@ function stableSerialize(value) {
   return `${typeof value}:${String(value)}`;
 }
 
+// entries 是要進 localStorage 的資料,依 spec 的契約只能是字串、數字、布林、null、
+// 以及由這些組成的普通物件與陣列(docs/superpowers/specs/2026-09-22-multi-mode-site-design.md)。
+// Date / RegExp / Map / Set 這類 JSON 往返會失真或直接消失的型別,結構上不會合法
+// 出現在 entries 裡,所以 stableSerialize 不為它們的內容差異負責——遇到了只保證
+// 不拋例外(一律序列化成同一個值,所以兩個內容不同的 Date 在這裡會被誤判成沒變)。
+//
 // 內容有沒有動過,給「按確定時要不要做事」用。不在乎排列順序。
 export function entriesChanged(before, after) {
   if (before.length !== after.length) return true;
