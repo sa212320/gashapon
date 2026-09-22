@@ -97,8 +97,16 @@
 - `expand(entries, makeItem)` → 依 `count` 展開成個體陣列
 - `needsRebuild(before, after)` → 只比對 id 與 count。**改名字、改稀有度、改賞別、改顏色都不重建**,
   不能沒收使用者的進度
-- `remaining(items)` / `refill(setup)`
-- setups 的 `add` / `remove` / `rename` / `switch` / `getActive` / `replace`
+- `entriesChanged(before, after)` → 比對全部欄位,給「按確定時要不要做事」用
+- `countOf(entries)` → 所有 count 的總和
+- `remaining(items)` → `items.filter(i => !i.drawn).length`
+- setups 的 `createSetupList` / `addSetup` / `removeSetup` / `getActive` / `replaceSetup`
+
+**`refill` 不放在共用層**:每個模式展開出來的個體形狀不同(`Capsule` 有 `color`、`Ticket` 沒有),
+重建需要各自的 `makeItem`,硬抽成共用只會多一層轉接。各模式自己提供 `refillSetup`。
+
+**沒有 `rename`**:改名字就是在設定的「其他」分頁編輯 `setup.name`,按確定時走 `replaceSetup`,
+不需要獨立的函式。
 
 3D 的隨機蛋色實作在該模式自己的 `makeItem` 裡 —— 結構上就不可能污染 `Prize`,
 model 第 3 條由此被保護。
