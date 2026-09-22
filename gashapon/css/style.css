@@ -22,6 +22,7 @@ body {
 
 /* ---------- topbar ---------- */
 .topbar {
+  position: relative;
   padding: max(14px, env(safe-area-inset-top)) 18px 6px;
   text-align: center;
 }

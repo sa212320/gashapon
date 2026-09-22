@@ -178,6 +178,28 @@
 .switch__text { display: grid; gap: 2px; }
 .switch__text small { font-weight: 400; font-size: 13px; color: #9A8778; }
 
+/* ---------- home link ---------- */
+/* 回首頁的路,五個模式共用同一顆鍵、同一個位置(topbar 左側,絕對定位,
+   不佔版面寬度,機台名字才能繼續置中)。各模式只要讓自己的 .topbar
+   帶上 position: relative 就好。 */
+.home-link {
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 22px;
+  line-height: 1;
+  text-decoration: none;
+  color: var(--ink);
+}
+.home-link:active { background: rgba(87, 66, 57, .1); }
+.home-link:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
+
 /* ---------- chip ---------- */
 .chip {
   font: inherit;
