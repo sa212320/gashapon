@@ -119,3 +119,19 @@ body {
 @media (max-width: 380px) {
   .home-grid { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
 }
+
+/* 還沒做好的模式:看得出來、而且點不下去,不要讓小孩撞上 404 */
+.card--soon {
+  cursor: default;
+  opacity: .55;
+  box-shadow: 0 4px 0 rgba(87, 66, 57, .25);
+}
+.card--soon:active { transform: none; box-shadow: 0 4px 0 rgba(87, 66, 57, .25); }
+.card__soon {
+  margin-top: 4px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  border: 3px solid var(--ink);
+  background: var(--cream-deep);
+  font-size: 13px;
+}
