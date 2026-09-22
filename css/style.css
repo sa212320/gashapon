@@ -1,11 +1,13 @@
 /* ---------- tokens ---------- */
 :root {
-  --cream: #FFF6E9;
-  --cream-deep: #F6E7D3;
-  --ink: #4A3B34;
-  --coral: #FF7A5C;
-  --coral-deep: #E85B3C;
-  --sun: #FFD166;
+  --cream: #FFF7EC;
+  --cream-deep: #F7E9D6;
+  --ink: #574239;
+  --coral: #FF8D70;
+  --coral-deep: #F06E50;
+  --sun: #FFD479;
+  --blush: #FF9DB5;
+  --mint: #9BE7C4;
   --stroke: 6px;
   --radius: 22px;
 
@@ -77,10 +79,27 @@ body {
   overflow: visible;
   animation: idle-bob 3.6s ease-in-out infinite;
 }
-.machine__shadow { fill: rgba(74, 59, 52, .12); }
+.machine__shadow { fill: rgba(87, 66, 57, .11); }
+.machine__foot { fill: var(--coral-deep); stroke: var(--ink); stroke-width: 7; }
 .machine__body { fill: var(--coral); stroke: var(--ink); stroke-width: 7; }
-.machine__panel { fill: var(--coral-deep); }
-.machine__dome { fill: #FFFDF8; }
+.machine__panel { fill: #FFF1DC; stroke: var(--ink); stroke-width: 6; }
+.machine__blush { fill: var(--blush); opacity: .75; }
+
+.eye { transform-box: fill-box; transform-origin: center; animation: blink 4.4s ease-in-out infinite; }
+.eye--right { animation-delay: .08s; }
+.eye__ball { fill: var(--ink); }
+.eye__shine { fill: #fff; }
+
+.sparkle {
+  fill: var(--sun);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: twinkle 2.6s ease-in-out infinite;
+}
+.sparkle--b { fill: var(--blush); animation-delay: .7s; }
+.sparkle--c { fill: var(--mint); animation-delay: 1.3s; }
+.sparkle--d { fill: var(--blush); animation-delay: 1.9s; }
+.machine__dome { fill: #FFFEFA; }
 .machine__dome-glass { fill: rgba(255,255,255,.2); stroke: var(--ink); stroke-width: 7; }
 .machine__shine { fill: rgba(255,255,255,.65); }
 .machine__rim { fill: var(--sun); stroke: var(--ink); stroke-width: 7; }
@@ -88,7 +107,7 @@ body {
 .machine__capsules { transform-box: fill-box; transform-origin: center; }
 .machine__knob-base { fill: var(--cream); stroke: var(--ink); stroke-width: 6; }
 .machine__knob-bar { fill: var(--ink); }
-.machine__slot { fill: #3A2E29; }
+.machine__slot { fill: #45352E; }
 .machine__capsules circle { stroke: rgba(74,59,52,.55); stroke-width: 2.5; }
 
 /* ---------- overlay / capsule ---------- */
@@ -189,8 +208,17 @@ body {
   min-width: min(78vw, 330px);
   background: var(--cream);
   border: var(--stroke) solid var(--ink);
-  border-radius: 28px;
-  box-shadow: 0 10px 0 rgba(74,59,52,.22);
+  border-radius: 30px;
+  box-shadow: 0 10px 0 rgba(87,66,57,.2);
+  position: relative;
+}
+.prize-card::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 2.5px dashed rgba(87,66,57,.24);
+  border-radius: 22px;
+  pointer-events: none;
 }
 .prize-card__badge {
   padding: 5px 16px;
@@ -263,9 +291,10 @@ body {
 .btn--ghost { background: #fff; }
 .btn--block { width: 100%; margin-top: 10px; }
 .btn--draw {
-  font-size: 28px;
-  padding: 16px 52px;
-  min-height: 68px;
+  font-size: 30px;
+  letter-spacing: .06em;
+  padding: 16px 56px;
+  min-height: 72px;
   background: var(--sun);
   animation: nudge 2.8s ease-in-out infinite;
 }

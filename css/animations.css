@@ -20,3 +20,13 @@
 
 .machine__capsules circle { animation: float-capsule 2.8s ease-in-out infinite; }
 
+
+@keyframes blink {
+  0%, 90%, 100% { transform: scaleY(1); }
+  93%, 95%      { transform: scaleY(.08); }
+}
+
+@keyframes twinkle {
+  0%, 100% { transform: scale(.7); opacity: .45; }
+  50%      { transform: scale(1.15); opacity: 1; }
+}

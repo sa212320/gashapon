@@ -130,6 +130,13 @@ export function createRevealer(els) {
     async turn() {
       sfx.crank();
       await Promise.all([
+        // 用力轉的時候瞇一下眼睛
+        ...els.eyes.map(eye => animate(eye, [
+          { transform: 'scaleY(1)' },
+          { transform: 'scaleY(.25)', offset: .25 },
+          { transform: 'scaleY(.25)', offset: .75 },
+          { transform: 'scaleY(1)' },
+        ], DURATION.turn, { easing: 'ease-in-out', fill: 'none' })),
         animate(els.knob,
           [{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }],
           DURATION.turn, { easing: 'cubic-bezier(.45,0,.2,1)', fill: 'none' }),

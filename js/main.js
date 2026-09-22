@@ -33,6 +33,7 @@ const view = createMachineView({
 const revealer = createRevealer({
   machine: $('machine'),
   knob: $('knob'),
+  eyes: [...document.querySelectorAll('.eye')],
   capsuleGroup: $('capsuleGroup'),
   dim: $('dim'),
   capsule: $('capsule'),
