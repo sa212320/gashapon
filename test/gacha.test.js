@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createPrize, createMachine, remaining } from '../js/state.js';
-import { draw, buildRevealSteps } from '../js/gacha.js';
+import { createPrize, createMachine, remaining } from '../gashapon/js/state.js';
+import { draw, buildRevealSteps } from '../gashapon/js/gacha.js';
 
 // 可重現的亂數,讓分布測試不會偶爾紅一次
 function seeded(seed) {

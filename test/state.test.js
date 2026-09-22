@@ -5,7 +5,7 @@ import {
   createPrize, createMachine, buildPool, refillMachine,
   prizesChanged, needsRebuild, remaining, createInitialState,
   addMachine, removeMachine, getActiveMachine,
-} from '../js/state.js';
+} from '../gashapon/js/state.js';
 
 const prizes = () => [
   createPrize({ name: '掃地', count: 3, rarity: 'N' }),

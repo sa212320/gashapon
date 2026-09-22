@@ -1,7 +1,7 @@
 // 演出播放器。它只負責把 gacha.js 已經決定好的 revealSteps 播出來,
 // 不做任何隨機、不決定任何結果。
 import { RARITIES, RARITY_META } from './constants.js';
-import { sfx } from './sound.js';
+import { sfx } from '../../shared/js/sound.js';
 
 const DURATION = {
   turn: 1000, drop: 720, shake: 360, upgrade: 480, crack: 420, burst: 900, show: 320,

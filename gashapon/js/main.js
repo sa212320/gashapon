@@ -9,8 +9,8 @@ import { draw } from './gacha.js';
 import { createRevealer } from './reveal.js';
 import { createMachineView } from './ui-machine.js';
 import { createSettingsDialog } from './ui-settings.js';
-import { createAsk } from './ask.js';
-import { setEnabled, unlock, sfx } from './sound.js';
+import { createAsk } from '../../shared/js/ask.js';
+import { setEnabled, unlock, sfx } from '../../shared/js/sound.js';
 
 const $ = id => document.getElementById(id);
 

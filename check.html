@@ -72,7 +72,7 @@ catch (e) { add(rows, 'localStorage', '不能寫:' + e.name, 'bad'); }
 add(rows, '螢幕', `${innerWidth}×${innerHeight} @${devicePixelRatio}x`);
 
 // 主程式的模組真的載得起來嗎,而且演出腳本算得對嗎
-import('./js/gacha.js').then(m => {
+import('./gashapon/js/gacha.js').then(m => {
   const steps = m.buildRevealSteps('UR');
   const shakes = steps.filter(s => s.type === 'shake').length;
   add(rows, '主程式模組', `載入成功,UR 有 ${shakes} 次搖`, shakes === 4 ? 'ok' : 'bad');
@@ -140,7 +140,7 @@ window.__addRow = add;
 </script>
 
 <script type="module">
-import { sfx, unlock, audioState, setEnabled } from './js/sound.js';
+import { sfx, unlock, audioState, setEnabled } from './shared/js/sound.js';
 
 const rows3 = document.getElementById('results3');
 const add = (label, value, state) => window.__addRow(rows3, label, value, state);

@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { load, save } from '../js/storage.js';
-import { createInitialState, addMachine, getActiveMachine, remaining } from '../js/state.js';
-import { STORAGE_KEY } from '../js/constants.js';
+import { load, save } from '../gashapon/js/storage.js';
+import { createInitialState, addMachine, getActiveMachine, remaining } from '../gashapon/js/state.js';
+import { STORAGE_KEY } from '../gashapon/js/constants.js';
 
 function fakeStorage(initial = {}) {
   const map = new Map(Object.entries(initial));
