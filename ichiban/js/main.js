@@ -99,10 +99,17 @@ function waitForDismiss() {
 
 // 等使用者按「取消」或「撕開」。用 { once: true } 保證同一輪抽獎
 // 只會有一次選擇,不會因為重複綁定而多算。
+//
+// stopPropagation 是必要的,不是保險:這兩顆按鈕在 overlay 裡面,而 overlay 上
+// 掛著「播放中就快轉」。瀏覽器每呼叫完一個 listener 就清一次 microtask,所以
+// resolve('tear') 的後續(playTear,會把 playing 設成 true)會搶在 overlay 的
+// listener 之前跑完 —— overlay 一看「正在播」就 requestSkip(),整段演出被快轉掉。
+// 症狀是「按了撕開直接看到獎項,完全沒有動畫」。
 function waitForChoice() {
   return new Promise(resolve => {
-    holdCancelBtn.addEventListener('click', () => resolve('cancel'), { once: true });
-    tearBtn.addEventListener('click', () => resolve('tear'), { once: true });
+    const pick = (choice, e) => { e.stopPropagation(); resolve(choice); };
+    holdCancelBtn.addEventListener('click', e => pick('cancel', e), { once: true });
+    tearBtn.addEventListener('click', e => pick('tear', e), { once: true });
   });
 }
 
