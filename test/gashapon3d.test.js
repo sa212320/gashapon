@@ -93,3 +93,54 @@ test('演出腳本沿用 2D 的那一套', () => {
   assert.equal(steps.filter(x => x.type === 'upgrade').length, 2); // N→R→SR
   assert.equal(steps.at(-1).type, 'show');
 });
+
+/* ---------- 桌上那一批 ---------- */
+
+test('桌上一次擺固定顆數,池子比那個少就全擺', async () => {
+  const { tableBatch, TABLE_SIZE } = await import('../gashapon3d/js/model.js');
+  const many = createSetup3d({ name: 't', prizes: [createPrize({ name: '甲', count: 50 })] });
+  assert.equal(tableBatch(many, seeded(1)).length, TABLE_SIZE);
+
+  const few = createSetup3d({ name: 't', prizes: [createPrize({ name: '甲', count: 4 })] });
+  assert.equal(tableBatch(few, seeded(1)).length, 4);
+});
+
+test('桌上那一批是隨機抽樣 —— 排在池子最後的蛋也上得了桌', async () => {
+  const { tableBatch } = await import('../gashapon3d/js/model.js');
+  // 玩家是從桌上挑一顆點開的。只擺前面幾顆的話,後面的蛋永遠抽不到,
+  // 而且畫面上完全看不出來 —— 沉默的不公平。
+  const setup = createSetup3d({ name: 't', prizes: [createPrize({ name: '甲', count: 40 })] });
+  const last = setup.pool.at(-1);
+  let seen = 0;
+  for (let seed = 0; seed < 300; seed++) {
+    if (tableBatch(setup, seeded(seed)).includes(last)) seen++;
+  }
+  assert.ok(seen > 30, `池子最後那顆只在 ${seen}/300 次上桌,抽樣沒有隨機`);
+});
+
+test('已經抽走的蛋不會再上桌', async () => {
+  const { tableBatch } = await import('../gashapon3d/js/model.js');
+  const setup = createSetup3d({ name: 't', prizes: [createPrize({ name: '甲', count: 5 })] });
+  const used = { ...setup, pool: setup.pool.map((c, i) => (i < 3 ? { ...c, drawn: true } : c)) };
+  assert.equal(tableBatch(used, seeded(1)).length, 2);
+});
+
+test('openCapsule:抽到哪一顆由玩家決定,而且不會動到 prize.count', async () => {
+  const { openCapsule } = await import('../gashapon3d/js/model.js');
+  const setup = createSetup3d({ name: 't', prizes: [createPrize({ name: '甲', count: 3 })] });
+  const chosen = setup.pool[1];
+  const out = openCapsule(setup, chosen);
+  assert.equal(out.capsule, chosen);
+  assert.equal(out.prize.name, '甲');
+  assert.equal(setup.prizes[0].count, 3);
+  assert.equal(out.pool.filter(c => c.drawn).length, 1);
+  assert.equal(out.pool[1].drawn, true);
+});
+
+test('openCapsule 的演出沒有「轉把手」那一步 —— 這台是用點的', async () => {
+  const { openCapsule } = await import('../gashapon3d/js/model.js');
+  const setup = createSetup3d({ name: 't', prizes: [createPrize({ name: '甲', count: 1 })] });
+  const steps = openCapsule(setup, setup.pool[0]).revealSteps;
+  assert.equal(steps.filter(s => s.type === 'turn').length, 0);
+  assert.equal(steps[0].type, 'drop');
+});

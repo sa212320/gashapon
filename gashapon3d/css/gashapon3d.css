@@ -58,6 +58,18 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
 }
 .prize-card .skip-hint { position: static; margin: 4px 0 0; background: none; color: inherit; opacity: .6; font-size: 13px; }
 
+.pick-hint {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  translate: -50% 0;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  opacity: .5;
+  pointer-events: none;
+}
+
 .toolbar {
   display: flex;
   align-items: center;

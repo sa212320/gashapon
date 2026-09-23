@@ -51,3 +51,35 @@ export function draw3d(setup, rng = Math.random) {
     revealSteps: buildRevealSteps(prize?.rarity ?? 'N', prize ?? null),
   };
 }
+
+// 桌上一次擺幾顆。池子可能有幾百顆,桌上擺不下。
+export const TABLE_SIZE = 9;
+
+// 從還沒抽走的蛋裡**隨機抽樣**一批擺上桌。
+//
+// 不能取前幾顆:玩家是從桌上挑一顆點開的,只擺前面幾顆的話,排在後面的蛋
+// 永遠不會被挑到,而畫面上完全看不出來 —— 跟阿彌陀籤那個沉默的不公平同一類。
+// 每抽完一次重新抽樣,所以每顆蛋都有上桌的機會。
+export function tableBatch(setup, rng = Math.random) {
+  const left = setup.pool.filter(c => !c.drawn);
+  const shuffled = left.slice();
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled.slice(0, TABLE_SIZE);
+}
+
+// 點開桌上的某一顆。跟 draw3d 不同的是「抽到哪一顆」由玩家決定,不是隨機挑。
+export function openCapsule(setup, capsule) {
+  const prize = setup.prizes.find(p => p.id === capsule.prizeId);
+  const pool = setup.removeOnDraw
+    ? setup.pool.map(c => (c === capsule ? { ...c, drawn: true } : c))
+    : setup.pool;
+  return {
+    capsule,
+    prize,
+    pool,
+    revealSteps: buildRevealSteps(prize?.rarity ?? 'N', prize ?? null, { turn: false }),
+  };
+}

@@ -22,6 +22,7 @@
 
 <main class="stage">
   <canvas class="scene" id="scene"></canvas>
+  <p class="pick-hint" id="pickHint">點一顆蛋打開</p>
 
   <div class="empty-state" id="emptyState" hidden>
     <div class="empty-state__icon">🫙</div>
@@ -38,7 +39,8 @@
 
 <footer class="toolbar">
   <button class="icon-btn" id="soundBtn" type="button" aria-label="音效開關"><span id="soundIcon">🔊</span></button>
-  <button class="btn btn--primary btn--go" id="turnBtn" type="button">轉!</button>
+  <button class="btn btn--ghost" id="shakeBtn" type="button">搖動</button>
+  <button class="btn btn--primary btn--go" id="turnBtn" type="button">抽獎</button>
   <button class="icon-btn" id="settingsBtn" type="button" aria-label="設定">⚙️</button>
 </footer>
 

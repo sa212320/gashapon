@@ -4,7 +4,7 @@
 // 2D 是換蛋殼顏色表示升階,3D 的蛋殼是隨機色,所以升階改用**光暈**表示。
 // 用殼色表示升階會跟「殼色隨機」直接打架,小孩看一眼就知道哪顆是大獎。
 import { store, seedState } from './store.js';
-import { draw3d, refillSetup3d, remaining3d, buildPool3d, CAPSULE_COLORS } from './model.js';
+import { openCapsule, tableBatch, refillSetup3d, remaining3d, buildPool3d } from './model.js';
 import { createScene } from './scene.js';
 import { RARITIES, RARITY_META } from '../../gashapon/js/constants.js';
 import { createPrize } from '../../gashapon/js/state.js';
@@ -38,20 +38,17 @@ setEnabled(prefs.soundOn);
 const scene = createScene($('scene'));
 const ask = createAsk({ dialog: $('askDialog'), text: $('askText'), yes: $('askYes'), no: $('askNo') });
 
-/* ---------- 持續轉動的場景 ---------- */
+/* ---------- 桌上的蛋 ---------- */
 
 let stir = 0;
 let last = performance.now();
-let knobSpin = 0;
 
 function loop(now) {
   const dt = Math.min(0.033, (now - last) / 1000);
   last = now;
-  scene.step(dt, stir);
-  stir = Math.max(0, stir - dt * 2.4);
-  if (knobSpin > 0) {
-    scene.knob.rotation.y += dt * 9;
-    knobSpin = Math.max(0, knobSpin - dt);
+  if (!playing) {
+    scene.step(dt, stir);
+    stir = Math.max(0, stir - dt * 2.4);
   }
   scene.render();
   requestAnimationFrame(loop);
@@ -68,9 +65,16 @@ function render() {
     : `共 ${setup.pool.length} 顆(抽到的不會拿走)`;
   const empty = setup.removeOnDraw && left === 0;
   $('emptyState').hidden = !empty;
+  $('pickHint').hidden = empty || playing;
   $('turnBtn').disabled = empty || playing;
   $('soundIcon').textContent = prefs.soundOn ? '🔊' : '🔇';
-  scene.fill(setup.pool);
+  if (!playing) dealTable();
+}
+
+// 每次抽完重新抽樣一批擺上桌 —— 固定擺前面幾顆的話,排在後面的蛋永遠不會被挑到。
+function dealTable() {
+  scene.setEggs(tableBatch(getActive(state)));
+  scene.look(5.6, 6.2);
 }
 
 /* ---------- 演出 ---------- */
@@ -79,84 +83,74 @@ let playing = false;
 
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
-async function play(result) {
+async function play(result, egg) {
   playing = true;
   $('turnBtn').disabled = true;
-  try {
   $('prizeCard').hidden = true;
-  scene.setAura('#ffffff', 0);
-  scene.setCapsuleColor(result.capsule.color);
-  scene.prizeBall.visible = false;
+  scene.setAura?.('#ffffff', 0);
+  try {
+    const from = egg.group.position.clone();
 
-  for (const step of result.revealSteps) {
-    if (step.type === 'turn') {
-      sfx.crank();
-      knobSpin = 0.55;
-      stir = 1;
-      await wait(620);
-    } else if (step.type === 'drop') {
-      sfx.drop();
-      // 蛋從出口滾到托盤:走一段固定的路徑,不交給物理 —— 物理會偶爾卡住,
-      // 而這一步一定要成功,不然使用者會看到一顆永遠沒掉出來的蛋。
-      scene.prizeBall.visible = true;
-      await tween(560, k => {
-        scene.prizeBall.position.set(0, -0.34 + k * (-1.28), k * 0.62);
-        scene.prizeBall.scale.setScalar(1 + k * 1.1);
-        // 鏡頭同時推近托盤 —— 蛋只有指甲大,不推近的話後面的裂開跟光暈都看不到。
-        scene.look(4.6 - k * 1.5, 0.1 - k * 1.0, -0.15 - k * 1.15);
-      });
-    } else if (step.type === 'shake') {
-      sfx.shake?.(step.tension ?? 0);
-      await tween(300, k => {
-        scene.prizeBall.position.x = Math.sin(k * Math.PI * 6) * 0.08 * (1 - k);
-      });
-    } else if (step.type === 'upgrade') {
-      sfx.upgrade(Math.max(0, RARITIES.indexOf(step.to) - 1));
-      await tween(260, k => scene.setAura(auraColor(step.to, k), 0.25 + 0.45 * Math.sin(k * Math.PI)));
-      scene.setAura(auraColor(step.to), 0.3);
-    } else if (step.type === 'crack') {
-      sfx.crack();
-      await tween(280, k => scene.prizeBall.scale.setScalar(2.1 + Math.sin(k * Math.PI) * 0.7));
-    } else if (step.type === 'burst') {
-      sfx.burst(Math.max(0, RARITIES.indexOf(step.rarity) - 1));
-      await tween(420, k => {
-        scene.setAura(auraColor(step.rarity, k), 0.8 * (1 - k));
-        scene.prizeBall.scale.setScalar(2.1 + k * 1.6);
-        scene.prizeBall.children[0].material.opacity = 1 - k;
-        scene.prizeBall.children[0].material.transparent = true;
-      });
-      scene.prizeBall.visible = false;
-      scene.prizeBall.children[0].material.opacity = 1;
-    } else if (step.type === 'show') {
-      const meta = RARITY_META[step.rarity] ?? RARITY_META.N;
-      // 同一個哨兵值在 CSS 這邊也不能直接用。彩虹交給 class 畫。
-      $('prizeCard').classList.toggle('prize-card--ur', meta.color === 'rainbow');
-      $('prizeCard').style.setProperty('--tier-color', meta.color === 'rainbow' ? meta.edge : meta.color);
-      $('prizeBadge').textContent = meta.label;
-      $('prizeName').textContent = step.prize?.name ?? '';
-      $('prizeCard').hidden = false;
-      await tween(420, k => scene.look(3.1 + k * 1.5, -0.9 + k * 1.0, -1.3 + k * 1.15));
+    for (const step of result.revealSteps) {
+      if (step.type === 'drop') {
+        sfx.drop();
+        // 被點到的那顆飛到桌子中央、鏡頭同時推近。其他蛋讓開一點。
+        await tween(480, k => {
+          egg.group.position.set(from.x * (1 - k), k * 0.9, from.z * (1 - k));
+          egg.group.scale.setScalar(1 + k * 0.32);
+          // 推近要留餘裕:推到底時蛋只該佔畫面的三分之一左右,
+          // 太近的話旁邊沒被選到的蛋會脹大到擠滿邊緣,看起來像壞掉。
+          scene.look(5.6 - k * 1.1, 6.2 - k * 2.6, k * 0.85);
+        });
+      } else if (step.type === 'shake') {
+        sfx.shake?.(step.tension ?? 0);
+        await tween(300, k => {
+          egg.group.rotation.z = Math.sin(k * Math.PI * 6) * 0.22 * (1 - k);
+        });
+      } else if (step.type === 'upgrade') {
+        sfx.upgrade(Math.max(0, RARITIES.indexOf(step.to) - 1));
+        // 蛋殼是隨機色,升階不能靠改殼色表示 —— 用「彈一下 + 變亮」代替。
+        await tween(260, k => {
+          const pop = 1.32 + Math.sin(k * Math.PI) * 0.18;
+          egg.group.scale.setScalar(pop);
+        });
+      } else if (step.type === 'crack') {
+        sfx.crack();
+        // 打開就是把上下兩個半球分開 —— 這顆蛋本來就是兩個半球拼的。
+        await tween(420, k => {
+          egg.top.position.y = k * 0.85;
+          egg.top.rotation.x = -k * 0.5;
+          egg.bottom.position.y = -k * 0.25;
+        });
+      } else if (step.type === 'burst') {
+        sfx.burst(Math.max(0, RARITIES.indexOf(step.rarity) - 1));
+        await tween(380, k => {
+          egg.top.position.y = 0.85 + k * 1.4;
+          egg.top.rotation.x = -0.5 - k * 1.6;
+          egg.bottom.position.y = -0.25 - k * 0.5;
+          egg.group.rotation.y += 0.04;
+        });
+      } else if (step.type === 'show') {
+        const meta = RARITY_META[step.rarity] ?? RARITY_META.N;
+        // UR 的 color 是哨兵值 'rainbow',不是顏色 —— CSS 這邊交給 class 畫。
+        $('prizeCard').classList.toggle('prize-card--ur', meta.color === 'rainbow');
+        $('prizeCard').style.setProperty('--tier-color', meta.color === 'rainbow' ? meta.edge : meta.color);
+        $('prizeBadge').textContent = meta.label;
+        $('prizeName').textContent = step.prize?.name ?? '';
+        $('prizeCard').hidden = false;
+        await tween(400, () => {});
+      }
     }
-  }
-
   } catch (err) {
     console.error('[gashapon3d] 演出中斷', err);
   } finally {
     // 演出中途丟例外的話,playing 會永遠卡在 true、按鈕永遠是灰的,
     // 而且因為例外通常發生在 rAF 裡,console 不一定看得到 —— 這裡是最後一道防線。
     playing = false;
-    scene.prizeBall.visible = false;
-    scene.look(4.6, 0.1, -0.15);
     render();
   }
 }
 
-// 這支有兩個保險,兩個都是必要的:
-//
-// 1. rAF 的 callback 丟例外時,例外不會傳到 promise —— promise 永遠不會 settle,
-//    演出停在半路、按鈕永遠是灰的,console 還不一定看得到。要自己接起來轉成 rejection。
-// 2. **分頁切到背景時瀏覽器會停掉 rAF**,tick 根本不會再被呼叫。小孩切去別的 App
-//    再切回來,就會看到一台按鈕永遠是灰的機器。逾時保險負責把它結束掉。
 function tween(ms, fn) {
   return new Promise((resolve, reject) => {
     const t0 = performance.now();
@@ -187,17 +181,29 @@ function tween(ms, fn) {
   });
 }
 
-async function turn() {
-  if (playing) return;
+async function openEgg(egg) {
+  if (playing || !egg) return;
   const setup = getActive(state);
-  const result = draw3d(setup);
-  if (!result) { sfx.empty(); return; }
+  const result = openCapsule(setup, egg.capsule);
   state = replaceSetup(state, { ...setup, pool: result.pool });
   persist(state);
-  await play(result);
+  await play(result, egg);
 }
 
-$('turnBtn').addEventListener('click', turn);
+// 抽獎鍵:幫你從桌上隨機挑一顆。跟自己點是同一條路,只是代你決定。
+function drawForMe() {
+  const eggs = scene.eggs;
+  if (eggs.length === 0) return;
+  openEgg(eggs[Math.floor(Math.random() * eggs.length)]);
+}
+
+$('turnBtn').addEventListener('click', drawForMe);
+$('shakeBtn').addEventListener('click', () => { if (!playing) { stir = 1; sfx.shake?.(1); } });
+$('scene').addEventListener('click', e => {
+  if (playing) return;
+  const egg = scene.pick(e.clientX, e.clientY);
+  if (egg) openEgg(egg);
+});
 $('prizeCard').addEventListener('click', () => { $('prizeCard').hidden = true; });
 $('refillBtn').addEventListener('click', () => {
   state = replaceSetup(state, refillSetup3d(getActive(state)));
