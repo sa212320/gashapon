@@ -16,6 +16,13 @@ export function laneWidth(lanes) {
   return lanes <= 8 ? 1.0 : Math.max(0.34, 8 / lanes);
 }
 
+// 用 index 算一個穩定的假隨機(sine hash)。同一局裡獎品的起飛位置不會每格重算,
+// 不然它們會在原地抖動。
+function pseudoRandom(seed) {
+  const h = Math.sin(seed * 12.9898 + 4.1414) * 43758.5453;
+  return h - Math.floor(h);
+}
+
 const laneX = (lane, lanes, w) => (lane - (lanes - 1) / 2) * w;
 const rowZ = row => -row * ROW_D;
 
@@ -262,10 +269,37 @@ export function createTrack(canvas) {
       world.add(s);
       return s;
     });
-    slots.forEach((slot, i) => {
+    // 獎品:開跑前浮在角色頭上(看清楚有什麼),按開始才飛到終點的格子
+    //(才知道落在哪一格 —— 終點的排列是每局隨機的,這一飛就是把它演出來)。
+    r.prizes = slots.map((slot, i) => {
       const s = sprite(slotTexture(slot), w * 1.05, w * 1.05);
-      s.position.set(laneX(i, lanes, w), w * 0.55, far - ROW_D * 0.6);
       world.add(s);
+      return s;
+    });
+    r.prizeTo = slots.map((_, i) => new THREE.Vector3(laneX(i, lanes, w), w * 0.55, far - ROW_D * 0.6));
+    // 起飛位置:散在起跑線上方,高度各不相同,看起來才不像排隊。
+    r.prizeFrom = slots.map((_, i) => new THREE.Vector3(
+      laneX(i, lanes, w) + (pseudoRandom(i * 7 + 1) - 0.5) * w * 0.7,
+      w * (2.0 + pseudoRandom(i * 7 + 2) * 1.5),
+      ROW_D * (0.4 + pseudoRandom(i * 7 + 3) * 1.1)));
+    setPrizeFly(0);
+  }
+
+  // 獎品從「浮在角色頭上」飛到「終點的格子」。k: 0 → 1。
+  // 每個獎品錯開一點時間出發,不然會像一整排平移過去。
+  function setPrizeFly(k) {
+    if (!round?.prizes) return;
+    const n = round.prizes.length;
+    const stagger = 0.35;
+    round.prizes.forEach((sprite, i) => {
+      const start = n > 1 ? (i / (n - 1)) * stagger : 0;
+      const p = Math.min(1, Math.max(0, (k - start) / (1 - stagger)));
+      const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+      const a = round.prizeFrom[i];
+      const b = round.prizeTo[i];
+      sprite.position.lerpVectors(a, b, e);
+      // 飛行途中拉一個弧線,不然是一條直線滑過去,不像「飛」。
+      sprite.position.y += Math.sin(e * Math.PI) * 1.4;
     });
   }
 
@@ -305,6 +339,7 @@ export function createTrack(canvas) {
     get round() { return round; },
     build,
     setProgress,
+    setPrizeFly,
     resize,
     render,
     dispose() {

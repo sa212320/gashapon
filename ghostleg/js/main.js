@@ -65,6 +65,7 @@ function showIdle() {
     laneWidth: laneWidth(current.ladder.lanes), rowDepth: ROW_D,
   });
   script(0, []);
+  track.setPrizeFly(0);
   track.render();
 }
 
@@ -89,7 +90,8 @@ function start() {
   const frame = now => {
     const elapsed = now - t0;
     // 先用上一格的位置擺鏡頭拿到進度,更新位置後再擺一次 —— 不然鏡頭永遠落後一格。
-    const t = script(elapsed, round.runners.map(s => s.position));
+    const { run: t, fly } = script(elapsed, round.runners.map(s => s.position));
+    track.setPrizeFly(fly);
     const here = track.setProgress(t);
     script(elapsed, here);
     track.render();
