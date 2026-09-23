@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFF6E9">
+<title>大亂鬥</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>⭐</text></svg>">
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="css/smash.css">
+</head>
+<body>
+
+<header class="topbar">
+  <a class="home-link" href="../" aria-label="回首頁">←</a>
+  <h1 class="setup-name" id="setupName">大亂鬥</h1>
+  <p class="remaining" id="remaining"></p>
+</header>
+
+<main class="stage">
+  <canvas class="arena" id="arena"></canvas>
+
+  <div class="empty-state" id="emptyState" hidden>
+    <div class="empty-state__icon">⭐</div>
+    <p class="empty-state__text">至少要兩隊才打得起來</p>
+    <button class="btn btn--primary" id="emptySettingsBtn" type="button">去加隊伍</button>
+  </div>
+
+  <section class="winner" id="winner" hidden>
+    <p class="winner__label">獲勝</p>
+    <p class="winner__name" id="winnerName"></p>
+    <button class="btn btn--primary" id="againBtn" type="button">再來一場</button>
+  </section>
+</main>
+
+<footer class="toolbar">
+  <button class="icon-btn" id="soundBtn" type="button" aria-label="音效開關"><span id="soundIcon">🔊</span></button>
+  <button class="btn btn--primary btn--go" id="startBtn" type="button">開打!</button>
+  <button class="icon-btn" id="settingsBtn" type="button" aria-label="設定">⚙️</button>
+</footer>
+
+<dialog class="dialog" id="settingsDialog">
+  <header class="dialog__head">
+    <h2>大亂鬥設定</h2>
+    <button class="icon-btn icon-btn--light" id="closeBtn" type="button" aria-label="關閉">✕</button>
+  </header>
+
+  <div class="picker">
+    <select class="picker__select" id="setupSelect" aria-label="選擇一組設定"></select>
+    <button class="chip" id="addSetupBtn" type="button">＋ 新增</button>
+    <button class="chip chip--danger" id="deleteSetupBtn" type="button">刪除</button>
+  </div>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab is-active" data-tab="teams" type="button">隊伍</button>
+    <button class="tab" data-tab="items" type="button">道具</button>
+    <button class="tab" data-tab="other" type="button">其他</button>
+  </nav>
+
+  <div class="dialog__body">
+    <section class="panel" data-panel="teams">
+      <p class="panel__hint" id="teamHint"></p>
+      <ul class="edit-list" id="teamList"></ul>
+      <button class="btn btn--ghost btn--block" id="addTeamBtn" type="button">＋ 新增隊伍</button>
+    </section>
+
+    <section class="panel" data-panel="items" hidden>
+      <p class="panel__hint">打鬥中會隨機掉下來,誰先撿到算誰的。</p>
+      <label class="switch"><input type="checkbox" id="itemAttack"><span class="switch__box"></span>
+        <span class="switch__text">👊 攻擊<small>撞人的力氣變大</small></span></label>
+      <label class="switch"><input type="checkbox" id="itemSpeed"><span class="switch__box"></span>
+        <span class="switch__text">⚡ 速度<small>衝得更快</small></span></label>
+      <label class="switch"><input type="checkbox" id="itemGiant"><span class="switch__box"></span>
+        <span class="switch__text">🔷 極巨化<small>變大變重,不容易被撞飛</small></span></label>
+      <label class="switch"><input type="checkbox" id="itemBomb"><span class="switch__box"></span>
+        <span class="switch__text">💣 場地轟炸<small>定時炸彈,附近的人全被炸開</small></span></label>
+    </section>
+
+    <section class="panel" data-panel="other" hidden>
+      <label class="field">
+        <span class="field__label">這組設定的名字</span>
+        <input class="field__input" id="nameInput" type="text" maxlength="20" placeholder="我的大亂鬥">
+      </label>
+      <label class="switch">
+        <input type="checkbox" id="soundInput">
+        <span class="switch__box"></span>
+        <span class="switch__text">音效<small>這個設定所有模式共用</small></span>
+      </label>
+    </section>
+  </div>
+
+  <footer class="dialog__foot">
+    <button class="btn btn--ghost" id="cancelBtn" type="button">取消</button>
+    <button class="btn btn--primary" id="confirmBtn" type="button">確定</button>
+  </footer>
+</dialog>
+
+<dialog class="dialog dialog--ask" id="askDialog">
+  <p class="ask__text" id="askText"></p>
+  <div class="ask__buttons">
+    <button class="btn btn--ghost" id="askNo" type="button">不要</button>
+    <button class="btn btn--primary" id="askYes" type="button">好</button>
+  </div>
+</dialog>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
