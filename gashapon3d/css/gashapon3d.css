@@ -1,0 +1,83 @@
+/* 立體扭蛋機自己的樣式。版面、按鈕、對話框那一套都吃 shared/css/tokens.css。 */
+
+body { display: flex; flex-direction: column; min-height: 100svh; }
+
+/* home-link 是絕對定位的,topbar 不給 relative 的話它會跑到頁面中間去 */
+.topbar { position: relative; padding: 14px 16px 6px; text-align: center; }
+.setup-name { margin: 0; font-size: 22px; }
+.remaining { margin: 2px 0 0; font-size: 14px; opacity: .72; }
+
+.stage { position: relative; flex: 1; min-height: 0; }
+
+/* absolute inset:0 而不是 height:100% —— 百分比高度在 flex 版面裡常常只算到一半 */
+.scene { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+
+.empty-state {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+}
+.empty-state__icon { font-size: 54px; }
+.empty-state__text { margin: 0; font-size: 20px; font-weight: 800; }
+
+/* 獎項卡蓋在畫面上。文字放 DOM 而不是畫進貼圖 —— 中文小字貼圖會糊,
+   而且獎項名要能被螢幕閱讀器讀到。 */
+.prize-card {
+  position: absolute;
+  left: 50%;
+  bottom: 8%;
+  translate: -50% 0;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  width: min(88vw, 340px);
+  padding: 16px 18px;
+  box-sizing: border-box;
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--cream);
+  box-shadow: 0 6px 0 rgba(87, 66, 57, .22);
+}
+.prize-card__badge {
+  padding: 3px 14px;
+  border-radius: 999px;
+  background: var(--tier-color, var(--cream-deep));
+  font-size: 15px;
+  font-weight: 800;
+}
+.prize-card__name {
+  margin: 0;
+  font-size: clamp(22px, 7vw, 32px);
+  font-weight: 900;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.prize-card .skip-hint { position: static; margin: 4px 0 0; background: none; color: inherit; opacity: .6; font-size: 13px; }
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 10px 16px max(14px, env(safe-area-inset-bottom));
+}
+.btn--go { font-size: 21px; padding-inline: 38px; }
+
+.prize-list, .edit-list { margin: 0 0 10px; padding: 0; list-style: none; display: grid; gap: 8px; }
+.prize-list li { display: flex; gap: 10px; padding: 7px 10px; border-radius: 12px; background: var(--cream-deep); font-weight: 700; }
+.prize-list li span:last-child { margin-left: auto; opacity: .8; }
+.edit-row { display: flex; align-items: center; gap: 8px; }
+.edit-row__name { flex: 1; min-width: 0; }
+.edit-row__count { width: 52px; text-align: center; }
+.edit-row__rarity { width: 76px; }
+.panel__hint { margin: 0 0 8px; font-size: 14px; opacity: .75; }
+
+/* UR 的 color 在 constants.js 裡是哨兵值 'rainbow',不是顏色 —— 彩虹由這裡畫。 */
+.prize-card--ur .prize-card__badge {
+  background: linear-gradient(90deg, #FF6F91, #FFD479, #9BE7C4, #8CC9FF, #C4A2FF);
+  color: #3E2F28;
+}

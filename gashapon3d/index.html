@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFF6E9">
+<title>立體扭蛋機</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🔮</text></svg>">
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="css/gashapon3d.css">
+<script type="importmap">
+{"imports":{"three":"../vendor/three.module.min.js"}}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="home-link" href="../" aria-label="回首頁">←</a>
+  <h1 class="setup-name" id="setupName">立體扭蛋機</h1>
+  <p class="remaining" id="remaining"></p>
+</header>
+
+<main class="stage">
+  <canvas class="scene" id="scene"></canvas>
+
+  <div class="empty-state" id="emptyState" hidden>
+    <div class="empty-state__icon">🫙</div>
+    <p class="empty-state__text">扭蛋機空了!</p>
+    <button class="btn btn--primary" id="refillBtn" type="button">一鍵裝滿</button>
+  </div>
+
+  <div class="prize-card" id="prizeCard" hidden>
+    <span class="prize-card__badge" id="prizeBadge"></span>
+    <p class="prize-card__name" id="prizeName"></p>
+    <p class="skip-hint">點一下繼續</p>
+  </div>
+</main>
+
+<footer class="toolbar">
+  <button class="icon-btn" id="soundBtn" type="button" aria-label="音效開關"><span id="soundIcon">🔊</span></button>
+  <button class="btn btn--primary btn--go" id="turnBtn" type="button">轉!</button>
+  <button class="icon-btn" id="settingsBtn" type="button" aria-label="設定">⚙️</button>
+</footer>
+
+<dialog class="dialog" id="settingsDialog">
+  <header class="dialog__head">
+    <h2>立體扭蛋機設定</h2>
+    <button class="icon-btn icon-btn--light" id="closeBtn" type="button" aria-label="關閉">✕</button>
+  </header>
+
+  <div class="picker">
+    <select class="picker__select" id="setupSelect" aria-label="選擇機台"></select>
+    <button class="chip" id="addSetupBtn" type="button">＋ 新增</button>
+    <button class="chip chip--danger" id="deleteSetupBtn" type="button">刪除</button>
+  </div>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab is-active" data-tab="list" type="button">剩下什麼</button>
+    <button class="tab" data-tab="edit" type="button">編輯獎項</button>
+    <button class="tab" data-tab="other" type="button">其他</button>
+  </nav>
+
+  <div class="dialog__body">
+    <section class="panel" data-panel="list">
+      <p class="panel__hint" id="listHint"></p>
+      <ul class="prize-list" id="prizeList"></ul>
+      <button class="btn btn--ghost btn--block" id="listRefillBtn" type="button">裝滿重來</button>
+    </section>
+
+    <section class="panel" data-panel="edit" hidden>
+      <ul class="edit-list" id="editList"></ul>
+      <button class="btn btn--ghost btn--block" id="addPrizeBtn" type="button">＋ 新增獎項</button>
+    </section>
+
+    <section class="panel" data-panel="other" hidden>
+      <label class="field">
+        <span class="field__label">機台的名字</span>
+        <input class="field__input" id="nameInput" type="text" maxlength="20" placeholder="我的立體扭蛋機">
+      </label>
+      <label class="switch">
+        <input type="checkbox" id="removeInput">
+        <span class="switch__box"></span>
+        <span class="switch__text">抽到的就拿走<small>關掉的話同一個獎可以一直抽到</small></span>
+      </label>
+      <label class="switch">
+        <input type="checkbox" id="soundInput">
+        <span class="switch__box"></span>
+        <span class="switch__text">音效<small>這個設定所有模式共用</small></span>
+      </label>
+    </section>
+  </div>
+
+  <footer class="dialog__foot">
+    <button class="btn btn--ghost" id="cancelBtn" type="button">取消</button>
+    <button class="btn btn--primary" id="confirmBtn" type="button">確定</button>
+  </footer>
+</dialog>
+
+<dialog class="dialog dialog--ask" id="askDialog">
+  <p class="ask__text" id="askText"></p>
+  <div class="ask__buttons">
+    <button class="btn btn--ghost" id="askNo" type="button">不要</button>
+    <button class="btn btn--primary" id="askYes" type="button">好</button>
+  </div>
+</dialog>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
