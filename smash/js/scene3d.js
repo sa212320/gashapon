@@ -361,23 +361,34 @@ export function createScene(canvas) {
   //   2. 視窗變窄時水平視角跟著縮 —— PerspectiveCamera 的 fov 是**垂直**的,
   //      水平視角是 atan(tan(fov/2) × aspect),aspect 小於 1 就比垂直還窄
   // 用包住內容的球去算距離,兩個軸取比較窄的那個,就不會有哪一邊被切掉。
+  let camDist = 0;
+
   function frameCamera(world) {
-    let need = world.arenaRadius;
-    let tall = 0;
+    // 取景**不看任何人站在哪裡**。第一版拿「最遠那個人到中心的距離」去算,
+    // 結果人一直在動,鏡頭就一直在呼吸 —— 整場畫面不停放大縮小。
+    //
+    // 真正需要多留空間的是「身體變大」(極巨化疊到 5 層半徑有 89),那是
+    // 撿到道具才會變、而且一整場大多不變的量。場地半徑也用開場的值:
+    // 場地會一路縮小,跟著縮就等於一路推近,也是一種持續變焦。
+    const home = world.arenaRadius0 ?? world.arenaRadius;
+    let fat = 0;
     for (const c of world.combatants) {
-      if (!c.alive) continue;
-      need = Math.max(need, Math.hypot(c.x, c.y) + c.radius * 1.25);
-      tall = Math.max(tall, c.radius * 1.3);
+      if (c.alive) fat = Math.max(fat, c.radius);
     }
+    const need = home + fat;
+    const tall = fat * 1.3;
+
     const vHalf = (camera.fov * Math.PI) / 360;
     const hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
-    // 場地是**平**的,所以垂直方向會透視壓縮:高度只佔 sin(俯角),
+    // 場地是**平**的,垂直方向會透視壓縮:高度只佔 sin(俯角),
     // 用包住內容的「球」去算會退太遠,畫面整個縮成一小塊。
     const wide = need / Math.tan(hHalf);
     const high = (need * CAM_SIN + tall * CAM_COS) / Math.tan(vHalf);
-    // 取三者最大:本來的取景(寬螢幕維持原樣)、水平裝得下、垂直裝得下
-    const dist = Math.max(CAM_DIST * (need / 100), Math.max(wide, high) * CAM_MARGIN);
-    camera.position.copy(CAM_DIR).multiplyScalar(dist).add(CAM_LOOK);
+    const target = Math.max(CAM_DIST * (need / 100), Math.max(wide, high) * CAM_MARGIN);
+
+    // 撿到極巨化、或巨人出局時距離才會變,這時候用補間滑過去,不要用跳的
+    camDist = camDist ? camDist + (target - camDist) * 0.06 : target;
+    camera.position.copy(CAM_DIR).multiplyScalar(camDist).add(CAM_LOOK);
     camera.lookAt(CAM_LOOK);
   }
 
@@ -496,7 +507,8 @@ export function createScene(canvas) {
   return {
     draw,
     resize,
-    reset() { clearActors(); seenBombs.clear(); blasts = []; sparks = []; },
+    camera,
+    reset() { clearActors(); seenBombs.clear(); blasts = []; sparks = []; camDist = 0; },
     dispose() { clearProps(); clearActors(); renderer.dispose(); },
   };
 }
