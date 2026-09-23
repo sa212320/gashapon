@@ -11,6 +11,9 @@
 <script type="importmap">
 {"imports":{"three":"../vendor/three.module.min.js"}}
 </script>
+<!-- 一番賞是等第一次開籤才載 three 的,所以用 prefetch(低優先)而不是 modulepreload:
+     先暖進快取,但不跟開場那幾個請求搶頻寬。 -->
+<link rel="prefetch" href="../vendor/three.module.min.js" as="script" crossorigin>
 </head>
 <body>
 

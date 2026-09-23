@@ -319,4 +319,8 @@ $('soundBtn').addEventListener('click', () => {
 // iOS 的 WebKit 只承認 click / touchend 這類手勢,pointerdown 不算。
 document.addEventListener('click', () => unlock(), { once: true });
 
+// 場景的第一格畫出來了,才把「載入中」收掉。
+const loadingEl = $('loading');
+if (loadingEl) loadingEl.hidden = true;
+
 render();

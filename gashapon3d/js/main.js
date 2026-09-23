@@ -390,5 +390,9 @@ document.addEventListener('click', () => unlock(), { once: true });
 addEventListener('resize', () => scene.resize());
 
 scene.resize();
+// 場景的第一格畫出來了,才把「載入中」收掉。
+const loadingEl = $('loading');
+if (loadingEl) loadingEl.hidden = true;
+
 render();
 requestAnimationFrame(loop);

@@ -93,3 +93,16 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
 .edit-row__name { flex: 1; min-width: 0; }
 .edit-row__count { width: 52px; text-align: center; }
 .panel__hint { margin: 0 0 8px; font-size: 14px; opacity: .75; }
+
+/* three.js 有 168 KB,手機上會有一段看不到東西的空窗。
+   空白會讓人以為壞掉,所以先講一句話,場景畫出第一格才收掉。 */
+.loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  opacity: .5;
+}

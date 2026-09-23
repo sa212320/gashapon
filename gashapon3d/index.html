@@ -11,6 +11,12 @@
 <script type="importmap">
 {"imports":{"three":"../vendor/three.module.min.js"}}
 </script>
+<!-- 沒有這幾行的話,瀏覽器要先抓 main.js、解析、再抓 scene/track.js、再解析,
+     才會發現需要 three.js —— 三層來回都在關鍵路徑上。手機的高延遲下這段最貴。
+     modulepreload 讓它一看到 HTML 就並行開抓。 -->
+<link rel="modulepreload" href="../vendor/three.module.min.js">
+<link rel="modulepreload" href="js/main.js">
+<link rel="modulepreload" href="js/scene.js">
 </head>
 <body>
 
@@ -22,6 +28,7 @@
 
 <main class="stage">
   <canvas class="scene" id="scene"></canvas>
+  <p class="loading" id="loading">載入中…</p>
   <p class="pick-hint" id="pickHint">點一顆蛋打開</p>
 
   <div class="empty-state" id="emptyState" hidden>
