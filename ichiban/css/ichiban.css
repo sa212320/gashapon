@@ -131,113 +131,37 @@ body {
   aspect-ratio: 34 / 15;
 }
 
-/* 開籤演出:票卡從套子裡往右抽出來。
-   由下往上疊:sleeve(套子)→ slot(白色凹槽)→ ticket(票卡)→ cover(蓋片)。
-   票卡夾在凹槽跟蓋片中間,是這個效果的關鍵 —— 蓋片還在的地方看不到票卡,
-   蓋片收掉的地方票卡已經走了、露出白凹槽,所以套子裡永遠只會看到淺色或白色,
-   票卡是抽到套子外面才現身的。順序調動任何一層都會提前爆雷。 */
+/* 開籤演出。整張票卡畫在 canvas 上(js/curl.js),
+   所以這裡只管它多大、擺哪裡、怎麼飛進來。 */
 .tear {
   position: absolute;
   left: 50%;
   top: 50%;
+  /* 框就是卡片的比例。捲起來的那一捲是往 +Z 凸的,正投影下不佔畫面高度,
+     所以不需要留額外的空間 —— 留成別的比例反而會把卡片上下裁掉。 */
   width: min(80vw, 340px);
   aspect-ratio: 34 / 15;
   translate: -50% -50%;
   opacity: 0;
 }
 
-/* 套子:粗描邊的圓角卡。 */
-.tear__sleeve {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  border: 5px solid var(--ink);
-  border-radius: 18px;
-  background: var(--tier-color, #E7DFD4);
-  box-sizing: border-box;
-  box-shadow: 0 6px 0 rgba(87, 66, 57, .22);
-}
-
-/* 凹槽、蓋片、票卡 —— 三個都是同一個票卡輪廓(上下方齒 + 左緣半圓耳 + 右端圓頭),
-   由 JS 算好塞進 --card-shape。三者共用同一條,才不會有一層對不齊。 */
-.tear__slot,
-.tear__cover,
-.tear__ticket {
-  position: absolute;
-  inset: 0;
-  clip-path: var(--card-shape, none);
-}
-
-.tear__slot {
-  z-index: 1;
-  background: #fff;
-}
-
-.tear__ticket {
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  /* 票卡的臉用一道橫向漸層畫完,不用另外疊元素:色帶、淺色細線、卡身、
-     下緣的灰帶,全部對齊同一組百分比,跟輪廓的齒孔位置(0~13% / 87~100%)
-     不會錯開。之前色帶壓在齒孔上,看起來就像黏了一條鋸齒膠帶。 */
-  background: linear-gradient(
-    to bottom,
-    #5A4A42 0 13%,
-    var(--tier-color, #E7DFD4) 13% 26%,
-    #F7F2EA 26% 32%,
-    #2E2A28 32% 79%,
-    #6B625C 79% 87%,
-    #5A4A42 87% 100%);
-}
-
-/* 蓋片本體只負責裁出票卡輪廓;由左往右收掉的動作交給裡面這層,
-   因為 clip-path 一個元素只能有一條,輪廓跟推進得分兩層做。 */
-.tear__cover { z-index: 3; }
-
-.tear__cover-fill {
-  position: absolute;
-  inset: 0;
-  /* 一定要是不透明的:用半透明白的話底下的深色票卡會透出來,還沒撕就先看到獎項。
-     疊一層白在賞別色上,做出「票卡形狀的淺色印刷」,顏色仍跟著賞別走。 */
-  background:
-    linear-gradient(rgba(255, 255, 255, .5), rgba(255, 255, 255, .5)),
-    var(--tier-color, #E7DFD4);
-  clip-path: inset(0 0 0 0);
-}
-
-.tear__result {
-  display: flex;
-  align-items: center;
-  justify-self: start;
-  gap: 12px;
+.tear__canvas {
+  display: block;
   width: 100%;
-  padding: 10% 26px 0;
-  box-sizing: border-box;
+  height: 100%;
 }
 
-/* 賞別標籤最長是「🌟 最後一抽賞」,所以不能用「一個大字母」的固定寬度排,
-   要讓它自己換行、字級跟著縮。 */
-.tear__letter {
-  flex: 0 1 auto;
-  color: #fff;
-  font-size: clamp(22px, 6.5vw, 34px);
-  font-weight: 900;
-  line-height: 1.05;
+/* 票卡上的字是畫進貼圖的,DOM 裡看不到 —— 所以留一份純文字給螢幕閱讀器。 */
+.tear__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
-
-.tear__name {
-  margin: 0;
-  color: #fff;
-  font-size: clamp(15px, 4.4vw, 22px);
-  font-weight: 800;
-  line-height: 1.15;
-  text-align: left;
-  overflow-wrap: anywhere;
-}
-
-/* 最後一抽賞:套子金邊、票卡金色調。只改一邊的話抽出來會像換了一張票。 */
-.tear[data-bonus="true"] .tear__sleeve { border-color: #B8860B; }
-.tear[data-bonus="true"] .tear__ticket { --tier-color: #F0C040; }
 
 .aura {
   position: absolute;

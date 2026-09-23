@@ -30,11 +30,7 @@ const desk = createDeskView({
 const revealer = createRevealer({
   dim: $('dim'),
   tearCard: $('tearCard'),
-  ticket: $('ticket'),
-  sleeve: $('sleeve'),
-  slot: $('slot'),
-  cover: $('cover'),
-  coverFill: $('coverFill'),
+  canvas: $('tearCanvas'),
   cardResult: $('cardResult'),
   cardBadge: $('cardBadge'),
   cardName: $('cardName'),
@@ -134,7 +130,12 @@ async function doDraw(ticketEl) {
   }
 
   overlay.hidden = false;
-  await revealer.hold({ tier: result.prize.tier }, originRect);
+  await revealer.hold({
+    tier: result.prize.tier,
+    name: result.prize.name,
+    // 用桌上那張籤紙自己的顏色,飛到中央顏色才是連續的,而且不洩漏賞別。
+    faceColor: ticketEl.dataset.color,
+  }, originRect);
   ticketActions.hidden = false;
 
   const choice = await waitForChoice();
@@ -152,7 +153,7 @@ async function doDraw(ticketEl) {
   desk.render(getActive(state));
 
   skipHint.hidden = false;
-  await revealer.tear({ name: result.prize.name, tier: result.prize.tier });
+  await revealer.tear();
   await waitForDismiss();
   closeOverlay();
 

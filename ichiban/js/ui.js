@@ -19,55 +19,6 @@ const DESK_COLORS = Object.freeze([
 //
 // 百分比是相對各元素自己的框,所以會跟著卡片縮放;但 x 與 y 的 1% 長度不同
 // (卡片是 34:15),圓弧的 x 半徑要乘上 15/34,不然半圓耳會變成扁橢圓。
-function buildCardShape({ lobeOnRight }) {
-  const XL = 10, XR = 95, YT = 13, YB = 87; // 票卡在套子裡佔的範圍
-  const TOOTH_DEPTH = 7, TEETH = 12;
-  const capX = 7, capY = 37;                   // 圓頭那一端
-  const lobeY = 16, lobeX = lobeY * (15 / 34); // 半圓耳(換算後才是正圓)
-  const flatR = XR - capX;
-  const w = (flatR - XL) / TEETH;
-  // lobeOnRight 時整個輪廓左右鏡射:耳朵換到右邊、圓頭換到左邊。
-  const fx = x => (lobeOnRight ? 100 - x : x);
-  const at = (x, y) => `${fx(x).toFixed(2)}% ${y.toFixed(2)}%`;
-  const pts = [];
-
-  for (let i = 0; i < TEETH; i++) {            // 一條長邊的方齒
-    const a = XL + i * w;
-    const m = a + w / 2;
-    pts.push(at(a, YT), at(a, YT - TOOTH_DEPTH), at(m, YT - TOOTH_DEPTH), at(m, YT));
-  }
-  pts.push(at(flatR, YT));
-
-  for (let i = 1; i < 12; i++) {               // 圓頭
-    const t = -Math.PI / 2 + (Math.PI * i) / 12;
-    pts.push(at(flatR + capX * Math.cos(t), 50 + capY * Math.sin(t)));
-  }
-  pts.push(at(flatR, YB));
-
-  for (let i = TEETH - 1; i >= 0; i--) {       // 另一條長邊的方齒(x 範圍一致,上下才對稱)
-    const a = XL + i * w;
-    const m = a + w / 2;
-    pts.push(at(m, YB), at(m, YB + TOOTH_DEPTH), at(a, YB + TOOTH_DEPTH), at(a, YB));
-  }
-
-  pts.push(at(XL, 50 + lobeY));                // 往外凸的半圓耳
-  for (let i = 1; i < 10; i++) {
-    const t = Math.PI / 2 + (Math.PI * i) / 10;
-    pts.push(at(XL + lobeX * Math.cos(t), 50 + lobeY * Math.sin(t)));
-  }
-  pts.push(at(XL, 50 - lobeY), at(XL, YT));
-
-  return `polygon(${pts.join(', ')})`;
-}
-
-// 凹槽、蓋片、票卡三層共用同一條輪廓。
-// 試過讓票卡左右鏡像(參考圖裡單張票卡的耳朵在右邊),但鏡像之後票卡的耳朵會
-// 凸到蓋片輪廓外面,還沒抽就從套子右側露出一塊深色 —— 提前爆雷。三層同形才安全。
-const CARD_SHAPE = buildCardShape({ lobeOnRight: false });
-
-// 票卡要完全抽出套子,左緣得走到套子的右緣:輪廓左邊界在 10%,位移 90% 再多留一點。
-const PULL_OUT = 93;
-
 /* ---------- 桌面:散落的籤紙 ---------- */
 // 用 index 算一個穩定的假隨機值(sine hash),同一張籤紙在沒被抽走之前
 // 位置跟角度都不會變 —— 不用真的 Math.random(),不然每次 render 都會全部重新洗牌。
@@ -93,7 +44,11 @@ export function createDeskView({ pileEl, emptyStateEl, onPick }) {
       btn.className = 'ticket';
       btn.setAttribute('aria-label', '抽一張籤');
       btn.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) rotate(${rot.toFixed(1)}deg)`;
-      btn.style.setProperty('--card-color', DESK_COLORS[i % DESK_COLORS.length]);
+      const color = DESK_COLORS[i % DESK_COLORS.length];
+      btn.style.setProperty('--card-color', color);
+      // 撕開之前那張卡就是這個顏色 —— 跟賞別無關。用賞別色去畫蓋著的那一面,
+      // 等於還沒撕就先公布中了什麼。
+      btn.dataset.color = color;
       btn.innerHTML = '<span class="ticket__mark">籤</span>';
       return btn;
     }));
@@ -115,9 +70,31 @@ export function createDeskView({ pileEl, emptyStateEl, onPick }) {
 // 2. reset() 先 cancel() 掉上一次建立的動畫,fill:'forwards' 蓋過 inline style。
 // 3. 分頁轉背景時自動快轉(main.js 的 visibilitychange 呼叫 requestSkip)。
 export function createRevealer(els) {
-  // 三層共用同一條輪廓。建立時就掛上去 —— 只在 reset() 設的話,
-  // 任何還沒跑過 reset 的路徑都會畫出三張沒有齒孔的方卡。
-  els.tearCard.style.setProperty('--card-shape', CARD_SHAPE);
+  // three.js 是站上最大的一包,所以等到第一次真的要開籤才載。
+  // 萬一載不起來(檔案掉了、瀏覽器不支援 WebGL),也不能讓小孩抽掉一張籤卻什麼都沒看到:
+  // 退路是直接把獎項那面畫在同一張 canvas 上,沒有動畫,但看得到抽到什麼。
+  let stage = null;
+  let stageReady = null;
+
+  function loadStage() {
+    if (!stageReady) {
+      stageReady = import('./curl.js')
+        .then(m => { stage = m.createCurlStage(els.canvas); })
+        .catch(err => {
+          console.warn('[ichiban] 捲曲演出載不起來,改用靜態獎項卡', err);
+          stage = null;
+        });
+    }
+    return stageReady;
+  }
+
+  // 退路:沒有 three.js 的時候,至少把獎項畫出來。
+  async function drawStatic(card) {
+    const { CARD_W, CARD_H, drawPrize } = await import('./card-art.js');
+    els.canvas.width = CARD_W;
+    els.canvas.height = CARD_H;
+    drawPrize(els.canvas.getContext('2d'), card);
+  }
 
   let skipping = false;
   let playing = false;
@@ -178,12 +155,6 @@ export function createRevealer(els) {
     els.tearCard.style.opacity = '0';
     els.tearCard.style.transform = 'scale(.4)';
     els.tearCard.removeAttribute('data-bonus');
-    els.ticket.style.transform = '';
-    els.sleeve.style.transform = '';
-    els.sleeve.style.opacity = '1';
-    els.slot.style.opacity = '1';
-    els.cover.style.opacity = '1';
-    els.coverFill.style.clipPath = 'inset(0 0 0 0)';
     els.aura.style.opacity = '0';
     els.particles.replaceChildren();
   }
@@ -241,12 +212,20 @@ export function createRevealer(els) {
   let pending = null;
 
   // 起 —— 票券從桌面飛到畫面正中央,亮出賞別顏色,但還沒撕開(名字沒揭曉)。
-  async function playHold({ level, color, glow }, originRect) {
+  async function playHold({ level, color, glow, card }, originRect) {
     playing = true;
     skipping = false;
     reset();
-    pending = { level, color, glow };
+    pending = { level, color, glow, card };
     try {
+      await loadStage();
+      if (stage) {
+        stage.setCard(card);
+        stage.reset();
+      } else {
+        await drawStatic(card);
+      }
+
       const offset = originOffset(originRect);
       els.tearCard.style.setProperty('--tier-color', color);
       els.tearCard.style.setProperty('--tier-glow', glow);
@@ -283,54 +262,39 @@ export function createRevealer(els) {
     }
   }
 
-  // 撕 —— 票卡從套子裡往右抽出來,蓋片同步由左往右收掉,露出白色凹槽。
-  //
-  // 兩段:先抽出來(套子微微後仰,像被拉著),抽完套子才整個掉出畫面、
-  // 票卡回到正中央放大。併成一段的話票卡還沒離開套子就開始往回飛,會打架。
-  async function playTear({ name, badgeLabel, bonus }) {
+  // 撕 —— 上面那張捲起來走,底下的獎項留下來。
+  // 捲曲本身是 curl.js 用 rAF 跑的,所以這裡自己接上跟 animate() 一樣的三條規則:
+  // 動畫結束 / 按了跳過 / 逾時保險,先到先算。
+  function runCurl(ms) {
+    if (!stage) return Promise.resolve();
+    const handle = stage.play(isSkipping() ? 1 : ms);
+    if (isSkipping()) { handle.finish(); return handle.finished; }
+    return new Promise(resolve => {
+      let timer = null;
+      let settled = false;
+      const entry = {
+        finish() {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          running.delete(entry);
+          handle.finish();
+          resolve();
+        },
+      };
+      running.add(entry);
+      handle.finished.then(() => entry.finish());
+      timer = setTimeout(() => entry.finish(), ms + 1500);
+    });
+  }
+
+  async function playTear() {
     const { level, color } = pending ?? { level: 0, color: '#E7DFD4' };
     playing = true;
     skipping = false;
     try {
-      els.tearCard.dataset.bonus = String(bonus);
-      els.cardBadge.textContent = badgeLabel;
-      els.cardName.textContent = name;
-
       sfx.crack();
-
-      // 第一段:抽出來。票卡與蓋片的 duration 必須一樣 —— 差一點點就會看到
-      // 票卡的左緣露在蓋片外面(提前爆雷),或白凹槽跑在票卡前面。
-      const pull = 480 + level * 25;
-      const ease = 'cubic-bezier(.34,.78,.3,1)';
-      await Promise.all([
-        animate(els.ticket, [
-          { transform: 'translateX(0)' },
-          { transform: `translateX(${PULL_OUT}%)` },
-        ], pull, { easing: ease }),
-        animate(els.coverFill, [
-          { clipPath: 'inset(0 0 0 0)' },
-          { clipPath: 'inset(0 0 0 100%)' },
-        ], pull, { easing: ease }),
-        animate(els.sleeve, [
-          { transform: 'translate(0,0) rotate(0deg)' },
-          { transform: 'translate(-14px, 4px) rotate(-2deg)' },
-        ], pull, { easing: ease }),
-      ]);
-
-      // 第二段:空套子掉出畫面,票卡滑回正中央放大。
-      const dropSleeve = [
-        { opacity: 1, transform: 'translate(-14px,4px) rotate(-2deg)' },
-        { opacity: 0, transform: 'translate(-70px,300px) rotate(-22deg)' },
-      ];
-      await Promise.all([
-        animate(els.sleeve, dropSleeve, 360, { easing: 'cubic-bezier(.4,0,.75,1)' }),
-        animate(els.slot, dropSleeve, 360, { easing: 'cubic-bezier(.4,0,.75,1)' }),
-        animate(els.cover, [{ opacity: 1 }, { opacity: 0 }], 200),
-        animate(els.ticket, [
-          { transform: `translateX(${PULL_OUT}%) scale(1)` },
-          { transform: 'translateX(0) scale(1.1)' },
-        ], 400, { easing: 'cubic-bezier(.34,1.35,.64,1)' }),
-      ]);
+      await runCurl(1150 + level * 45);
 
       // 賞別等級越高,光暈跟碎花越誇張;G 賞(level 0)乾脆不放光,樸素到底。
       sfx.upgrade(Math.min(level, 3));
@@ -341,6 +305,9 @@ export function createRevealer(els) {
       } else {
         sfx.clunk();
       }
+      await animate(els.tearCard,
+        [{ transform: 'scale(1)' }, { transform: 'scale(1.06)' }],
+        300, { easing: 'cubic-bezier(.34,1.4,.64,1)' });
     } finally {
       playing = false;
       skipping = false;
@@ -357,25 +324,38 @@ export function createRevealer(els) {
       [...running].forEach(entry => entry.finish());
     },
 
-    hold({ tier }, originRect) {
+    hold({ tier, name, faceColor }, originRect) {
       const rank = TIERS.indexOf(tier);
       const level = TIERS.length - 1 - (rank === -1 ? TIERS.length - 1 : rank);
       const meta = TIER_META[tier] ?? TIER_META.G;
-      return playHold({ level, color: meta.color, glow: meta.glow }, originRect);
+      // 獎項在這時候就畫進貼圖了,但它在蓋著的那一面底下,撕開之前看不到。
+      els.cardBadge.textContent = meta.label;
+      els.cardName.textContent = name;
+      return playHold({
+        level, color: meta.color, glow: meta.glow,
+        card: {
+          faceColor: faceColor || DESK_COLORS[0],
+          color: meta.color, badge: meta.label, name, bonus: false,
+        },
+      }, originRect);
     },
 
     cancelReturn,
 
-    tear({ name, tier }) {
-      const meta = TIER_META[tier] ?? TIER_META.G;
-      return playTear({ name, badgeLabel: meta.label, bonus: false });
+    tear() {
+      return playTear();
     },
 
     // 最後一抽賞永遠是最盛大的等級,跟籤紙本身的賞別無關,而且不用猶豫直接開獎。
     async playBonus(name) {
-      await playHold({ level: TIERS.length - 1, color: GOLD.color, glow: GOLD.glow }, null);
+      els.cardBadge.textContent = GOLD.label;
+      els.cardName.textContent = name;
+      await playHold({
+        level: TIERS.length - 1, color: GOLD.color, glow: GOLD.glow,
+        card: { faceColor: GOLD.color, color: GOLD.color, badge: GOLD.label, name, bonus: true },
+      }, null);
       await wait(260);
-      await playTear({ name, badgeLabel: GOLD.label, bonus: true });
+      await playTear();
     },
 
     clear: reset,
