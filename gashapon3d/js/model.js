@@ -52,14 +52,15 @@ export function draw3d(setup, rng = Math.random) {
   };
 }
 
-// 桌上一次擺幾顆。池子可能有幾百顆,桌上擺不下。
-export const TABLE_SIZE = 9;
+// 桌上最多擺幾顆。**沒超過這個數就全部擺出來** —— 標題寫「還剩 N 顆」,
+// 桌上就該有 N 顆,兩個數字對不起來的話使用者只會覺得畫面是壞的。
+// 超過才抽樣,而且那時標題會另外講清楚有幾顆沒上桌。
+export const MAX_ON_TABLE = 40;
 
-// 從還沒抽走的蛋裡**隨機抽樣**一批擺上桌。
+// 從還沒抽走的蛋裡取一批擺上桌(超過上限時是**隨機抽樣**)。
 //
 // 不能取前幾顆:玩家是從桌上挑一顆點開的,只擺前面幾顆的話,排在後面的蛋
 // 永遠不會被挑到,而畫面上完全看不出來 —— 跟阿彌陀籤那個沉默的不公平同一類。
-// 每抽完一次重新抽樣,所以每顆蛋都有上桌的機會。
 export function tableBatch(setup, rng = Math.random) {
   const left = setup.pool.filter(c => !c.drawn);
   const shuffled = left.slice();
@@ -67,7 +68,7 @@ export function tableBatch(setup, rng = Math.random) {
     const j = Math.floor(rng() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
-  return shuffled.slice(0, TABLE_SIZE);
+  return shuffled.slice(0, MAX_ON_TABLE);
 }
 
 // 點開桌上的某一顆。跟 draw3d 不同的是「抽到哪一顆」由玩家決定,不是隨機挑。

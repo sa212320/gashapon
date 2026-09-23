@@ -72,7 +72,7 @@ function render() {
 // 每次抽完重新抽樣一批擺上桌 —— 固定擺前面幾顆的話,排在後面的蛋永遠不會被挑到。
 function dealTable() {
   scene.setEggs(tableBatch(getActive(state)));
-  scene.look(5.6, 6.2);
+  scene.homeView();
 }
 
 /* ---------- 演出 ---------- */
@@ -95,10 +95,8 @@ async function play(result, egg) {
         // 被點到的那顆飛到桌子中央、鏡頭同時推近。其他蛋讓開一點。
         await tween(480, k => {
           egg.group.position.set(from.x * (1 - k), k * 0.9, from.z * (1 - k));
-          egg.group.scale.setScalar(1 + k * 0.32);
-          // 推近要留餘裕:推到底時蛋只該佔畫面的三分之一左右,
-          // 太近的話旁邊沒被選到的蛋會脹大到擠滿邊緣,看起來像壞掉。
-          scene.look(5.6 - k * 1.1, 6.2 - k * 2.6, k * 0.85);
+          egg.group.scale.setScalar(1 + k * 0.25);
+          scene.focusView(k);
         });
       } else if (step.type === 'shake') {
         sfx.shake?.(step.tension ?? 0);

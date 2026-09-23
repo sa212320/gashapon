@@ -96,20 +96,21 @@ test('演出腳本沿用 2D 的那一套', () => {
 
 /* ---------- 桌上那一批 ---------- */
 
-test('桌上一次擺固定顆數,池子比那個少就全擺', async () => {
-  const { tableBatch, TABLE_SIZE } = await import('../gashapon3d/js/model.js');
-  const many = createSetup3d({ name: 't', prizes: [createPrize({ name: '甲', count: 50 })] });
-  assert.equal(tableBatch(many, seeded(1)).length, TABLE_SIZE);
-
-  const few = createSetup3d({ name: 't', prizes: [createPrize({ name: '甲', count: 4 })] });
-  assert.equal(tableBatch(few, seeded(1)).length, 4);
+test('沒超過上限就全部擺出來 —— 標題寫幾顆,桌上就該有幾顆', async () => {
+  const { tableBatch, MAX_ON_TABLE } = await import('../gashapon3d/js/model.js');
+  for (const n of [4, 12, 30, MAX_ON_TABLE]) {
+    const setup = createSetup3d({ name: 't', prizes: [createPrize({ name: '甲', count: n })] });
+    assert.equal(tableBatch(setup, seeded(1)).length, n, `${n} 顆沒有全部上桌`);
+  }
+  const huge = createSetup3d({ name: 't', prizes: [createPrize({ name: '甲', count: 90 })] });
+  assert.equal(tableBatch(huge, seeded(1)).length, MAX_ON_TABLE);
 });
 
 test('桌上那一批是隨機抽樣 —— 排在池子最後的蛋也上得了桌', async () => {
   const { tableBatch } = await import('../gashapon3d/js/model.js');
   // 玩家是從桌上挑一顆點開的。只擺前面幾顆的話,後面的蛋永遠抽不到,
   // 而且畫面上完全看不出來 —— 沉默的不公平。
-  const setup = createSetup3d({ name: 't', prizes: [createPrize({ name: '甲', count: 40 })] });
+  const setup = createSetup3d({ name: 't', prizes: [createPrize({ name: '甲', count: 90 })] });
   const last = setup.pool.at(-1);
   let seen = 0;
   for (let seed = 0; seed < 300; seed++) {
