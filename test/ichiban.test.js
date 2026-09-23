@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  TIERS, createIchibanPrize, createIchibanSetup,
+  TIERS, TIER_META, createIchibanPrize, createIchibanSetup,
   buildTickets, drawTicket, refillSetup,
 } from '../ichiban/js/ichiban.js';
 import { remaining } from '../shared/js/roster.js';
@@ -133,4 +133,10 @@ test('count 是 NaN 時當成 0', () => {
 test('TIERS 是凍結的,外部改不動', () => {
   assert.equal(Object.isFrozen(TIERS), true);
   assert.throws(() => { TIERS.push('H'); }, TypeError);
+});
+
+test('TIER_META 的內層也凍住了,不能偷改某個賞別的顏色', () => {
+  assert.equal(Object.isFrozen(TIER_META), true);
+  assert.equal(Object.isFrozen(TIER_META.A), true);
+  assert.throws(() => { TIER_META.A.color = 'x'; }, TypeError);
 });

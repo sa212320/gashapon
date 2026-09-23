@@ -3,13 +3,17 @@
 // 沒凍結的話,誰不小心 push 或 sort 一下,合法值判斷就跟著壞掉。
 export const RARITIES = Object.freeze(['N', 'R', 'SR', 'SSR', 'UR']);
 
-export const RARITY_META = Object.freeze({
-  N:   { label: '普通',   color: '#FFFFFF', edge: '#C9BFB4', glow: 'rgba(255,255,255,.7)' },
-  R:   { label: '稀有',   color: '#5FD68A', edge: '#2F9E5B', glow: 'rgba(95,214,138,.8)' },
-  SR:  { label: '超稀有', color: '#A970F2', edge: '#6F3FC4', glow: 'rgba(169,112,242,.85)' },
-  SSR: { label: '傳說',   color: '#F7C948', edge: '#C08A0B', glow: 'rgba(247,201,72,.9)' },
-  UR:  { label: '究極',   color: 'rainbow', edge: '#8B5CF6', glow: 'rgba(255,255,255,.95)' },
-});
+// 外層凍住還不夠——每個稀有度的 meta 是巢狀物件,outer freeze 擋不住
+// RARITY_META.N.color = 'x' 這種改法,所以每個 value 也要各自凍。
+export const RARITY_META = Object.freeze(Object.fromEntries(
+  Object.entries({
+    N:   { label: '普通',   color: '#FFFFFF', edge: '#C9BFB4', glow: 'rgba(255,255,255,.7)' },
+    R:   { label: '稀有',   color: '#5FD68A', edge: '#2F9E5B', glow: 'rgba(95,214,138,.8)' },
+    SR:  { label: '超稀有', color: '#A970F2', edge: '#6F3FC4', glow: 'rgba(169,112,242,.85)' },
+    SSR: { label: '傳說',   color: '#F7C948', edge: '#C08A0B', glow: 'rgba(247,201,72,.9)' },
+    UR:  { label: '究極',   color: 'rainbow', edge: '#8B5CF6', glow: 'rgba(255,255,255,.95)' },
+  }).map(([rarity, meta]) => [rarity, Object.freeze(meta)]),
+));
 
 export const STORAGE_KEY = 'gashapon.v1';
 export const SCHEMA_VERSION = 1;

@@ -1,6 +1,7 @@
 // 純函式層:只處理資料形狀,不碰 DOM、不碰 localStorage。
 // 所有函式都不就地改動傳進來的東西,一律回傳新的物件。
 import { RARITIES, SEED_MACHINE_NAME, SEED_PRIZES } from './constants.js';
+import { expand } from '../../shared/js/roster.js';
 
 let idCounter = 0;
 function newId(prefix) {
@@ -19,14 +20,10 @@ export function createPrize({ name = '新獎項', count = 1, rarity = 'N' } = {}
   };
 }
 
+// 走共用層的 expand,而不是自己另開一個展開迴圈——這樣 count 的
+// Infinity/NaN 防線只需要在 expand 裡顧一次,不會漏第二份。
 export function buildPool(prizes) {
-  const pool = [];
-  for (const prize of prizes) {
-    for (let i = 0; i < prize.count; i++) {
-      pool.push({ prizeId: prize.id, drawn: false });
-    }
-  }
-  return pool;
+  return expand(prizes, prize => ({ prizeId: prize.id, drawn: false }));
 }
 
 export function createMachine({ name = '我的扭蛋機', prizes = [], removeOnDraw = true } = {}) {

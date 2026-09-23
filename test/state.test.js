@@ -191,3 +191,8 @@ test('SEED_PRIZES 跟裡面每一個項目都是凍結的', () => {
 test('RARITY_META 是凍結的', () => {
   assert.equal(Object.isFrozen(RARITY_META), true);
 });
+
+test('RARITY_META 的內層也凍住了,不能偷改某個稀有度的顏色', () => {
+  assert.equal(Object.isFrozen(RARITY_META.N), true);
+  assert.throws(() => { RARITY_META.N.color = 'x'; }, TypeError);
+});
