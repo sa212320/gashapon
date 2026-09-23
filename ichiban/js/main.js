@@ -29,8 +29,9 @@ const desk = createDeskView({
 
 const revealer = createRevealer({
   dim: $('dim'),
-  ticketCard: $('ticketCard'),
-  cardTop: $('cardTop'),
+  tearCard: $('tearCard'),
+  shellLeft: $('shellLeft'),
+  shellRight: $('shellRight'),
   cardResult: $('cardResult'),
   cardBadge: $('cardBadge'),
   cardName: $('cardName'),

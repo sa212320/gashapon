@@ -32,21 +32,16 @@
     <div class="overlay__dim" id="dim"></div>
 
     <div class="reveal-stack">
-      <div class="ticket-card" id="ticketCard">
-        <div class="ticket-card__half ticket-card__half--top" id="cardTop">
-          <span class="ticket-card__lines" aria-hidden="true"></span>
-        </div>
-        <div class="ticket-card__perf" aria-hidden="true">
-          <span class="ticket-card__notch ticket-card__notch--left"></span>
-          <span class="ticket-card__notch ticket-card__notch--right"></span>
-        </div>
-        <div class="ticket-card__half ticket-card__half--bottom" id="cardBottom">
-          <span class="ticket-card__lines" aria-hidden="true"></span>
-          <div class="ticket-card__result" id="cardResult">
-            <span class="ticket-card__badge" id="cardBadge"></span>
-            <p class="ticket-card__name" id="cardName"></p>
+      <div class="tear" id="tearCard">
+        <div class="tear__paper">
+          <div class="tear__result" id="cardResult">
+            <span class="tear__badge" id="cardBadge"></span>
+            <p class="tear__name" id="cardName"></p>
           </div>
         </div>
+        <span class="tear__stub" aria-hidden="true"></span>
+        <div class="tear__shell" id="shellLeft" aria-hidden="true"><span class="tear__perf"></span></div>
+        <div class="tear__shell" id="shellRight" aria-hidden="true"><span class="tear__perf"></span></div>
       </div>
 
       <div class="aura" id="aura" aria-hidden="true"></div>

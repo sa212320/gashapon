@@ -8,6 +8,11 @@ import { sfx } from '../../shared/js/sound.js';
 // 最後一抽賞永遠是金色,不看賞別 —— 它是額外加碼的驚喜,不是某個賞別的籤。
 const GOLD = Object.freeze({ label: '🌟 最後一抽賞', color: '#FFD24C', glow: 'rgba(255,210,76,.95)' });
 
+// 桌上籤紙的裝飾色。故意跟 TIER_META 無關 —— 賞別在撕開之前不能從桌面看出來。
+const DESK_COLORS = Object.freeze([
+  '#F6C6B8', '#C9B6E4', '#BBD9F0', '#F7DFA0', '#BFE3C8', '#F3B8CE', '#E8CFAE',
+]);
+
 /* ---------- 桌面:散落的籤紙 ---------- */
 // 用 index 算一個穩定的假隨機值(sine hash),同一張籤紙在沒被抽走之前
 // 位置跟角度都不會變 —— 不用真的 Math.random(),不然每次 render 都會全部重新洗牌。
@@ -33,6 +38,7 @@ export function createDeskView({ pileEl, emptyStateEl, onPick }) {
       btn.className = 'ticket';
       btn.setAttribute('aria-label', '抽一張籤');
       btn.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) rotate(${rot.toFixed(1)}deg)`;
+      btn.style.setProperty('--card-color', DESK_COLORS[i % DESK_COLORS.length]);
       btn.innerHTML = '<span class="ticket__mark">籤</span>';
       return btn;
     }));
@@ -60,6 +66,25 @@ export function createRevealer(els) {
   const created = new Set();
 
   const isSkipping = () => skipping;
+
+  // 撕痕。同一組點同時餵給左右兩片:左片取點的左邊、右片取點的右邊,
+  // 合起來剛好是完整的矩形,分開時斷面自然互補。
+  // 齒的正負號逐點交替,才是鋸齒而不是一條抖動的曲線。
+  let tearAt = 32;
+
+  function applyTearLine(seed) {
+    tearAt = 26 + pseudoRandom(seed) * 22; // 撕點落在 26%~48%
+    const steps = 10;
+    const pts = [];
+    for (let i = 0; i <= steps; i++) {
+      const y = ((i / steps) * 100).toFixed(1);
+      const tooth = (i % 2 === 0 ? 1 : -1) * (1.8 + pseudoRandom(seed + i + 1) * 3.4);
+      pts.push(`${(tearAt + tooth).toFixed(2)}% ${y}%`);
+    }
+    const line = pts.join(', ');
+    els.shellLeft.style.clipPath = `polygon(0% 0%, ${line}, 0% 100%)`;
+    els.shellRight.style.clipPath = `polygon(100% 0%, ${line}, 100% 100%)`;
+  }
 
   function animate(el, keyframes, duration, options = {}) {
     const skip = isSkipping();
@@ -110,15 +135,17 @@ export function createRevealer(els) {
     running.clear();
 
     els.dim.style.opacity = '0';
-    els.ticketCard.style.opacity = '0';
-    els.ticketCard.style.transform = 'scale(.4)';
-    els.cardTop.style.transform = '';
-    els.cardTop.style.opacity = '1';
+    els.tearCard.style.opacity = '0';
+    els.tearCard.style.transform = 'scale(.4)';
+    els.tearCard.removeAttribute('data-bonus');
+    for (const shell of [els.shellLeft, els.shellRight]) {
+      shell.style.transform = '';
+      shell.style.opacity = '1';
+    }
     els.aura.style.opacity = '0';
     els.particles.replaceChildren();
     els.cardResult.style.opacity = '0';
     els.cardResult.style.transform = '';
-    els.ticketCard.removeAttribute('data-bonus');
   }
 
   async function flashAura(color, scale, duration) {
@@ -158,7 +185,7 @@ export function createRevealer(els) {
       const bit = document.createElement('span');
       bit.className = 'shred';
       bit.style.background = color;
-      bit.style.left = `${50 + (Math.random() * 70 - 35)}%`;
+      bit.style.left = `${tearAt + (Math.random() * 16 - 8)}%`;
       frag.appendChild(bit);
       const dx = (Math.random() - .5) * 160;
       const dy = -40 - Math.random() * 120;
@@ -203,13 +230,14 @@ export function createRevealer(els) {
     pending = { level, color, glow };
     try {
       const offset = originOffset(originRect);
-      els.ticketCard.style.setProperty('--tier-color', color);
-      els.ticketCard.style.setProperty('--tier-glow', glow);
+      els.tearCard.style.setProperty('--tier-color', color);
+      els.tearCard.style.setProperty('--tier-glow', glow);
+      applyTearLine(Math.floor(Math.random() * 10000));
 
       sfx.drop();
       await Promise.all([
         animate(els.dim, [{ opacity: 0 }, { opacity: 1 }], 320),
-        animate(els.ticketCard, [
+        animate(els.tearCard, [
           { transform: `translate(${offset.x}px, ${offset.y}px) scale(.4) rotate(-8deg)`, opacity: 0 },
           { transform: 'translate(0,0) scale(1) rotate(0deg)', opacity: 1 },
         ], 420 + level * 30, { easing: 'cubic-bezier(.34,1.2,.64,1)' }),
@@ -226,7 +254,7 @@ export function createRevealer(els) {
     skipping = false;
     try {
       const offset = originOffset(originRect);
-      await animate(els.ticketCard, [
+      await animate(els.tearCard, [
         { transform: 'translate(0,0) scale(1) rotate(0deg)', opacity: 1 },
         { transform: `translate(${offset.x}px, ${offset.y}px) scale(.4) rotate(8deg)`, opacity: 0 },
       ], 320, { easing: 'cubic-bezier(.4,0,.2,1)' });
@@ -238,20 +266,41 @@ export function createRevealer(els) {
     }
   }
 
-  // 撕 —— 小的那半撕下來飛走,紙屑噴出來,獎項從缺口浮現。
+  // 撕 —— 兩片沿著同一條裂痕往反方向拉開(縫裡露出白紙),再各自飛出畫面。
+  // 分成兩段是刻意的:第一段要讓人看見「縫變寬」,那才是「撕」;
+  // 直接讓兩片飛走就會退回上一版「掀掉一半」的觀感。
   async function playTear({ name, badgeLabel, bonus }) {
     const { level, color } = pending ?? { level: 0, color: '#E7DFD4' };
     playing = true;
     skipping = false;
     try {
-      const dx = (Math.random() - .5) * 90 - 20;
-      const spin = -30 - Math.random() * 40;
+      const spread = 34 + level * 10;
       sfx.crack();
       spawnShreds(color, 3 + level * 4);
-      await animate(els.cardTop, [
-        { transform: 'translate(0,0) rotate(0deg)', opacity: 1 },
-        { transform: `translate(${dx}px, -120px) rotate(${spin}deg)`, opacity: 0 },
-      ], 380 + level * 20, { easing: 'cubic-bezier(.3,-.2,.6,1)' });
+
+      // 第一段:裂痕拉開。
+      await Promise.all([
+        animate(els.shellLeft, [
+          { transform: 'translate(0,0) rotate(0deg)' },
+          { transform: `translate(${-spread}px, 5px) rotate(-3deg)` },
+        ], 260 + level * 15, { easing: 'cubic-bezier(.25,1.3,.5,1)' }),
+        animate(els.shellRight, [
+          { transform: 'translate(0,0) rotate(0deg)' },
+          { transform: `translate(${spread}px, -5px) rotate(3deg)` },
+        ], 260 + level * 15, { easing: 'cubic-bezier(.25,1.3,.5,1)' }),
+      ]);
+
+      // 第二段:兩片飛出去,白紙自己留下來。
+      await Promise.all([
+        animate(els.shellLeft, [
+          { transform: `translate(${-spread}px, 5px) rotate(-3deg)`, opacity: 1 },
+          { transform: `translate(${-spread - 240}px, 54px) rotate(-28deg)`, opacity: 0 },
+        ], 340 + level * 20, { easing: 'cubic-bezier(.4,0,.75,1)' }),
+        animate(els.shellRight, [
+          { transform: `translate(${spread}px, -5px) rotate(3deg)`, opacity: 1 },
+          { transform: `translate(${spread + 240}px, 54px) rotate(28deg)`, opacity: 0 },
+        ], 340 + level * 20, { easing: 'cubic-bezier(.4,0,.75,1)' }),
+      ]);
 
       // 賞別等級越高,光暈跟碎花越誇張;G 賞(level 0)乾脆不放光,樸素到底。
       if (level > 0) {
@@ -262,7 +311,7 @@ export function createRevealer(els) {
         sfx.clunk();
       }
 
-      els.ticketCard.dataset.bonus = String(bonus);
+      els.tearCard.dataset.bonus = String(bonus);
       els.cardBadge.textContent = badgeLabel;
       els.cardName.textContent = name;
       sfx.upgrade(Math.min(level, 3));
