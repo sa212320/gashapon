@@ -14,6 +14,9 @@ const GRAVITY = -2.4;
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
+// 每格都會用到的暫存,放在模組層避免每格 new 一堆物件
+const AXIS = new THREE.Vector3();
+
 // 半球必須是**封閉**的(圓頂 + 底面)。
 // 用 SphereGeometry 的 thetaLength 切出來的是一個開口的碗:描邊是「放大的背面渲染」,
 // 碗的內壁會整片露出來,畫面上就是一塊深色缺口加一道白色月牙 —— 看起來像破圖。
@@ -121,11 +124,14 @@ export function createScene(canvas) {
       e.v.multiplyScalar(DAMPING);
       e.group.position.x += e.v.x * dt;
       e.group.position.z += e.v.z * dt;
-      // 只繞垂直軸自轉,不做真正的翻滾。
-      // 真的滾起來上下兩色會被滾亂,接縫變成隨機角度,那顆球就不像扭蛋殼了 ——
-      // 參考圖裡接縫永遠是水平的。轉 Y 軸一樣看得出它在動,而且殼的長相保得住。
+      // 真的滾:繞著「垂直於行進方向的水平軸」轉,角速度 = 速度 / 半徑。
+      // 停在哪個角度就是哪個角度 —— 球滾完不會自己翻正,加了那個修正就會看起來很假。
+      // 代價是接縫會停在隨機角度,但那本來就是一顆滾過的蛋該有的樣子。
       const speed = Math.hypot(e.v.x, e.v.z);
-      if (speed > 0.01) e.group.rotation.y += (speed / R) * dt * 0.6;
+      if (speed > 0.02) {
+        AXIS.set(e.v.z, 0, -e.v.x).normalize();
+        e.group.rotateOnWorldAxis(AXIS, (speed / R) * dt);
+      }
 
       const d = Math.hypot(e.group.position.x, e.group.position.z);
       const max = TABLE - R * 1.45;  // 留出描邊跟影子的寬度,球才不會半個掛在桌外

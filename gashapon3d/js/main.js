@@ -190,6 +190,7 @@ async function openEgg(egg) {
 
 // 抽獎鍵:幫你從桌上隨機挑一顆。跟自己點是同一條路,只是代你決定。
 function drawForMe() {
+  if (dismissPrize()) return;
   const eggs = scene.eggs;
   if (eggs.length === 0) return;
   openEgg(eggs[Math.floor(Math.random() * eggs.length)]);
@@ -198,11 +199,24 @@ function drawForMe() {
 $('turnBtn').addEventListener('click', drawForMe);
 $('shakeBtn').addEventListener('click', () => { if (!playing) { scene.shake(1); sfx.shake?.(2); } });
 $('scene').addEventListener('click', e => {
-  if (playing) return;
+  // 獎項卡還開著的話,這一下只負責把它收掉,不要順手開下一顆
+  if (playing || dismissPrize()) return;
   const egg = scene.pick(e.clientX, e.clientY);
   if (egg) openEgg(egg);
 });
-$('prizeCard').addEventListener('click', () => { $('prizeCard').hidden = true; });
+// 獎項卡蓋在畫面上時,點**畫面任何地方**都要把它收掉。
+// 只在卡片本身監聽的話,點到旁邊沒反應(看起來像卡住),
+// 而且點到 canvas 還會直接開下一顆蛋 —— 使用者根本沒看完就被抽掉一顆。
+function dismissPrize() {
+  if ($('prizeCard').hidden) return false;
+  $('prizeCard').hidden = true;
+  return true;
+}
+document.addEventListener('click', e => {
+  // 工具列與對話框的按鈕不算「點外面」,不然按設定會被吃掉一次點擊
+  if (e.target.closest('.toolbar, dialog')) return;
+  dismissPrize();
+}, true);
 $('refillBtn').addEventListener('click', () => {
   state = replaceSetup(state, refillSetup3d(getActive(state)));
   persist(state);
