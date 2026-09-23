@@ -74,7 +74,7 @@ export function createScene(canvas) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(44, 1, 0.1, 100);
+  const camera = new THREE.PerspectiveCamera(44, 1, 0.1, 400);
   const root = new THREE.Group();
   scene.add(root);
 
@@ -301,10 +301,31 @@ export function createScene(canvas) {
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
+    // 長寬比變了,取景就要重算 —— 不重下一次 look 之前整桌都是切掉的
+    look(...lastView);
   }
 
+  // 目前的取景參數,resize 之後要拿它重算一次
+  let lastView = [TABLE_BASE * 1.62, TABLE_BASE * 1.82, 0];
+
+  // 鏡頭距離會在視窗變窄時自動往後退。
+  // PerspectiveCamera 的 fov 是**垂直**的,水平視角是 atan(tan(fov/2) × aspect),
+  // 所以畫面一窄水平視角就跟著縮,原本的距離會把整桌切掉兩邊。
+  // 桌面是平的,垂直方向有透視壓縮,所以高度只算 sin(俯角) —— 用包住整桌的
+  // 「球」去算會退太遠,整桌縮成中間一小塊。
   function look(dist, height, targetY = 0) {
-    camera.position.set(0, height, dist);
+    lastView = [dist, height, targetY];
+    const base = Math.hypot(dist, height) || 1;
+    const need = TABLE * 1.1;    // 桌緣 + 描邊 + 影子
+    const tall = 1.1;            // 蛋大概這麼高
+    const vHalf = (camera.fov * Math.PI) / 360;
+    const hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
+    const want = Math.max(
+      need / Math.tan(hHalf),
+      (need * (height / base) + tall * (dist / base)) / Math.tan(vHalf),
+    ) * 1.06;
+    const k = Math.max(1, want / base);   // 只退不進,寬螢幕維持原本的取景
+    camera.position.set(0, height * k, dist * k);
     camera.lookAt(0, targetY, 0);
   }
 

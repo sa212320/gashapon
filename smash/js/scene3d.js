@@ -315,21 +315,39 @@ export function createScene(canvas) {
   }
 
   const CAM = new THREE.Vector3();
-  // 鏡頭的基準位置與注視點。斜上方俯視:太正上方就退化成 2D,太低則看不到場地後半。
-  const CAM_HOME = new THREE.Vector3(0, 152, 246);
+  // 鏡頭固定從這個方向斜上方俯視:太正上方就退化成 2D,太低則看不到場地後半。
+  // 只有「距離」是算出來的。
   const CAM_LOOK = new THREE.Vector3(0, 0, 8);
+  const CAM_DIR = new THREE.Vector3(0, 152, 238).normalize();
+  const CAM_DIST = 282;              // 原本手調出來的距離,當成寬螢幕的下限
+  const CAM_SIN = CAM_DIR.y;         // 俯角的 sin / cos,拿來算平面場地的投影高度
+  const CAM_COS = Math.hypot(CAM_DIR.x, CAM_DIR.z);
+  const CAM_MARGIN = 1.06;
 
-  // 極巨化沒有上限,疊到 4 層身體半徑就有 55、5 層有 89,比整個場地還大,
-  // 鏡頭固定的話會被一顆陀螺塞滿,場地跟對手全部看不到。
-  // 所以鏡頭要跟著「最遠的那個人的外緣」往後退。只退不進 ——
-  // 場地縮小時如果跟著推近,正常的比賽看起來會一直在變焦。
+  // 鏡頭距離每一格重算,讓「場地 + 所有人」一定進得了畫面。
+  //
+  // 兩件事會讓內容撐破畫面,而且**都不是**把鏡頭釘在固定位置能解決的:
+  //   1. 極巨化沒有上限,疊到 5 層身體半徑有 89,比整個場地還大
+  //   2. 視窗變窄時水平視角跟著縮 —— PerspectiveCamera 的 fov 是**垂直**的,
+  //      水平視角是 atan(tan(fov/2) × aspect),aspect 小於 1 就比垂直還窄
+  // 用包住內容的球去算距離,兩個軸取比較窄的那個,就不會有哪一邊被切掉。
   function frameCamera(world) {
     let need = world.arenaRadius;
+    let tall = 0;
     for (const c of world.combatants) {
       if (!c.alive) continue;
       need = Math.max(need, Math.hypot(c.x, c.y) + c.radius * 1.25);
+      tall = Math.max(tall, c.radius * 1.3);
     }
-    camera.position.copy(CAM_HOME).multiplyScalar(Math.max(1, need / 100));
+    const vHalf = (camera.fov * Math.PI) / 360;
+    const hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
+    // 場地是**平**的,所以垂直方向會透視壓縮:高度只佔 sin(俯角),
+    // 用包住內容的「球」去算會退太遠,畫面整個縮成一小塊。
+    const wide = need / Math.tan(hHalf);
+    const high = (need * CAM_SIN + tall * CAM_COS) / Math.tan(vHalf);
+    // 取三者最大:本來的取景(寬螢幕維持原樣)、水平裝得下、垂直裝得下
+    const dist = Math.max(CAM_DIST * (need / 100), Math.max(wide, high) * CAM_MARGIN);
+    camera.position.copy(CAM_DIR).multiplyScalar(dist).add(CAM_LOOK);
     camera.lookAt(CAM_LOOK);
   }
 
