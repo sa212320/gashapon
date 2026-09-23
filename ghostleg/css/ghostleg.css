@@ -1,0 +1,95 @@
+/* 阿彌陀籤自己的樣式。版面、按鈕、對話框那一整套都吃 shared/css/tokens.css,
+   這裡不要重新定義。 */
+
+body { display: flex; flex-direction: column; min-height: 100svh; }
+
+.topbar { position: relative; padding: 14px 16px 6px; text-align: center; }
+/* home-link 是絕對定位的,topbar 不給 relative 的話它會跑到頁面中間去 */
+.setup-name { margin: 0; font-size: 22px; }
+.remaining { margin: 2px 0 0; font-size: 14px; opacity: .72; }
+
+.stage { position: relative; flex: 1; min-height: 0; }
+/* 用 absolute inset:0 而不是 height:100% —— 百分比高度要靠父層有明確高度才解得出來,
+   在 flex 版面裡很容易變成只算到一半。 */
+.track { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+
+.empty-state {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+}
+.empty-state__icon { font-size: 54px; }
+.empty-state__text { margin: 0; font-size: 18px; font-weight: 700; }
+
+/* 結果清單:蓋在跑道上,本身可以捲動。40 個人的話一定捲得到。 */
+.results {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  translate: -50% 0;
+  width: min(94vw, 420px);
+  max-height: 74%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  box-sizing: border-box;
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--cream);
+}
+.results__head { margin: 0; font-size: 18px; text-align: center; }
+.results__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  display: grid;
+  gap: 6px;
+}
+.results__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 12px;
+  background: var(--cream-deep);
+  font-weight: 700;
+}
+.results__dot {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 3px solid var(--ink);
+}
+.results__who { flex: 1; }
+.results__prize { opacity: .85; }
+.results__item--empty .results__prize { opacity: .5; font-weight: 400; }
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 10px 16px max(14px, env(safe-area-inset-bottom));
+}
+.btn--go { font-size: 21px; padding-inline: 38px; }
+
+/* 設定裡的每一列 */
+.edit-list { margin: 0 0 10px; padding: 0; list-style: none; display: grid; gap: 8px; }
+.edit-row { display: flex; align-items: center; gap: 8px; }
+.edit-row__dot {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid var(--ink);
+}
+.edit-row__name { flex: 1; min-width: 0; }
+.edit-row__count { width: 52px; text-align: center; }
+.panel__hint { margin: 0 0 8px; font-size: 14px; opacity: .75; }

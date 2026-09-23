@@ -24,7 +24,7 @@ export function createCameraScript({ camera, ladder, laneWidth: w, rowDepth }) {
   // 俯視要能框住**整條**跑道 —— 含近處的起跑線跟遠處的獎項箱。
   // 算太低的話兩端會被裁掉:視野 48 度,俯視能看到的縱深大約是高度的 0.89 倍,
   // 所以高度至少要 far / 0.89,再乘一點餘裕。人多的時候換成寬邊是瓶頸。
-  const fit = () => Math.max(far * 1.2, wide / Math.max(0.5, camera.aspect) * 1.25);
+  const fit = () => Math.max(far * 0.95, wide / Math.max(0.5, camera.aspect) * 1.15);
   const topZ = -far * 0.5 + far * 0.62;
 
   // 跟在前緣後方。距離隨隊伍拉開的程度變 —— 固定距離的話,一旦有人衝出去,
