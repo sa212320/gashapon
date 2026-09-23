@@ -12,7 +12,9 @@ export function createPrize({ name = '新獎項', count = 1, rarity = 'N' } = {}
   return {
     id: newId('p'),
     name,
-    count: Math.max(0, Math.floor(count)),
+    // count 不可信:Infinity / NaN 會讓 buildPool 依賴的展開迴圈爆掉,
+    // 一律當成 0(沒有蛋)比「憑空多一顆」安全。
+    count: Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0,
     rarity: RARITIES.includes(rarity) ? rarity : 'N',
   };
 }

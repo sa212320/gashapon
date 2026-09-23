@@ -2,9 +2,9 @@
 import { newId } from '../../shared/js/ids.js';
 import { expand } from '../../shared/js/roster.js';
 
-export const TIERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+export const TIERS = Object.freeze(['A', 'B', 'C', 'D', 'E', 'F', 'G']);
 
-export const TIER_META = {
+export const TIER_META = Object.freeze({
   A: { label: 'A賞', color: '#FF6F91', glow: 'rgba(255,111,145,.9)' },
   B: { label: 'B賞', color: '#FFA45B', glow: 'rgba(255,164,91,.85)' },
   C: { label: 'C賞', color: '#FFD479', glow: 'rgba(255,212,121,.8)' },
@@ -12,14 +12,16 @@ export const TIER_META = {
   E: { label: 'E賞', color: '#8CC9FF', glow: 'rgba(140,201,255,.75)' },
   F: { label: 'F賞', color: '#C4A2FF', glow: 'rgba(196,162,255,.7)' },
   G: { label: 'G賞', color: '#E7DFD4', glow: 'rgba(231,223,212,.7)' },
-};
+});
 
 export function createIchibanPrize({ name = '新獎項', tier = 'G', count = 1 } = {}) {
   return {
     id: newId('ip'),
     name,
     tier: TIERS.includes(tier) ? tier : 'G',
-    count: Math.max(0, Math.floor(count)),
+    // count 不可信:Infinity / NaN 會讓 buildTickets 依賴的 expand 迴圈爆掉,
+    // 一律當成 0(沒有籤)比「憑空多一顆」安全。
+    count: Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0,
   };
 }
 

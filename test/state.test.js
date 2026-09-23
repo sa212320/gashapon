@@ -6,6 +6,7 @@ import {
   prizesChanged, needsRebuild, remaining, createInitialState,
   addMachine, removeMachine, getActiveMachine,
 } from '../gashapon/js/state.js';
+import { RARITIES, SEED_PRIZES, RARITY_META } from '../gashapon/js/constants.js';
 
 const prizes = () => [
   createPrize({ name: '掃地', count: 3, rarity: 'N' }),
@@ -163,4 +164,30 @@ test('needsRebuild:什麼都沒動就不用重建', () => {
   const before = prizes();
   assert.equal(needsRebuild(before, before.map(p => ({ ...p }))), false);
   assert.equal(needsRebuild(before, [...before].reverse().map(p => ({ ...p }))), false);
+});
+
+test('count 是 Infinity 時當成 0,不會把瀏覽器打死', () => {
+  const prize = createPrize({ name: 'x', count: Infinity, rarity: 'N' });
+  assert.equal(prize.count, 0);
+  assert.equal(buildPool([prize]).length, 0);
+});
+
+test('count 是 NaN 時當成 0', () => {
+  assert.equal(createPrize({ name: 'x', count: NaN, rarity: 'N' }).count, 0);
+});
+
+test('RARITIES 是凍結的,外部改不動', () => {
+  assert.equal(Object.isFrozen(RARITIES), true);
+  assert.throws(() => { RARITIES.push('LR'); }, TypeError);
+});
+
+test('SEED_PRIZES 跟裡面每一個項目都是凍結的', () => {
+  assert.equal(Object.isFrozen(SEED_PRIZES), true);
+  assert.ok(SEED_PRIZES.every(Object.isFrozen));
+  assert.throws(() => { SEED_PRIZES.push({ name: 'x', count: 1, rarity: 'N' }); }, TypeError);
+  assert.throws(() => { SEED_PRIZES[0].count = 99; }, TypeError);
+});
+
+test('RARITY_META 是凍結的', () => {
+  assert.equal(Object.isFrozen(RARITY_META), true);
 });

@@ -119,3 +119,18 @@ test('refillSetup 把籤全部放回去,不動 prizes', () => {
   assert.equal(remaining(refilled.tickets), 2);
   assert.deepEqual(refilled.prizes, setup.prizes);
 });
+
+test('count 是 Infinity 時當成 0,不會把瀏覽器打死', () => {
+  const prize = createIchibanPrize({ name: 'x', count: Infinity });
+  assert.equal(prize.count, 0);
+  assert.equal(buildTickets([prize]).length, 0);
+});
+
+test('count 是 NaN 時當成 0', () => {
+  assert.equal(createIchibanPrize({ name: 'x', count: NaN }).count, 0);
+});
+
+test('TIERS 是凍結的,外部改不動', () => {
+  assert.equal(Object.isFrozen(TIERS), true);
+  assert.throws(() => { TIERS.push('H'); }, TypeError);
+});

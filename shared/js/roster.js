@@ -4,7 +4,11 @@
 export function expand(entries, makeItem) {
   const items = [];
   for (const entry of entries) {
-    for (let i = 0; i < entry.count; i++) items.push(makeItem(entry, i));
+    // entry.count 不可信:Infinity 會讓這個迴圈永遠跑下去把分頁打死,
+    // NaN / 負數 / 小數也都不是合法的個體數。四個模式都經過這裡,
+    // 只在各自的 createXxx 擋是不夠的——下一個模式又會漏一次。
+    const n = Number.isFinite(entry.count) ? Math.max(0, Math.floor(entry.count)) : 0;
+    for (let i = 0; i < n; i++) items.push(makeItem(entry, i));
   }
   return items;
 }

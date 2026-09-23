@@ -31,6 +31,22 @@ test('count 為 0 的項目不產生任何個體', () => {
   assert.equal(expand([entry('a', 0)], () => ({})).length, 0);
 });
 
+test('expand 不相信 count:Infinity 當成 0,不會把分頁打死', () => {
+  assert.equal(expand([entry('a', Infinity)], () => ({})).length, 0);
+});
+
+test('expand 不相信 count:NaN 當成 0', () => {
+  assert.equal(expand([entry('a', NaN)], () => ({})).length, 0);
+});
+
+test('expand 不相信 count:負數當成 0', () => {
+  assert.equal(expand([entry('a', -3)], () => ({})).length, 0);
+});
+
+test('expand 不相信 count:小數無條件捨去', () => {
+  assert.equal(expand([entry('a', 2.9)], () => ({})).length, 2);
+});
+
 test('countOf 是所有 count 的總和', () => {
   assert.equal(countOf([entry('a', 3), entry('b', 2)]), 5);
 });
