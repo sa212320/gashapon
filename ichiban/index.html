@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFF6E9">
+<title>一番賞</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🎫</text></svg>">
+<link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="css/ichiban.css">
+</head>
+<body>
+
+<header class="topbar">
+  <a class="home-link" href="../" aria-label="回首頁">←</a>
+  <h1 class="setup-name" id="setupName">一番賞</h1>
+  <p class="remaining" id="remaining"></p>
+</header>
+
+<main class="stage" id="stage">
+  <div class="desk">
+    <div class="pile" id="pile"></div>
+
+    <div class="empty-state" id="emptyState" hidden>
+      <div class="empty-state__icon">🎉</div>
+      <p class="empty-state__text">抽完了!</p>
+      <button class="btn btn--primary" id="refillBtn" type="button">重新鋪一桌</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay" hidden>
+    <div class="overlay__dim" id="dim"></div>
+
+    <div class="reveal-stack">
+      <div class="ticket-card" id="ticketCard">
+        <div class="ticket-card__half ticket-card__half--top" id="cardTop">
+          <span class="ticket-card__lines" aria-hidden="true"></span>
+        </div>
+        <div class="ticket-card__perf" aria-hidden="true">
+          <span class="ticket-card__notch ticket-card__notch--left"></span>
+          <span class="ticket-card__notch ticket-card__notch--right"></span>
+        </div>
+        <div class="ticket-card__half ticket-card__half--bottom" id="cardBottom">
+          <span class="ticket-card__lines" aria-hidden="true"></span>
+          <div class="ticket-card__result" id="cardResult">
+            <span class="ticket-card__badge" id="cardBadge"></span>
+            <p class="ticket-card__name" id="cardName"></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="aura" id="aura" aria-hidden="true"></div>
+      <div class="particles" id="particles" aria-hidden="true"></div>
+    </div>
+
+    <div class="ticket-actions" id="ticketActions" hidden>
+      <button class="btn btn--ghost" id="holdCancelBtn" type="button">取消</button>
+      <button class="btn btn--primary" id="tearBtn" type="button">撕開</button>
+    </div>
+
+    <p class="skip-hint" id="skipHint">點一下繼續</p>
+  </div>
+</main>
+
+<footer class="toolbar">
+  <button class="icon-btn" id="soundBtn" type="button" aria-label="音效開關"><span id="soundIcon">🔊</span></button>
+  <button class="icon-btn" id="settingsBtn" type="button" aria-label="設定">⚙️</button>
+</footer>
+
+<dialog class="dialog" id="settingsDialog">
+  <header class="dialog__head">
+    <h2>一番賞設定</h2>
+    <button class="icon-btn icon-btn--light" id="closeBtn" type="button" aria-label="關閉">✕</button>
+  </header>
+
+  <div class="picker">
+    <select class="picker__select" id="setupSelect" aria-label="選擇一番賞"></select>
+    <button class="chip" id="addSetupBtn" type="button">＋ 新增</button>
+    <button class="chip chip--danger" id="deleteSetupBtn" type="button">刪除</button>
+  </div>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab is-active" data-tab="list" type="button">剩下什麼</button>
+    <button class="tab" data-tab="edit" type="button">編輯獎項</button>
+    <button class="tab" data-tab="other" type="button">其他</button>
+  </nav>
+
+  <div class="dialog__body">
+    <section class="panel" data-panel="list">
+      <p class="panel__hint" id="listHint"></p>
+      <ul class="prize-list" id="prizeList"></ul>
+      <button class="btn btn--ghost btn--block" id="listRefillBtn" type="button">重新鋪一桌</button>
+    </section>
+
+    <section class="panel" data-panel="edit" hidden>
+      <ul class="edit-list" id="editList"></ul>
+      <button class="btn btn--ghost btn--block" id="addPrizeBtn" type="button">＋ 新增獎項</button>
+    </section>
+
+    <section class="panel" data-panel="other" hidden>
+      <label class="field">
+        <span class="field__label">一番賞的名字</span>
+        <input class="field__input" id="nameInput" type="text" maxlength="20" placeholder="我的一番賞">
+      </label>
+      <label class="field">
+        <span class="field__label">最後一抽賞的名字</span>
+        <input class="field__input" id="lastOneInput" type="text" maxlength="20" placeholder="留空就不會有最後一抽賞">
+      </label>
+      <label class="switch">
+        <input type="checkbox" id="soundInput">
+        <span class="switch__box"></span>
+        <span class="switch__text">音效<small>這個設定所有模式共用</small></span>
+      </label>
+    </section>
+  </div>
+
+  <footer class="dialog__foot">
+    <button class="btn btn--ghost" id="cancelBtn" type="button">取消</button>
+    <button class="btn btn--primary" id="confirmBtn" type="button">確定</button>
+  </footer>
+</dialog>
+
+<dialog class="dialog dialog--ask" id="askDialog">
+  <p class="ask__text" id="askText"></p>
+  <div class="ask__buttons">
+    <button class="btn btn--ghost" id="askNo" type="button">不要</button>
+    <button class="btn btn--primary" id="askYes" type="button">好</button>
+  </div>
+</dialog>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
