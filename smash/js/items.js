@@ -12,7 +12,7 @@ const ITEM_RADIUS = 7;
 const BOMB_RADIUS = 6;
 const BOMB_FUSE = 1.6;
 const BLAST_RADIUS = 46;
-const BLAST_POWER = 420;
+const BLAST_POWER = 620;
 
 function randomSpot(arenaRadius, rng) {
   const angle = rng() * Math.PI * 2;
@@ -46,14 +46,14 @@ export function applyPickups(world) {
       who.buffs.attack += 1;
     } else if (item.type === 'speed') {
       who.buffs.speed += 1;
-      who.vx *= 1.7;
-      who.vy *= 1.7;
+      who.vx *= 2.3;
+      who.vy *= 2.3;
     } else if (item.type === 'giant') {
       who.buffs.giant += 1;
-      who.radius *= 1.45;
+      who.radius *= 1.62;
       // 抗擊飛就是質量大 —— 不另外寫一條「巨人不會被打飛」的規則,
       // 那種規則會跟物理打架,而且會出現「巨人卡在邊緣推不動」這種怪事。
-      who.mass *= 2.4;
+      who.mass *= 3.4;
     }
   }
 

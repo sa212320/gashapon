@@ -4,9 +4,9 @@
 // 這裡是一格一格算出來的,所以不能有「先決定誰贏」的捷徑。
 import { store, seedState, createSmashSetup } from './store.js';
 import { createFighter, pickColor } from './fighters.js';
-import { createWorld, step, seek, shrink, aliveOf, winnerTeam } from './physics.js';
+import { createWorld, step, think, shrink, aliveOf, winnerTeam } from './physics.js';
 import { ITEM_TYPES, spawnItem, spawnBomb, applyPickups, explodeBombs } from './items.js';
-import { createRenderer } from './ui.js';
+import { createScene } from './scene3d.js';
 import { getActive, replaceSetup, addSetup, removeSetup, entriesChanged } from '../../shared/js/roster.js';
 import { createDialogShell } from '../../shared/js/dialog.js';
 import { createAsk } from '../../shared/js/ask.js';
@@ -26,7 +26,7 @@ const persist = store.createDebouncedSave();
 requestPersistence();
 setEnabled(prefs.soundOn);
 
-const renderer = createRenderer($('arena'));
+const scene = createScene($('arena'));
 const ask = createAsk({ dialog: $('askDialog'), text: $('askText'), yes: $('askYes'), no: $('askNo') });
 
 let world = null;
@@ -55,8 +55,9 @@ function reset() {
   const setup = getActive(state);
   world = createWorld({ fighters: setup.fighters.filter(f => f.count > 0), arenaRadius: ARENA });
   nextItem = ITEM_EVERY;
-  renderer.resize(ARENA);
-  renderer.draw(world, nameMap());
+  scene.reset();
+  scene.resize();
+  scene.draw(world, nameMap());
 }
 
 function start() {
@@ -84,12 +85,12 @@ function start() {
     const before = aliveOf(world).length;
     world = explodeBombs(world, dt);
     world = applyPickups(world);
-    world = seek(world, dt);
+    world = think(world, dt);
     world = shrink(world, dt);
     world = step(world, dt);
     if (aliveOf(world).length < before) sfx.clunk();
 
-    renderer.draw(world, nameMap());
+    scene.draw(world, nameMap());
 
     const won = winnerTeam(world);
     if (won || aliveOf(world).length === 0 || world.time > MAX_TIME) {
@@ -120,7 +121,7 @@ function finish(teamId) {
 $('startBtn').addEventListener('click', start);
 $('againBtn').addEventListener('click', start);
 $('emptySettingsBtn').addEventListener('click', () => settings.open());
-addEventListener('resize', () => { renderer.resize(ARENA); if (world) renderer.draw(world, nameMap()); });
+addEventListener('resize', () => { scene.resize(); if (world) scene.draw(world, nameMap()); });
 
 // 切到別的 App 時瀏覽器會停掉 rAF,比賽會卡在半路。直接結束掉,不要留一個永遠打不完的場子。
 document.addEventListener('visibilitychange', () => {
@@ -275,3 +276,7 @@ $('soundBtn').addEventListener('click', () => {
 document.addEventListener('click', () => unlock(), { once: true });
 
 render();
+
+// 第一格畫出來了,才把「載入中」收掉。
+const loadingEl = $('loading');
+if (loadingEl) loadingEl.hidden = true;

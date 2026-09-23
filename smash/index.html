@@ -8,6 +8,14 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>⭐</text></svg>">
 <link rel="stylesheet" href="../shared/css/tokens.css">
 <link rel="stylesheet" href="css/smash.css">
+<script type="importmap">
+{"imports":{"three":"../vendor/three.module.min.js"}}
+</script>
+<!-- 沒有這幾行的話,瀏覽器要先抓 main.js、解析、再抓 scene3d.js、再解析,
+     才會發現需要 three.js —— 三層來回都在關鍵路徑上。 -->
+<link rel="modulepreload" href="../vendor/three.module.min.js">
+<link rel="modulepreload" href="js/main.js">
+<link rel="modulepreload" href="js/scene3d.js">
 </head>
 <body>
 
@@ -19,6 +27,7 @@
 
 <main class="stage">
   <canvas class="arena" id="arena"></canvas>
+  <p class="loading" id="loading">載入中…</p>
 
   <div class="empty-state" id="emptyState" hidden>
     <div class="empty-state__icon">⭐</div>

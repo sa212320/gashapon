@@ -65,11 +65,23 @@ export function createDialogShell({ els, ask, actions, tabs, onSetupAdded }) {
     els.deleteSetupBtn.disabled = state.setups.length <= 1;
   }
 
+  // 分頁只要給 name,骨殼自己去 dialog 裡面找對應的 [data-panel]。
+  // 以前是直接讀 tab.panelEl,但沒有任何一個模式傳過這個欄位 ——
+  // 於是 open() 會在 showModal() **之前**丟例外,設定按鈕按下去完全沒反應。
+  const panes = tabs.map(tab => {
+    const panelEl = tab.panelEl ?? els.dialog?.querySelector(`[data-panel="${tab.name}"]`);
+    if (!panelEl) console.warn(`createDialogShell: 找不到 [data-panel="${tab.name}"],這個分頁切不過去。`);
+    return { name: tab.name, panelEl };
+  });
+
   function showTab(name) {
     els.tabsNav.querySelectorAll('.tab').forEach(t => {
       t.classList.toggle('is-active', t.dataset.tab === name);
     });
-    for (const tab of tabs) tab.panelEl.hidden = tab.name !== name;
+    // 找不到的分頁就跳過,不能讓它拖著整個 open() 一起掛掉
+    for (const pane of panes) {
+      if (pane.panelEl) pane.panelEl.hidden = pane.name !== name;
+    }
   }
 
   function refresh() {
@@ -123,7 +135,7 @@ export function createDialogShell({ els, ask, actions, tabs, onSetupAdded }) {
     open() {
       actions.snapshot();
       refresh();
-      showTab(tabs[0].name);
+      showTab(panes[0].name);
       els.dialog.showModal();
     },
     close() { els.dialog.close(); },

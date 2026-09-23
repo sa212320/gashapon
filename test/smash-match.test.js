@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createFighter } from '../smash/js/fighters.js';
-import { createWorld, step, seek, shrink, aliveOf, winnerTeam } from '../smash/js/physics.js';
+import { createWorld, step, think, shrink, aliveOf, winnerTeam } from '../smash/js/physics.js';
 import { spawnItem, spawnBomb, applyPickups, explodeBombs, ITEM_TYPES } from '../smash/js/items.js';
 
 function seeded(seed) {
@@ -39,7 +39,7 @@ function playMatch({ fighters, seed, withItems = true, maxTime = 45 }) {
     }
     world = explodeBombs(world, dt);
     world = applyPickups(world);
-    world = seek(world, dt);
+    world = think(world, dt);
     world = shrink(world, dt);
     world = step(world, dt);
 
@@ -62,7 +62,7 @@ test('一整場會結束,不會變成互瞪的僵局', () => {
   assert.equal(timeouts, 0, `30 場裡有 ${timeouts} 場打到時間上限還沒結束`);
 });
 
-test('沒有道具也打得完 —— 結束靠的是主動追擊,不是靠炸彈', () => {
+test('沒有道具也打得完 —— 結束靠的是場地縮小,不是靠炸彈', () => {
   let timeouts = 0;
   for (let seed = 0; seed < 30; seed++) {
     if (playMatch({ fighters: teams(3), seed, withItems: false }).timedOut) timeouts++;

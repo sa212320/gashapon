@@ -80,11 +80,38 @@ test('攻擊道具會讓自己撞出去的力更大', () => {
   assert.ok(boosted.combatants[1].vx > base.combatants[1].vx, '攻擊道具沒有加成');
 });
 
+/* ---------- 道具的效果 ---------- */
+
+// 衝量對稱的話,攻擊力等於「兩邊一起飛得更遠」—— 對「誰被撞出場」幾乎沒有影響,
+// 撿到的人自己也被彈得更遠。要有感覺,多出來的力必須只加在對方身上。
+test('攻擊力是打在對方身上,不是兩邊一起飛', () => {
+  const a = { ...at('red', -8, 0, 140, 0), buffs: { attack: 2, speed: 0, giant: 0 } };
+  const b = at('blue', 8, 0, -140, 0);
+  const out = step({ ...arena, combatants: [a, b] }, 1 / 60);
+  const me = Math.abs(out.combatants[0].vx);
+  const him = Math.abs(out.combatants[1].vx);
+  assert.ok(him > me * 1.5, `對方 ${him.toFixed(0)} 應該明顯大於自己 ${me.toFixed(0)}`);
+});
+
+test('沒有攻擊力時兩邊彈開的力一樣大', () => {
+  const out = step({ ...arena, combatants: [at('red', -8, 0, 140, 0), at('blue', 8, 0, -140, 0)] }, 1 / 60);
+  const me = Math.abs(out.combatants[0].vx);
+  const him = Math.abs(out.combatants[1].vx);
+  assert.ok(Math.abs(me - him) < 1, `${me.toFixed(2)} vs ${him.toFixed(2)}`);
+});
+
 /* ---------- 出界與勝負 ---------- */
 
 test('被推出場外就淘汰', () => {
   const c = at('red', 99, 0, 600, 0);
   const out = step({ ...arena, combatants: [c] }, 1 / 60);
+  assert.equal(out.combatants[0].alive, false);
+});
+
+// 淘汰線就是畫面上那個圓盤的邊。以前留了一個半徑的寬容,結果小孩會看到
+// 角色整個人站在盤子外面還活得好好的 —— 中心出界就算掉下去。
+test('中心一離開圓盤就出局,不能整個人站在盤子外面還活著', () => {
+  const out = step({ ...arena, combatants: [at('red', 104, 0)] }, 1 / 60);
   assert.equal(out.combatants[0].alive, false);
 });
 
@@ -123,28 +150,70 @@ test('step 不就地改動傳進來的 world', () => {
   assert.equal(JSON.stringify(world), before);
 });
 
-/* ---------- 主動追擊 ---------- */
+/* ---------- AI ---------- */
 
-test('seek:往最近的敵人加速', async () => {
-  const { seek } = await import('../smash/js/physics.js');
-  const out = seek({ ...arena, combatants: [at('red', 0, 0), at('blue', 50, 0)] }, 1 / 60);
+test('會往敵人移動', async () => {
+  const { think } = await import('../smash/js/physics.js');
+  const out = think({ ...arena, combatants: [at('red', 0, 0), at('blue', 50, 0)] }, 1 / 60);
   assert.ok(out.combatants[0].vx > 0, '紅隊沒有往敵人移動');
   assert.ok(out.combatants[1].vx < 0, '藍隊沒有往敵人移動');
 });
 
-test('seek:不會追著隊友跑', async () => {
-  const { seek } = await import('../smash/js/physics.js');
-  // 場上只有同隊的人 —— 沒有敵人可追,誰都不該加速
-  const out = seek({ ...arena, combatants: [at('red', 0, 0), at('red', 50, 0)] }, 1 / 60);
+test('不會追著隊友跑', async () => {
+  const { think } = await import('../smash/js/physics.js');
+  const out = think({ ...arena, combatants: [at('red', 0, 0), at('red', 50, 0)] }, 1 / 60);
   assert.equal(out.combatants[0].vx, 0);
   assert.equal(out.combatants[1].vx, 0);
 });
 
-test('seek:速度道具讓追擊更猛', async () => {
-  const { seek } = await import('../smash/js/physics.js');
+test('速度道具讓追擊更猛', async () => {
+  const { think } = await import('../smash/js/physics.js');
   const fast = at('red', 0, 0);
   fast.buffs.speed = 1;
-  const base = seek({ ...arena, combatants: [at('red', 0, 0), at('blue', 50, 0)] }, 1 / 60);
-  const boosted = seek({ ...arena, combatants: [fast, at('blue', 50, 0)] }, 1 / 60);
+  const base = think({ ...arena, combatants: [at('red', 0, 0), at('blue', 50, 0)] }, 1 / 60);
+  const boosted = think({ ...arena, combatants: [fast, at('blue', 50, 0)] }, 1 / 60);
   assert.ok(boosted.combatants[0].vx > base.combatants[0].vx, '速度道具沒有加成追擊');
+});
+
+test('站在邊緣時會往場中央閃 —— 追人不能追到把自己送出去', async () => {
+  const { think } = await import('../smash/js/physics.js');
+  // 紅隊站在右邊的懸崖邊,敵人還在更右邊。只會追人的話他會繼續往右走出去。
+  const out = think({ ...arena, combatants: [at('red', 95, 0), at('blue', 99, 0)] }, 1 / 60);
+  assert.ok(out.combatants[0].vx < 0, `站在邊緣還往外走:vx ${out.combatants[0].vx}`);
+});
+
+test('場中央不會被邊緣的斥力干擾', async () => {
+  const { think } = await import('../smash/js/physics.js');
+  const out = think({ ...arena, combatants: [at('red', 0, 0), at('blue', 40, 0)] }, 1 / 60);
+  assert.ok(out.combatants[0].vx > 0, '在場中央反而往後退');
+});
+
+test('引信快到的炸彈會被閃開', async () => {
+  const { think } = await import('../smash/js/physics.js');
+  const w = { ...arena, combatants: [at('red', 10, 0), at('blue', 60, 0)] , bombs: [{ id: 'b', x: 0, y: 0, radius: 6, fuse: 0.3 }] };
+  const out = think(w, 1 / 60);
+  assert.ok(out.combatants[0].vx > 0, '沒有從炸彈旁邊逃開');
+});
+
+test('引信還久的炸彈不用理 —— 不然整場都在逃命', async () => {
+  const { think } = await import('../smash/js/physics.js');
+  const near = { ...arena, combatants: [at('red', 10, 0), at('blue', -60, 0)], bombs: [{ id: 'b', x: 0, y: 0, radius: 6, fuse: 3 }] };
+  // 敵人在左邊,炸彈在左邊但還久 —— 應該照樣往左追
+  assert.ok(think(near, 1 / 60).combatants[0].vx < 0, '被還沒響的炸彈嚇跑了');
+});
+
+test('道具比敵人近的時候會先去撿', async () => {
+  const { think } = await import('../smash/js/physics.js');
+  const w = { ...arena, combatants: [at('red', 0, 0), at('blue', -70, 0)], items: [{ id: 'i', type: 'attack', x: 20, y: 0, radius: 7 }] };
+  assert.ok(think(w, 1 / 60).combatants[0].vx > 0, '沒有先去撿旁邊的道具');
+});
+
+test('距離一樣時,優先挑靠近邊緣的敵人 —— 一撞就出局比較划算', async () => {
+  const { think } = await import('../smash/js/physics.js');
+  // 自己站在 (30,0)。兩個敵人**離自己一樣遠(40)**,但一個在場中央側、一個貼著邊緣。
+  // 自己不能站在圓心,不然「離我多遠」跟「離邊緣多遠」會是同一件事,測不出差別。
+  const w = { ...arena, combatants: [at('red', 30, 0), at('blue', 30, 40), at('green', 70, 0)] };
+  const out = think(w, 1 / 60);
+  assert.ok(out.combatants[0].vx > 0, `沒有往邊緣那個敵人去:vx ${out.combatants[0].vx}`);
+  assert.ok(Math.abs(out.combatants[0].vx) > Math.abs(out.combatants[0].vy), '追的是場中央那個');
 });
