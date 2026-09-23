@@ -40,16 +40,14 @@ const ask = createAsk({ dialog: $('askDialog'), text: $('askText'), yes: $('askY
 
 /* ---------- 桌上的蛋 ---------- */
 
-let stir = 0;
 let last = performance.now();
 
 function loop(now) {
   const dt = Math.min(0.033, (now - last) / 1000);
   last = now;
-  if (!playing) {
-    scene.step(dt, stir);
-    stir = Math.max(0, stir - dt * 2.4);
-  }
+  if (!playing) scene.step(dt);
+  // 影子每一格都要更新,連演出期間也是 —— 不然被抽中那顆飛起來,影子會留在原地。
+  scene.layout();
   scene.render();
   requestAnimationFrame(loop);
 }
@@ -198,7 +196,7 @@ function drawForMe() {
 }
 
 $('turnBtn').addEventListener('click', drawForMe);
-$('shakeBtn').addEventListener('click', () => { if (!playing) { stir = 1; sfx.shake?.(1); } });
+$('shakeBtn').addEventListener('click', () => { if (!playing) { scene.shake(1); sfx.shake?.(2); } });
 $('scene').addEventListener('click', e => {
   if (playing) return;
   const egg = scene.pick(e.clientX, e.clientY);
