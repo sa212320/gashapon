@@ -83,6 +83,26 @@ export function createRevealer(els) {
   // 任何還沒跑過 reset 的路徑都會畫出一張沒有齒的方卡。
   els.ticket.style.clipPath = TICKET_CLIP;
 
+  // 撕痕:一條由上到下的鋸齒線,位置用 x 參數左右移動。
+  // 每一點的齒深固定、正負號逐點交替(不交替的話是一條抖動的曲線,不是鋸齒),
+  // 所以 x=0 跟 x=100 兩組點的「數量與順序完全一致」,WAAPI 才能在兩者之間
+  // 內插 —— 撕痕就會穩穩地從左掃到右,而不是每一格亂跳。
+  const SEAM_POINTS = 19;
+  let teeth = [];
+
+  function newTearLine() {
+    teeth = Array.from({ length: SEAM_POINTS }, (_, i) =>
+      (i % 2 === 0 ? 1 : -1) * (0.7 + Math.random() * 1.5));
+  }
+
+  function seamAt(x) {
+    return teeth.map((tooth, i) => `${(x + tooth).toFixed(2)}% ${((i / (SEAM_POINTS - 1)) * 100).toFixed(1)}%`).join(', ');
+  }
+
+  // 留在原地的那半取撕痕的右邊,被撕走的那半取左邊。
+  const faceClip = x => `polygon(${seamAt(x)}, 100% 100%, 100% 0%)`;
+  const flapClip = x => `polygon(0% 0%, ${seamAt(x)}, 0% 100%)`;
+
   let skipping = false;
   let playing = false;
   const running = new Set();
@@ -144,10 +164,12 @@ export function createRevealer(els) {
     els.tearCard.removeAttribute('data-bonus');
     els.ticket.style.clipPath = TICKET_CLIP;
     els.ticket.style.transform = '';
-    els.sleeve.style.transform = '';
-    els.sleeve.style.opacity = '1';
-    els.cavity.style.clipPath = 'inset(0 100% 0 0)';
-    els.cavity.style.opacity = '1';
+    newTearLine();
+    els.face.style.clipPath = faceClip(0);
+    els.flap.style.clipPath = flapClip(0);
+    els.flap.style.transform = '';
+    els.flap.style.opacity = '1';
+    els.stub.style.opacity = '1';
     els.aura.style.opacity = '0';
     els.particles.replaceChildren();
   }
@@ -189,7 +211,7 @@ export function createRevealer(els) {
       const bit = document.createElement('span');
       bit.className = 'shred';
       bit.style.background = color;
-      bit.style.left = `${72 + (Math.random() * 22 - 11)}%`;
+      bit.style.left = `${Math.random() * 100}%`;
       frag.appendChild(bit);
       const dx = (Math.random() - .5) * 160;
       const dy = -40 - Math.random() * 120;
@@ -269,8 +291,12 @@ export function createRevealer(els) {
     }
   }
 
-  // 撕 —— 把票卡從袋子裡往右抽出來。袋口的白色內裡跟著票卡的進度由左往右露出來,
-  // 所以看起來是「抽」而不是「兩張圖各自平移」。抽完袋子才丟掉,票卡回到正中央放大。
+  // 撕 —— 上面那張紙沿著一條鋸齒撕痕被撕下來,底下那張(獎項)露出來。
+  //
+  // 分兩段是刻意的:
+  //   第一段撕痕從左掃到右,被撕走的那半只微微翹起來(位移小到撕痕還是連著的),
+  //   看起來才是「沿著一條線撕」;讓它一開始就飛,就會變成「掉了一塊」。
+  //   第二段撕痕已經走完,整張翹起來的紙才真的被拋開。
   async function playTear({ name, badgeLabel, bonus }) {
     const { level, color } = pending ?? { level: 0, color: '#E7DFD4' };
     playing = true;
@@ -280,39 +306,32 @@ export function createRevealer(els) {
       els.cardBadge.textContent = badgeLabel;
       els.cardName.textContent = name;
 
-      const out = els.tearCard.getBoundingClientRect().width * 0.92;
       sfx.crack();
       spawnShreds(color, 3 + level * 4);
 
-      // 第一段:票卡抽出來,內裡同步露出來。兩者的 duration 必須一樣,
-      // 不然會看到白色內裡跑在票卡前面(或落後),抽的感覺就散了。
-      const pull = 420 + level * 25;
+      // 第一段:撕開。三個動畫的 duration 必須一樣,不然撕痕的兩側會走不同步,
+      // 中間會裂出一條空隙或疊出一條深色帶。
+      const rip = 520 + level * 25;
       await Promise.all([
-        animate(els.ticket, [
-          { transform: 'translateX(0)' },
-          { transform: `translateX(${out}px)` },
-        ], pull, { easing: 'cubic-bezier(.32,.82,.3,1)' }),
-        animate(els.cavity, [
-          { clipPath: 'inset(0 100% 0 0)' },
-          { clipPath: 'inset(0 0% 0 0)' },
-        ], pull, { easing: 'cubic-bezier(.32,.82,.3,1)' }),
-        animate(els.sleeve, [
-          { transform: 'translate(0,0) rotate(0deg)' },
-          { transform: 'translate(-16px, 4px) rotate(-2deg)' },
-        ], pull, { easing: 'cubic-bezier(.32,.82,.3,1)' }),
+        animate(els.face, [{ clipPath: faceClip(0) }, { clipPath: faceClip(100) }], rip, { easing: 'cubic-bezier(.45,.05,.55,.95)' }),
+        animate(els.flap, [
+          { clipPath: flapClip(0), transform: 'translateY(0) rotateY(0deg)' },
+          { clipPath: flapClip(100), transform: 'translateY(-8px) rotateY(-74deg)' },
+        ], rip, { easing: 'cubic-bezier(.45,.05,.55,.95)' }),
+        // 缺口是上面那張紙的一部分,而且就在最先被撕到的左緣,所以早早就要不見。
+        animate(els.stub, [{ opacity: 1 }, { opacity: 0 }], Math.round(rip * 0.35)),
       ]);
 
-      // 第二段:空袋子掉出畫面,票卡滑回正中央放大。
+      // 第二段:撕下來的那張被拋開,獎項自己留著。
       await Promise.all([
-        animate(els.sleeve, [
-          { transform: 'translate(-16px, 4px) rotate(-2deg)', opacity: 1 },
-          { transform: 'translate(-70px, 300px) rotate(-24deg)', opacity: 0 },
-        ], 360, { easing: 'cubic-bezier(.4,0,.75,1)' }),
-        animate(els.cavity, [{ opacity: 1 }, { opacity: 0 }], 260),
+        animate(els.flap, [
+          { transform: 'translate(0,-8px) rotate(0deg) rotateY(-74deg)', opacity: 1 },
+          { transform: 'translate(-58px,-240px) rotate(-20deg) rotateY(-110deg)', opacity: 0 },
+        ], 380, { easing: 'cubic-bezier(.4,0,.75,1)' }),
         animate(els.ticket, [
-          { transform: `translateX(${out}px) scale(1)` },
-          { transform: 'translateX(0) scale(1.12)' },
-        ], 380, { easing: 'cubic-bezier(.34,1.35,.64,1)' }),
+          { transform: 'scale(1)' },
+          { transform: 'scale(1.08)' },
+        ], 340, { easing: 'cubic-bezier(.34,1.4,.64,1)' }),
       ]);
 
       // 賞別等級越高,光暈跟碎花越誇張;G 賞(level 0)乾脆不放光,樸素到底。

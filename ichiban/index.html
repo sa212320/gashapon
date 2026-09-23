@@ -32,8 +32,10 @@
     <div class="overlay__dim" id="dim"></div>
 
     <div class="reveal-stack">
-      <!-- 票卡插在袋子裡。按「撕開」是把票卡往右抽出來,袋口露出白色內裡 —— 
-           一番賞就是這樣開的,不是把票撕成兩半。 -->
+      <!-- 兩張疊起來的紙:底下是獎項,上面是蓋著的票面。
+           按「撕開」把上面那張沿著一條鋸齒撕痕撕下來,底下那張就露出來。
+           face(留在原地的那半)跟 flap(被撕走的那半)吃同一條撕痕的
+           互補 clip-path,所以還沒撕之前看起來就是完整的一張紙。 -->
       <div class="tear" id="tearCard">
         <div class="tear__ticket" id="ticket">
           <div class="tear__result" id="cardResult">
@@ -42,12 +44,9 @@
           </div>
           <span class="tear__band" aria-hidden="true"></span>
         </div>
-        <!-- 缺口是袋子的一部分,放在袋子裡面才會跟著袋子一起被丟掉 -->
-        <div class="tear__sleeve" id="sleeve" aria-hidden="true">
-          <span class="tear__perf"></span>
-          <span class="tear__stub"></span>
-        </div>
-        <span class="tear__cavity" id="cavity" aria-hidden="true"></span>
+        <div class="tear__face" id="face" aria-hidden="true"><span class="tear__perf"></span></div>
+        <div class="tear__flap" id="flap" aria-hidden="true"><span class="tear__perf"></span></div>
+        <span class="tear__stub" id="stub" aria-hidden="true"></span>
       </div>
 
       <div class="aura" id="aura" aria-hidden="true"></div>
