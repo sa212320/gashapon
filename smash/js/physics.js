@@ -10,6 +10,10 @@ import { expand } from '../../shared/js/roster.js';
 const RESTITUTION = 1.15;
 // 每疊一層攻擊力,對方被彈開的力多這麼多倍。撿到就要打得動人,不然沒人想搶。
 const ATTACK_GAIN = 1.9;
+// 多大的一下才算「撞到」,值得演出與音效。挑法見 step 裡的說明。
+export const HIT_POWER = 90;
+// power 到這個值就是最大的演出與最大聲,再大也不會更誇張
+export const HIT_FULL = 260;
 const FRICTION = 0.995;
 const BASE_RADIUS = 8;
 
@@ -48,6 +52,7 @@ export function winnerTeam(world) {
 
 export function step(world, dt) {
   const next = world.combatants.map(c => ({ ...c, buffs: { ...c.buffs } }));
+  const impacts = [];
 
   for (const c of next) {
     if (!c.alive) continue;
@@ -98,6 +103,18 @@ export function step(world, dt) {
       a.vy -= (impulse * ontoA * ny) / a.mass;
       b.vx += (impulse * ontoB * nx) / b.mass;
       b.vy += (impulse * ontoB * ny) / b.mass;
+
+      // 回報這一撞給演出用。power 取「兩個人之中被推得比較多的那個速度變化」——
+      // 觀眾看到的就是有人飛出去,不是抽象的衝量。接觸點取在兩顆中間。
+      // 這是 step 的**輸出**,不是 world 的狀態:下一格重新算,不累積。
+      //
+      // HIT_POWER 這道門檻是必要的,不是保守:實測一場比賽平均**每秒 15 次**碰撞,
+      // 但 power 的中位數只有 3 —— 那些是陀螺靠在一起互相推擠,不是撞擊。
+      // 不篩的話畫面會變成閃光燈、聲音會變成機關槍。90 大約是一秒一次真正的重擊。
+      const power = Math.max((impulse * ontoA) / a.mass, (impulse * ontoB) / b.mass);
+      if (power >= HIT_POWER) {
+        impacts.push({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, power });
+      }
     }
   }
 
@@ -107,7 +124,7 @@ export function step(world, dt) {
     if (c.alive && Math.hypot(c.x, c.y) > world.arenaRadius) c.alive = false;
   }
 
-  return { ...world, combatants: next, time: world.time + dt };
+  return { ...world, combatants: next, time: world.time + dt, impacts };
 }
 
 // 每一格重新決定要往哪裡推。四個行為疊加,優先序由權重決定:

@@ -8,7 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createFighter, pickColor, PALETTE } from '../smash/js/fighters.js';
-import { createWorld, step, aliveOf, winnerTeam } from '../smash/js/physics.js';
+import { createWorld, step, aliveOf, winnerTeam, HIT_POWER } from '../smash/js/physics.js';
 
 function seeded(seed) {
   let a = seed >>> 0;
@@ -98,6 +98,36 @@ test('沒有攻擊力時兩邊彈開的力一樣大', () => {
   const me = Math.abs(out.combatants[0].vx);
   const him = Math.abs(out.combatants[1].vx);
   assert.ok(Math.abs(me - him) < 1, `${me.toFixed(2)} vs ${him.toFixed(2)}`);
+});
+
+/* ---------- 撞擊回報(給演出與音效用)---------- */
+
+// 實測一場比賽平均每秒 15 次碰撞,但 power 中位數只有 3 —— 絕大多數是
+// 陀螺靠在一起互相推擠。全部回報的話畫面會變閃光燈、聲音會變機關槍。
+test('輕輕靠在一起不算撞到,不會回報', () => {
+  const out = step({ ...arena, combatants: [at('red', -7.9, 0, 1, 0), at('blue', 7.9, 0, -1, 0)] }, 1 / 60);
+  assert.equal(out.impacts.length, 0);
+});
+
+test('用力對撞才回報,而且記下位置與強度', () => {
+  const out = step({ ...arena, combatants: [at('red', -7.9, 0, 200, 0), at('blue', 7.9, 0, -200, 0)] }, 1 / 60);
+  assert.equal(out.impacts.length, 1);
+  assert.ok(Math.abs(out.impacts[0].x) < 1, '接觸點應該在兩顆中間');
+  assert.ok(out.impacts[0].power >= HIT_POWER);
+});
+
+test('同隊撞在一起不回報 —— 隊友之間根本沒有衝量可言', () => {
+  const out = step({ ...arena, combatants: [at('red', -7.9, 0, 200, 0), at('red', 7.9, 0, -200, 0)] }, 1 / 60);
+  assert.equal(out.impacts.length, 0);
+});
+
+test('impacts 每一格重算,不會累積', () => {
+  const hard = { ...arena, combatants: [at('red', -7.9, 0, 200, 0), at('blue', 7.9, 0, -200, 0)] };
+  const first = step(hard, 1 / 60);
+  assert.equal(first.impacts.length, 1);
+  // 撞完彈開之後再跑一格,上一格的撞擊不該還留著
+  const second = step(first, 1 / 60);
+  assert.equal(second.impacts.length, 0);
 });
 
 /* ---------- 出界與勝負 ---------- */

@@ -113,6 +113,14 @@ export const sfx = {
     tone({ freq: 180, to: 90, dur: 0.14, type: 'triangle', gain: 0.22 });
     noise({ dur: 0.1, gain: 0.1, from: 900, to: 150 });
   },
+  // 陀螺對撞。power 是 0~1 的強度,決定音高與音量 ——
+  // 每一下都一樣大聲的話,重擊跟擦過去就聽不出差別,等於沒加。
+  // 撞擊音要短(0.1 秒以內),不然連續兩下會糊成一團噪音。
+  hit(power = 0.5) {
+    const k = Math.min(1, Math.max(0, power));
+    tone({ freq: 520 + k * 380, to: 150, dur: 0.07, type: 'square', gain: 0.08 + k * 0.1 });
+    noise({ dur: 0.06 + k * 0.05, gain: 0.06 + k * 0.12, from: 5000 + k * 4000, to: 500 });
+  },
   empty() {
     tone({ freq: 300, to: 160, dur: 0.35, type: 'sine', gain: 0.18 });
   },

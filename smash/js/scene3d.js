@@ -8,9 +8,12 @@
 // 一個角色先畫完自己所有的描邊,再畫自己所有的本體。否則角色擠在一起時,
 // 旁邊那顆的正面會比這顆的背面還近,把描邊整段吃掉(扭蛋機踩過這個坑)。
 import * as THREE from 'three';
+import { HIT_POWER, HIT_FULL } from './physics.js';
 
 const INK = 0x574239;
 const GROUND = -4;        // 場地上表面的高度,角色站在這裡
+const SPARK_TIME = 0.22;  // 撞擊火花幾秒
+const SPARK_MAX = 5;      // 同時最多幾個火花,再多就是一團糊
 const BLAST_TIME = 0.5;   // 爆炸演出幾秒
 const BLAST_R = 46;       // 跟 items.js 的 BLAST_RADIUS 對齊:看到的圈就是真的會被炸到的範圍
 
@@ -172,6 +175,7 @@ export function createScene(canvas) {
   let props = [];           // 道具、炸彈、爆炸,每格重建(數量少)
   let seenBombs = new Map();  // 上一格看到的炸彈,用來認出「剛剛炸掉的那顆」
   let blasts = [];            // 進行中的爆炸 { x, y, at }
+  let sparks = [];            // 進行中的撞擊火花 { x, y, k, at, spin }
 
   // 一顆戰鬥陀螺。單位空間:尖端踩 y=0,佔地半徑 1,整體再乘上物理的 radius。
   // 外層 group 負責位置與傾斜,內層 spin 只負責繞 Y 轉 —— 兩個混在同一個
@@ -256,6 +260,32 @@ export function createScene(canvas) {
     g.position.set(bomb.x, GROUND + 15, bomb.y);
     g.scale.setScalar(pulse);
     return g;
+  }
+
+  // 撞擊火花。物理那邊已經把「靠在一起互推」濾掉了,這裡收到的都是真的重擊,
+  // 但同時好幾下還是會疊成一團,所以再壓一個同時存在的上限。
+  // 星星小、命都很短(0.22 秒)—— 撞擊是一瞬間的事,拖長了會變成黏在場上的貼紙。
+  function sparkVisual(spark, k) {
+    // 大部分時間維持不透明,最後才淡出 —— 從頭淡到尾的話,
+    // 淺色星星疊在米色地板上會糊成一團看不出是什麼的灰影。
+    const fade = k < 0.6 ? 1 : (1 - k) / 0.4;
+    const size = (9 + spark.k * 15) * (0.5 + k * 0.9);
+    const out = [];
+    for (const [geo, color, scale] of [
+      [STAR, INK, size * 1.22],
+      // 顏色要夠飽和。白色在米色地板上等於沒有對比,看起來像地板髒了
+      [STAR2, new THREE.Color(0xFFF3B0).lerp(new THREE.Color(0xFF8A2B), k), size],
+    ]) {
+      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+        color, transparent: true, opacity: fade, depthTest: false, depthWrite: false,
+      }));
+      m.position.set(spark.x, GROUND + 7, spark.y);
+      m.quaternion.copy(camera.quaternion);
+      m.rotateZ(spark.spin);
+      m.scale.setScalar(scale);
+      out.push(m);
+    }
+    return out;
   }
 
   // 爆炸:一顆面向鏡頭的鋸齒星(深色描邊星 + 亮色星),外加一圈貼地擴散的衝擊波。
@@ -415,6 +445,23 @@ export function createScene(canvas) {
         seenBombs.delete(id);
       }
     }
+    // 撞擊火花:新的收進來,舊的淘汰,同時最多 SPARK_MAX 個
+    for (const im of world.impacts ?? []) {
+      sparks.push({
+        x: im.x,
+        y: im.y,
+        k: Math.min(1, (im.power - HIT_POWER) / (HIT_FULL - HIT_POWER)),
+        at: world.time,
+        spin: Math.random() * Math.PI,
+      });
+    }
+    if (sparks.length > SPARK_MAX) sparks = sparks.slice(-SPARK_MAX);
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const age = (world.time - sparks[i].at) / SPARK_TIME;
+      if (age >= 1 || age < 0) { sparks.splice(i, 1); continue; }
+      for (const m of sparkVisual(sparks[i], age)) addProp(m);
+    }
+
     for (let i = blasts.length - 1; i >= 0; i--) {
       const age = (world.time - blasts[i].at) / BLAST_TIME;
       if (age >= 1) { blasts.splice(i, 1); continue; }
@@ -449,7 +496,7 @@ export function createScene(canvas) {
   return {
     draw,
     resize,
-    reset() { clearActors(); seenBombs.clear(); blasts = []; },
+    reset() { clearActors(); seenBombs.clear(); blasts = []; sparks = []; },
     dispose() { clearProps(); clearActors(); renderer.dispose(); },
   };
 }

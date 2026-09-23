@@ -4,7 +4,7 @@
 // 這裡是一格一格算出來的,所以不能有「先決定誰贏」的捷徑。
 import { store, seedState, createSmashSetup } from './store.js';
 import { createFighter, pickColor } from './fighters.js';
-import { createWorld, step, think, shrink, aliveOf, winnerTeam } from './physics.js';
+import { createWorld, step, think, shrink, aliveOf, winnerTeam, HIT_POWER, HIT_FULL } from './physics.js';
 import { ITEM_TYPES, spawnItem, spawnBomb, applyPickups, explodeBombs } from './items.js';
 import { createScene } from './scene3d.js';
 import { getActive, replaceSetup, addSetup, removeSetup, entriesChanged } from '../../shared/js/roster.js';
@@ -60,6 +60,21 @@ function reset() {
   scene.draw(world, nameMap());
 }
 
+// 撞擊音效。同一格可能有好幾下,只播最重的那一下 ——
+// 全部播的話會疊成一團爆音,而且聽不出哪一下比較重要。
+// 再加一個間隔:混戰時每秒可以有好幾次重擊,連著響會變成機關槍。
+const HIT_GAP = 0.13;
+let sinceHit = HIT_GAP;
+
+function hitSound(impacts, dt) {
+  sinceHit += dt;
+  if (!impacts?.length || sinceHit < HIT_GAP) return;
+  let best = impacts[0];
+  for (const im of impacts) if (im.power > best.power) best = im;
+  sfx.hit(Math.min(1, (best.power - HIT_POWER) / (HIT_FULL - HIT_POWER)));
+  sinceHit = 0;
+}
+
 function start() {
   if (running) return;
   $('winner').hidden = true;
@@ -89,6 +104,7 @@ function start() {
     world = shrink(world, dt);
     world = step(world, dt);
     if (aliveOf(world).length < before) sfx.clunk();
+    hitSound(world.impacts, dt);
 
     scene.draw(world, nameMap());
 
