@@ -236,10 +236,15 @@ export function createTrack(canvas) {
     lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
     world.add(new THREE.LineSegments(lineGeo, new THREE.LineBasicMaterial({ color: LINE })));
 
-    // 每個人的路線 + 各自的速度。快慢純粹是演出 —— 結果在起跑前就定了。
-    // 每條 ease 的終點都必須是 1,所以不管中途誰超前,大家一定在同一個時間點抵達。
+    // 每個人的路線 + 各自的速度。快慢純粹是演出 —— 誰拿到什麼在起跑前就定了。
+    //
+    // rate 讓每個人**在不同時間抵達**:跑最快的大約在整段的七成就到了,最慢的剛好壓線。
+    // (原本所有人的曲線都在同一點結束,中間拉開距離、最後同時抵達 ——
+    //  那等於把「有快有慢」的結果抹掉,看起來像大家講好一起衝線。)
+    // lag 只管加減速的形狀,不影響抵達時間。
     r.routes = players.map((_, lane) => toWorld(pathOf(ladder, lane), lanes, w));
-    r.lag = players.map((_, i) => 0.45 + ((Math.sin(i * 12.9898) * 43758.5453) % 1 + 1) % 1 * 0.9);
+    r.lag = players.map((_, i) => 0.55 + pseudoRandom(i * 3 + 11) * 0.8);
+    r.rate = players.map((_, i) => 1 + pseudoRandom(i * 3 + 23) * 0.42);
 
     r.trails = players.map(p => {
       const mesh = new THREE.Mesh(
@@ -307,8 +312,9 @@ export function createTrack(canvas) {
   function setProgress(t) {
     if (!round) return [];
     const here = round.routes.map((route, i) => {
-      // 每個人有自己的加減速曲線(lag 不同),但都在 t=1 抵達 —— 有快有慢,一起到。
-      const k = Math.min(1, Math.max(0, t));
+      // 先乘上各自的 rate 再夾住:跑得快的人提早抵達終點之後就停在那裡,
+      // 不會被硬拖到最後一刻才到。
+      const k = Math.min(1, Math.max(0, t) * round.rate[i]);
       const eased = Math.pow(k, round.lag[i]);
       const p = pointAt(route, eased * route.total);
       round.trails[i].geometry.dispose();
