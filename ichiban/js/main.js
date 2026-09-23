@@ -30,8 +30,9 @@ const desk = createDeskView({
 const revealer = createRevealer({
   dim: $('dim'),
   tearCard: $('tearCard'),
-  shellLeft: $('shellLeft'),
-  shellRight: $('shellRight'),
+  ticket: $('ticket'),
+  sleeve: $('sleeve'),
+  cavity: $('cavity'),
   cardResult: $('cardResult'),
   cardBadge: $('cardBadge'),
   cardName: $('cardName'),
@@ -76,6 +77,8 @@ const tearBtn = $('tearBtn');
 
 function closeOverlay() {
   overlay.hidden = true;
+  // 提示要跟著收，不然下一次「拿起籤紙」還在選取消/撕開時就先冒出「點一下繼續」。
+  skipHint.hidden = true;
   revealer.clear();
 }
 

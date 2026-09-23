@@ -32,16 +32,19 @@
     <div class="overlay__dim" id="dim"></div>
 
     <div class="reveal-stack">
+      <!-- 票卡插在袋子裡。按「撕開」是把票卡往右抽出來,袋口露出白色內裡 —— 
+           一番賞就是這樣開的,不是把票撕成兩半。 -->
       <div class="tear" id="tearCard">
-        <div class="tear__paper">
+        <div class="tear__ticket" id="ticket">
           <div class="tear__result" id="cardResult">
-            <span class="tear__badge" id="cardBadge"></span>
+            <span class="tear__letter" id="cardBadge"></span>
             <p class="tear__name" id="cardName"></p>
           </div>
+          <span class="tear__band" aria-hidden="true"></span>
         </div>
+        <div class="tear__sleeve" id="sleeve" aria-hidden="true"><span class="tear__perf"></span></div>
+        <span class="tear__cavity" id="cavity" aria-hidden="true"></span>
         <span class="tear__stub" aria-hidden="true"></span>
-        <div class="tear__shell" id="shellLeft" aria-hidden="true"><span class="tear__perf"></span></div>
-        <div class="tear__shell" id="shellRight" aria-hidden="true"><span class="tear__perf"></span></div>
       </div>
 
       <div class="aura" id="aura" aria-hidden="true"></div>
@@ -49,11 +52,14 @@
     </div>
 
     <div class="ticket-actions" id="ticketActions" hidden>
-      <button class="btn btn--ghost" id="holdCancelBtn" type="button">取消</button>
-      <button class="btn btn--primary" id="tearBtn" type="button">撕開</button>
+      <p class="ticket-actions__ask">要撕開它嗎?</p>
+      <div class="ticket-actions__row">
+        <button class="btn btn--ghost" id="holdCancelBtn" type="button">取消</button>
+        <button class="btn btn--primary" id="tearBtn" type="button">撕開</button>
+      </div>
     </div>
 
-    <p class="skip-hint" id="skipHint">點一下繼續</p>
+    <p class="skip-hint" id="skipHint" hidden>點一下繼續</p>
   </div>
 </main>
 
