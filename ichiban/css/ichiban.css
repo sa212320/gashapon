@@ -231,15 +231,14 @@ body {
   clip-path: inset(0 100% 0 0);
 }
 
-/* 左邊緣咬進去的半圓缺口 —— 一番賞票卡的招牌記號。 */
+/* 左邊緣咬進去的半圓缺口 —— 一番賞票卡的招牌記號。它是袋子的一部分。 */
 .tear__stub {
   position: absolute;
-  left: -13px;
+  left: -18px;
   top: 50%;
   width: 26px;
   height: 26px;
   margin-top: -13px;
-  z-index: 3;
   border: 5px solid var(--ink);
   border-radius: 50%;
   background: var(--cream);
@@ -248,6 +247,9 @@ body {
 /* 最後一抽賞:袋子換成金邊,跟一般的賞別分得開。 */
 .tear[data-bonus="true"] .tear__sleeve,
 .tear[data-bonus="true"] .tear__stub { border-color: #B8860B; }
+
+/* 最後一抽賞的票卡本體也要金邊,不然只有袋子是金的、抽出來卻跟一般賞一樣。 */
+.tear[data-bonus="true"] .tear__ticket { background: #4A3A1E; }
 
 .aura {
   position: absolute;
@@ -278,6 +280,16 @@ body {
   width: 11px;
   height: 6px;
   border-radius: 1px;
+}
+
+/* 按鈕是 overlay 這個 flex 直列的一員,直接 display:none 的話它一出現就會
+   把整欄撐高、把票卡往上擠。改成「藏起來但位置留著」,票卡從飛進來到看完
+   都待在同一個位置。tokens.css 的 [hidden]{display:none!important} 要靠
+   更高的 specificity + !important 才蓋得掉。 */
+.ticket-actions[hidden] {
+  display: grid !important;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .ticket-actions {
