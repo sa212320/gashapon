@@ -138,7 +138,17 @@ function pointAt(route, dist) {
   return pts.at(-1);
 }
 
-// 折線的每一段都與座標軸平行,所以帶子可以直接用矩形拼,不用算轉角的斜接。
+const TRAIL_H = 0.14;   // 軌跡帶的厚度
+
+// 折線的每一段都與座標軸平行,所以帶子可以直接用長方體拼,不用算轉角的斜接。
+//
+// 兩件事以前是錯的:
+//  1. 頂點是照 a.x → b.x 的順序放的,往左走的段落繞向會反過來、被背面剔除整片剃掉 ——
+//     畫面上就是「有些橫線沒有顏色」,而且剛好都是往左的那幾段。
+//     現在一律先正規化成 min/max,繞向就固定了。
+//  2. 帶子是貼在地上的一張紙,沒有厚度。改成有高度的長方體(上面 + 四個側面),
+//     從斜上方看才有立體感。
+//
 // dist 是「已經走了多遠」—— 只鋪到那裡為止,所以開場時梯子是空的、
 // 答案不會在起跑前就被畫出來。
 function trailGeometry(route, dist) {
@@ -148,22 +158,32 @@ function trailGeometry(route, dist) {
   const half = TRAIL_W / 2;
   let left = Math.max(0, dist);
 
-  for (let i = 0; i < lens.length && left > 0; i++) {
-    const k = lens[i] === 0 ? 1 : Math.min(1, left / lens[i]);
-    const a = pts[i];
-    const b = {
-      x: a.x + (pts[i + 1].x - a.x) * k,
-      z: a.z + (pts[i + 1].z - a.z) * k,
-    };
-    left -= lens[i];
-    const horizontal = Math.abs(b.z - a.z) < 1e-9;
-    // 轉角補一個 half 的重疊,不然直角接縫會露出缺口
-    const q = horizontal
-      ? [[a.x, a.z - half], [b.x, a.z - half], [b.x, a.z + half], [a.x, a.z + half]]
-      : [[a.x - half, a.z + half], [a.x + half, a.z + half], [a.x + half, b.z], [a.x - half, b.z]];
+  const quad = (a, b, c, d) => {
     const base = pos.length / 3;
-    for (const [x, z] of q) pos.push(x, 0.015, z);
+    for (const p of [a, b, c, d]) pos.push(p[0], p[1], p[2]);
     idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  };
+
+  for (let i = 0; i < lens.length && left > 0; i++) {
+    const a = pts[i];
+    const k = lens[i] === 0 ? 1 : Math.min(1, left / lens[i]);
+    const bx = a.x + (pts[i + 1].x - a.x) * k;
+    const bz = a.z + (pts[i + 1].z - a.z) * k;
+    left -= lens[i];
+
+    const horizontal = Math.abs(bz - a.z) < 1e-9;
+    // 轉角補一個 half 的重疊,不然直角接縫會露出缺口
+    const x0 = Math.min(a.x, bx) - (horizontal ? 0 : half);
+    const x1 = Math.max(a.x, bx) + (horizontal ? 0 : half);
+    const z0 = Math.min(a.z, bz) - (horizontal ? half : 0);
+    const z1 = Math.max(a.z, bz) + (horizontal ? half : 0);
+    const h = TRAIL_H;
+
+    quad([x0, h, z0], [x1, h, z0], [x1, h, z1], [x0, h, z1]);        // 上面
+    quad([x0, 0, z0], [x1, 0, z0], [x1, h, z0], [x0, h, z0]);        // 四個側面
+    quad([x1, 0, z1], [x0, 0, z1], [x0, h, z1], [x1, h, z1]);
+    quad([x0, 0, z1], [x0, 0, z0], [x0, h, z0], [x0, h, z1]);
+    quad([x1, 0, z0], [x1, 0, z1], [x1, h, z1], [x1, h, z0]);
   }
 
   const geo = new THREE.BufferGeometry();
@@ -217,9 +237,22 @@ export function createTrack(canvas) {
     r.trails = players.map(p => {
       const mesh = new THREE.Mesh(
         new THREE.BufferGeometry(),
-        new THREE.MeshBasicMaterial({ color: new THREE.Color(p.color), transparent: true }));
+        // DoubleSide 是保險:繞向已經正規化了,但軌跡帶一旦再有一段被剃掉,
+        // 症狀是「某幾條橫線沒有顏色」,很難聯想到繞向。
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(p.color), side: THREE.DoubleSide }));
       world.add(mesh);
       return mesh;
+    });
+
+    // 角色的落地影子。沒有影子的話角色像浮在半空,整條跑道會變得很平。
+    r.shadows = players.map(() => {
+      const sh = new THREE.Mesh(
+        new THREE.CircleGeometry(w * 0.3, 18),
+        new THREE.MeshBasicMaterial({ color: 0x8A7355, transparent: true, opacity: 0.22 }));
+      sh.rotation.x = -Math.PI / 2;
+      sh.position.y = 0.02;
+      world.add(sh);
+      return sh;
     });
 
     // 角色與獎項
@@ -248,6 +281,8 @@ export function createTrack(canvas) {
       round.trails[i].geometry = trailGeometry(route, eased * route.total);
       round.runners[i].position.x = p.x;
       round.runners[i].position.z = p.z;
+      round.shadows[i].position.x = p.x;
+      round.shadows[i].position.z = p.z;
       return p;
     });
     return here;
