@@ -32,21 +32,22 @@
     <div class="overlay__dim" id="dim"></div>
 
     <div class="reveal-stack">
-      <!-- 兩張疊起來的紙:底下是獎項,上面是蓋著的票面。
-           按「撕開」把上面那張沿著一條鋸齒撕痕撕下來,底下那張就露出來。
-           face(留在原地的那半)跟 flap(被撕走的那半)吃同一條撕痕的
-           互補 clip-path,所以還沒撕之前看起來就是完整的一張紙。 -->
+      <!-- 票卡插在套子裡,「撕開」是把票卡往右抽出來,套子裡留下白色凹槽。
+           四層由下往上:套子 → 白色凹槽 → 票卡 → 蓋片。
+           蓋片是套子表面那塊淺色的票卡形狀,由左往右收掉;票卡在蓋片底下,
+           所以在套子裡永遠看不到它 —— 抽出套子外面才現身,跟實物一樣。
+           三個票卡形狀吃同一條 --card-shape,所以凹槽、蓋片、票卡完全對得上。 -->
       <div class="tear" id="tearCard">
+        <div class="tear__sleeve" id="sleeve" aria-hidden="true"></div>
+        <div class="tear__slot" id="slot" aria-hidden="true"></div>
         <div class="tear__ticket" id="ticket">
+          <span class="tear__band" aria-hidden="true"></span>
           <div class="tear__result" id="cardResult">
             <span class="tear__letter" id="cardBadge"></span>
             <p class="tear__name" id="cardName"></p>
           </div>
-          <span class="tear__band" aria-hidden="true"></span>
         </div>
-        <div class="tear__face" id="face" aria-hidden="true"><span class="tear__perf"></span></div>
-        <div class="tear__flap" id="flap" aria-hidden="true"><span class="tear__perf"></span></div>
-        <span class="tear__stub" id="stub" aria-hidden="true"></span>
+        <div class="tear__cover" id="cover" aria-hidden="true"><span class="tear__cover-fill" id="coverFill"></span></div>
       </div>
 
       <div class="aura" id="aura" aria-hidden="true"></div>

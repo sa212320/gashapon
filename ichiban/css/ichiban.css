@@ -131,13 +131,11 @@ body {
   aspect-ratio: 34 / 15;
 }
 
-/* 開籤演出:兩張疊起來的紙,上面那張被撕下來。
-   疊法(由下往上):
-     z0 ticket —— 底下那張,獎項印在上面
-     z1 face   —— 上面那張留在原地的部分
-     z2 flap   —— 上面那張被撕走的部分
-   face 跟 flap 吃同一條鋸齒撕痕的互補 clip-path,所以還沒撕之前
-   兩者拼起來剛好是完整一張紙,看不出接縫。 */
+/* 開籤演出:票卡從套子裡往右抽出來。
+   由下往上疊:sleeve(套子)→ slot(白色凹槽)→ ticket(票卡)→ cover(蓋片)。
+   票卡夾在凹槽跟蓋片中間,是這個效果的關鍵 —— 蓋片還在的地方看不到票卡,
+   蓋片收掉的地方票卡已經走了、露出白凹槽,所以套子裡永遠只會看到淺色或白色,
+   票卡是抽到套子外面才現身的。順序調動任何一層都會提前爆雷。 */
 .tear {
   position: absolute;
   left: 50%;
@@ -146,29 +144,63 @@ body {
   aspect-ratio: 34 / 15;
   translate: -50% -50%;
   opacity: 0;
-  /* 撕起來的那半要能翹離紙面(rotateY),不給 perspective 的話它只會
-     橫向壓扁,看起來像被擦掉而不是被掀起來。 */
-  perspective: 760px;
 }
 
-/* 底下那張:獎項。上下長邊的方齒是一番賞票卡的招牌邊,
-   用 clip-path 裁,所以不畫 border —— 裁切邊本身就是輪廓。 */
+/* 套子:粗描邊的圓角卡。 */
+.tear__sleeve {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border: 5px solid var(--ink);
+  border-radius: 18px;
+  background: var(--tier-color, #E7DFD4);
+  box-sizing: border-box;
+  box-shadow: 0 6px 0 rgba(87, 66, 57, .22);
+}
+
+/* 凹槽、蓋片、票卡 —— 三個都是同一個票卡輪廓(上下方齒 + 左緣半圓耳 + 右端圓頭),
+   由 JS 算好塞進 --card-shape。三者共用同一條,才不會有一層對不齊。 */
+.tear__slot,
+.tear__cover,
 .tear__ticket {
   position: absolute;
-  inset: 9px 11px;
-  z-index: 0;
+  inset: 0;
+  clip-path: var(--card-shape, none);
+}
+
+.tear__slot {
+  z-index: 1;
+  background: #fff;
+}
+
+.tear__ticket {
+  z-index: 2;
   display: grid;
   place-items: center;
-  background: #3A2F2B;
-  clip-path: var(--ticket-clip, none);
+  background: #2E2A28;
+}
+
+/* 蓋片本體只負責裁出票卡輪廓;由左往右收掉的動作交給裡面這層,
+   因為 clip-path 一個元素只能有一條,輪廓跟推進得分兩層做。 */
+.tear__cover { z-index: 3; }
+
+.tear__cover-fill {
+  position: absolute;
+  inset: 0;
+  /* 一定要是不透明的:用半透明白的話底下的深色票卡會透出來,還沒撕就先看到獎項。
+     疊一層白在賞別色上,做出「票卡形狀的淺色印刷」,顏色仍跟著賞別走。 */
+  background:
+    linear-gradient(rgba(255, 255, 255, .5), rgba(255, 255, 255, .5)),
+    var(--tier-color, #E7DFD4);
+  clip-path: inset(0 0 0 0);
 }
 
 .tear__band {
   position: absolute;
   left: 0;
   right: 0;
-  top: 7%;
-  height: 13%;
+  top: 9%;
+  height: 12%;
   background: var(--tier-color, #E7DFD4);
 }
 
@@ -178,7 +210,7 @@ body {
   justify-self: start;
   gap: 12px;
   width: 100%;
-  padding: 7% 18px 0;
+  padding: 8% 26px 0;
   box-sizing: border-box;
 }
 
@@ -202,60 +234,8 @@ body {
   overflow-wrap: anywhere;
 }
 
-/* 上面那張紙。兩半長得一模一樣,差別只在 clip-path 取哪一邊。
-   撕痕那一側不會有描邊,因為 clip-path 直接把 border 裁掉了 —— 這是對的,
-   撕開的斷面本來就沒有印刷的框線。 */
-.tear__face,
-.tear__flap {
-  position: absolute;
-  inset: 0;
-  border: 5px solid var(--ink);
-  border-radius: 20px;
-  background: var(--tier-color, #E7DFD4);
-  box-sizing: border-box;
-}
-
-.tear__face { z-index: 1; }
-
-/* 被撕走的那半沿著左緣翹起來。翹起來(投影變窄)才會讓出底下那張的位置 ——
-   不翹的話它會一路平貼著擋住獎項,變成「裂了一條縫」而不是「撕下來」。
-   drop-shadow 跟著鋸齒輪廓走;box-shadow 不行,它畫的是沒被裁過的矩形。 */
-.tear__flap {
-  z-index: 2;
-  transform-origin: left center;
-  filter: drop-shadow(0 4px 6px rgba(87, 66, 57, .5));
-}
-
-/* 票面的騎縫框。這個尺寸下虛線看起來就是一排齒孔。 */
-.tear__perf {
-  position: absolute;
-  inset: 14px;
-  border: 3px dashed rgba(255, 255, 255, .75);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, .26);
-}
-
-/* 左邊緣咬進去的半圓缺口 —— 一番賞票卡的招牌記號。它屬於上面那張紙,
-   所以撕開的時候要跟著消失。 */
-.tear__stub {
-  position: absolute;
-  left: -18px;
-  top: 50%;
-  width: 26px;
-  height: 26px;
-  margin-top: -13px;
-  z-index: 3;
-  border: 5px solid var(--ink);
-  border-radius: 50%;
-  background: var(--cream);
-  box-sizing: border-box;
-}
-
-/* 最後一抽賞:上面那張換金邊,底下那張換金色調,兩張都要改 —— 只改一張的話
-   撕開前後會像是換了一張票。 */
-.tear[data-bonus="true"] .tear__face,
-.tear[data-bonus="true"] .tear__flap,
-.tear[data-bonus="true"] .tear__stub { border-color: #B8860B; }
+/* 最後一抽賞:套子金邊、票卡金色調。只改一邊的話抽出來會像換了一張票。 */
+.tear[data-bonus="true"] .tear__sleeve { border-color: #B8860B; }
 .tear[data-bonus="true"] .tear__ticket { background: #4A3A1E; }
 
 .aura {

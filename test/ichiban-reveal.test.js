@@ -29,7 +29,7 @@ function stubEl() {
   return el;
 }
 
-const EL_KEYS = ['dim', 'tearCard', 'ticket', 'face', 'flap', 'stub', 'cardResult', 'cardBadge', 'cardName', 'aura', 'particles'];
+const EL_KEYS = ['dim', 'tearCard', 'ticket', 'sleeve', 'slot', 'cover', 'coverFill', 'cardResult', 'cardBadge', 'cardName', 'aura', 'particles'];
 
 async function withDomStubs(fn) {
   const saved = { document: globalThis.document, window: globalThis.window };
