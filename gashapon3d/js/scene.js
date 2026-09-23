@@ -45,10 +45,27 @@ const TOP_EDGE = dome(R * EDGE);
 const BOTTOM_GEO = dome(R).rotateX(Math.PI);
 const BOTTOM_EDGE = dome(R * EDGE).rotateX(Math.PI);
 
+// 邊框是「放大的背面」,它在輪廓處的深度值等於**球的背面**,非常靠後。
+// 蛋堆在一起時,旁邊那顆的正面往往比這個深度還近,就把邊框整段吃掉 ——
+// 那就是看到的破圖。深度偏移只是把問題換個方向,治不好。
+//
+// 正解是**不要讓邊框參與深度測試**,改用畫家演算法:整桌由遠到近排序,
+// 每一顆依序畫「邊框 → 填色」。
+//   · 比較近的蛋,它的邊框畫在比較遠的蛋的填色**之後** → 邊框不會被吃掉
+//   · 比較遠的蛋,它的邊框畫在比較近的蛋的填色**之前** → 該被擋住的還是擋得住
+// 排序在 render() 每一格重做,因為蛋會滾、深度順序一直在變。
 function shell(geo, edgeGeo, color) {
   const g = new THREE.Group();
-  g.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color })));
-  g.add(new THREE.Mesh(edgeGeo, new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide })));
+  const fill = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color }));
+  const edge = new THREE.Mesh(edgeGeo, new THREE.MeshBasicMaterial({
+    color: INK,
+    side: THREE.BackSide,
+    depthTest: false,
+    depthWrite: false,
+  }));
+  g.add(edge, fill);
+  g.userData.edge = edge;
+  g.userData.fill = fill;
   return g;
 }
 
@@ -262,6 +279,22 @@ export function createScene(canvas) {
     return null;
   }
 
+  // 由遠到近排序,再依序給 renderOrder:每顆兩個號碼(邊框、填色)。
+  // 蛋會滾動、彈跳,深度順序一直在變,所以每一格都要重排。
+  const CAM = new THREE.Vector3();
+  function sortForPainting() {
+    camera.getWorldPosition(CAM);
+    const order = eggs
+      .map(e => ({ e, d: CAM.distanceToSquared(e.group.position) }))
+      .sort((a, b) => b.d - a.d);
+    order.forEach(({ e }, i) => {
+      for (const part of [e.top, e.bottom]) {
+        part.userData.edge.renderOrder = i * 2;
+        part.userData.fill.renderOrder = i * 2 + 1;
+      }
+    });
+  }
+
   function resize() {
     const w = canvas.clientWidth || 1;
     const h = canvas.clientHeight || 1;
@@ -301,7 +334,10 @@ export function createScene(canvas) {
     pick,
     look,
     resize,
-    render: () => renderer.render(scene, camera),
+    render() {
+      sortForPainting();
+      renderer.render(scene, camera);
+    },
     dispose() { clear(); renderer.dispose(); },
   };
 }
