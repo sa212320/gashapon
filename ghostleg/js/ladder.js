@@ -108,3 +108,12 @@ export function assign(ladder, players, slots) {
     return { playerId: player.id, slotIndex, slot: slots[slotIndex] };
   });
 }
+
+// 一份設定 = 一組玩家 + 一組獎項。每局的梯子、站位、終點擺設都是現場產生的,不存。
+export function createGhostSetup({ name = '我的阿彌陀籤', players = [], prizes = [] } = {}) {
+  return { id: newId('gs'), name, players, prizes };
+}
+
+// 人數上限。再多的話車道會細到名字疊在一起,而且畫面上看不出哪裡壞掉 ——
+// 與其讓它悄悄爛掉,不如在設定裡直接擋住。
+export const MAX_PLAYERS = 40;
