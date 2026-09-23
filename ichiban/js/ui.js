@@ -90,6 +90,47 @@ export function createRevealer(els) {
 
   const isSkipping = () => skipping;
 
+  function animate(el, keyframes, duration, options = {}) {
+    const skip = isSkipping();
+    const ms = skip ? 1 : duration;
+    const anim = el.animate(keyframes, { easing: 'ease-out', fill: 'forwards', ...options, duration: ms });
+    created.add(anim);
+
+    if (skip) {
+      anim.finish();
+      return Promise.resolve();
+    }
+
+    return new Promise(resolve => {
+      let timer = null;
+      let settled = false;
+      const entry = {
+        finish() {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          running.delete(entry);
+          try { anim.finish(); } catch { /* 已經結束了 */ }
+          resolve();
+        },
+      };
+      running.add(entry);
+      anim.finished.then(() => entry.finish(), () => entry.finish());
+      timer = setTimeout(() => entry.finish(), ms + 1500);
+    });
+  }
+
+  // 籤紙從桌面「飛」到畫面正中央,相對位移只需要知道起點跟畫面中心的差。
+  function originOffset(originRect) {
+    if (!originRect) return { x: 0, y: 0 };
+    const toX = window.innerWidth / 2;
+    const toY = window.innerHeight / 2;
+    return {
+      x: (originRect.left + originRect.width / 2) - toX,
+      y: (originRect.top + originRect.height / 2) - toY,
+    };
+  }
+
   function reset() {
     // 上一次演出的動畫是 fill:'forwards',效果層級高於 inline style,
     // 不先取消掉的話下一張票卡會是隱形的,而且要重新整理才會好。
