@@ -315,8 +315,26 @@ export function createScene(canvas) {
   }
 
   const CAM = new THREE.Vector3();
+  // 鏡頭的基準位置與注視點。斜上方俯視:太正上方就退化成 2D,太低則看不到場地後半。
+  const CAM_HOME = new THREE.Vector3(0, 152, 246);
+  const CAM_LOOK = new THREE.Vector3(0, 0, 8);
+
+  // 極巨化沒有上限,疊到 4 層身體半徑就有 55、5 層有 89,比整個場地還大,
+  // 鏡頭固定的話會被一顆陀螺塞滿,場地跟對手全部看不到。
+  // 所以鏡頭要跟著「最遠的那個人的外緣」往後退。只退不進 ——
+  // 場地縮小時如果跟著推近,正常的比賽看起來會一直在變焦。
+  function frameCamera(world) {
+    let need = world.arenaRadius;
+    for (const c of world.combatants) {
+      if (!c.alive) continue;
+      need = Math.max(need, Math.hypot(c.x, c.y) + c.radius * 1.25);
+    }
+    camera.position.copy(CAM_HOME).multiplyScalar(Math.max(1, need / 100));
+    camera.lookAt(CAM_LOOK);
+  }
 
   function draw(world, teams) {
+    frameCamera(world);
     const r = world.arenaRadius;
     arena.scale.set(r / 100, 1, r / 100);
     rim.scale.setScalar(r);
@@ -407,9 +425,7 @@ export function createScene(canvas) {
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    // 斜上方俯視:太正上方就退化成 2D,太低則看不到場地後半。
-    camera.position.set(0, 152, 246);
-    camera.lookAt(0, 0, 8);
+    // 鏡頭的位置每一格由 frameCamera 決定,這裡只管畫布大小與長寬比
   }
 
   return {
