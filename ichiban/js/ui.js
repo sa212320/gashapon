@@ -19,36 +19,38 @@ const DESK_COLORS = Object.freeze([
 //
 // 百分比是相對各元素自己的框,所以會跟著卡片縮放;但 x 與 y 的 1% 長度不同
 // (卡片是 34:15),圓弧的 x 半徑要乘上 15/34,不然半圓耳會變成扁橢圓。
-const CARD_SHAPE = (() => {
+function buildCardShape({ lobeOnRight }) {
   const XL = 10, XR = 95, YT = 13, YB = 87; // 票卡在套子裡佔的範圍
   const TOOTH_DEPTH = 7, TEETH = 12;
-  const capX = 7, capY = 37;                   // 右端圓頭
-  const lobeY = 16, lobeX = lobeY * (15 / 34); // 左緣的半圓耳(換算後才是正圓)
+  const capX = 7, capY = 37;                   // 圓頭那一端
+  const lobeY = 16, lobeX = lobeY * (15 / 34); // 半圓耳(換算後才是正圓)
   const flatR = XR - capX;
   const w = (flatR - XL) / TEETH;
-  const at = (x, y) => `${x.toFixed(2)}% ${y.toFixed(2)}%`;
+  // lobeOnRight 時整個輪廓左右鏡射:耳朵換到右邊、圓頭換到左邊。
+  const fx = x => (lobeOnRight ? 100 - x : x);
+  const at = (x, y) => `${fx(x).toFixed(2)}% ${y.toFixed(2)}%`;
   const pts = [];
 
-  for (let i = 0; i < TEETH; i++) {            // 上緣方齒,由左往右
+  for (let i = 0; i < TEETH; i++) {            // 一條長邊的方齒
     const a = XL + i * w;
     const m = a + w / 2;
     pts.push(at(a, YT), at(a, YT - TOOTH_DEPTH), at(m, YT - TOOTH_DEPTH), at(m, YT));
   }
   pts.push(at(flatR, YT));
 
-  for (let i = 1; i < 12; i++) {               // 右端圓頭
+  for (let i = 1; i < 12; i++) {               // 圓頭
     const t = -Math.PI / 2 + (Math.PI * i) / 12;
     pts.push(at(flatR + capX * Math.cos(t), 50 + capY * Math.sin(t)));
   }
   pts.push(at(flatR, YB));
 
-  for (let i = TEETH - 1; i >= 0; i--) {       // 下緣方齒,由右往左(x 範圍與上緣一致)
+  for (let i = TEETH - 1; i >= 0; i--) {       // 另一條長邊的方齒(x 範圍一致,上下才對稱)
     const a = XL + i * w;
     const m = a + w / 2;
     pts.push(at(m, YB), at(m, YB + TOOTH_DEPTH), at(a, YB + TOOTH_DEPTH), at(a, YB));
   }
 
-  pts.push(at(XL, 50 + lobeY));                // 左緣往外凸的半圓耳
+  pts.push(at(XL, 50 + lobeY));                // 往外凸的半圓耳
   for (let i = 1; i < 10; i++) {
     const t = Math.PI / 2 + (Math.PI * i) / 10;
     pts.push(at(XL + lobeX * Math.cos(t), 50 + lobeY * Math.sin(t)));
@@ -56,7 +58,12 @@ const CARD_SHAPE = (() => {
   pts.push(at(XL, 50 - lobeY), at(XL, YT));
 
   return `polygon(${pts.join(', ')})`;
-})();
+}
+
+// 凹槽、蓋片、票卡三層共用同一條輪廓。
+// 試過讓票卡左右鏡像(參考圖裡單張票卡的耳朵在右邊),但鏡像之後票卡的耳朵會
+// 凸到蓋片輪廓外面,還沒抽就從套子右側露出一塊深色 —— 提前爆雷。三層同形才安全。
+const CARD_SHAPE = buildCardShape({ lobeOnRight: false });
 
 // 票卡要完全抽出套子,左緣得走到套子的右緣:輪廓左邊界在 10%,位移 90% 再多留一點。
 const PULL_OUT = 93;
@@ -210,28 +217,6 @@ export function createRevealer(els) {
     setTimeout(() => els.particles.replaceChildren(), 1300);
   }
 
-  // 撕開瞬間沿著騎縫線噴幾張小紙屑,數量跟賞別等級一起長。
-  function spawnShreds(color, amount) {
-    if (isSkipping() || amount <= 0) return;
-    const frag = document.createDocumentFragment();
-    for (let i = 0; i < amount; i++) {
-      const bit = document.createElement('span');
-      bit.className = 'shred';
-      bit.style.background = color;
-      bit.style.left = `${78 + (Math.random() * 26 - 13)}%`;
-      frag.appendChild(bit);
-      const dx = (Math.random() - .5) * 160;
-      const dy = -40 - Math.random() * 120;
-      const spin = (Math.random() - .5) * 540;
-      bit.animate([
-        { transform: 'translate(-50%,0) rotate(0deg)', opacity: 1 },
-        { transform: `translate(calc(-50% + ${dx}px), ${dy}px) rotate(${spin}deg)`, opacity: 0 },
-      ], { duration: 550 + Math.random() * 400, easing: 'cubic-bezier(.2,.7,.4,1)', fill: 'forwards' });
-    }
-    els.particles.appendChild(frag);
-    setTimeout(() => els.particles.replaceChildren(), 1100);
-  }
-
   // 純粹的停頓(最後一抽賞開獎前的小小停格),一樣要能被跳過或逾時解除。
   function wait(ms) {
     if (isSkipping()) return Promise.resolve();
@@ -312,7 +297,6 @@ export function createRevealer(els) {
       els.cardName.textContent = name;
 
       sfx.crack();
-      spawnShreds(color, 3 + level * 4);
 
       // 第一段:抽出來。票卡與蓋片的 duration 必須一樣 —— 差一點點就會看到
       // 票卡的左緣露在蓋片外面(提前爆雷),或白凹槽跑在票卡前面。

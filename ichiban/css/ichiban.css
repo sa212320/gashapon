@@ -177,7 +177,17 @@ body {
   z-index: 2;
   display: grid;
   place-items: center;
-  background: #2E2A28;
+  /* 票卡的臉用一道橫向漸層畫完,不用另外疊元素:色帶、淺色細線、卡身、
+     下緣的灰帶,全部對齊同一組百分比,跟輪廓的齒孔位置(0~13% / 87~100%)
+     不會錯開。之前色帶壓在齒孔上,看起來就像黏了一條鋸齒膠帶。 */
+  background: linear-gradient(
+    to bottom,
+    #5A4A42 0 13%,
+    var(--tier-color, #E7DFD4) 13% 26%,
+    #F7F2EA 26% 32%,
+    #2E2A28 32% 79%,
+    #6B625C 79% 87%,
+    #5A4A42 87% 100%);
 }
 
 /* 蓋片本體只負責裁出票卡輪廓;由左往右收掉的動作交給裡面這層,
@@ -195,22 +205,13 @@ body {
   clip-path: inset(0 0 0 0);
 }
 
-.tear__band {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 9%;
-  height: 12%;
-  background: var(--tier-color, #E7DFD4);
-}
-
 .tear__result {
   display: flex;
   align-items: center;
   justify-self: start;
   gap: 12px;
   width: 100%;
-  padding: 8% 26px 0;
+  padding: 10% 26px 0;
   box-sizing: border-box;
 }
 
@@ -236,7 +237,7 @@ body {
 
 /* 最後一抽賞:套子金邊、票卡金色調。只改一邊的話抽出來會像換了一張票。 */
 .tear[data-bonus="true"] .tear__sleeve { border-color: #B8860B; }
-.tear[data-bonus="true"] .tear__ticket { background: #4A3A1E; }
+.tear[data-bonus="true"] .tear__ticket { --tier-color: #F0C040; }
 
 .aura {
   position: absolute;
