@@ -32,20 +32,17 @@
 /* 五個模式共用的底色、文字顏色、字體、字重。各模式自己的 body 只留
    layout(display / grid-template-rows / min-height / padding / overflow 那些)。 */
 body {
-  /* 雪地舞台。由前到後:雪坡 → 遠景剪影 → 天空。
+  /* 雪地舞台。由前到後:遠景風景畫 → 天空漸層。
      注意這裡只換「舞台」—— 卡片、按鈕維持暖米色,暖色壓在冷色上對比最強,
      小孩最容易看出哪個可以點。 */
   background:
-    /* 雪坡:畫面下方兩道起伏 */
-    radial-gradient(120% 40% at 20% 108%, var(--snow) 0 60%, transparent 60.5%),
-    radial-gradient(120% 34% at 85% 112%, var(--snow-shade) 0 60%, transparent 60.5%),
-    /* 遠景:松樹剪影 + 小木屋,壓淡並貼在畫面上緣 */
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='120' viewBox='0 0 480 120'%3E%3Cg fill='%23BCD2E4' opacity='0.3'%3E%3Cpath d='M40 100 L60 40 L80 100 Z'/%3E%3Cpath d='M46 76 L60 24 L74 76 Z'/%3E%3Cpath d='M120 100 L136 52 L152 100 Z'/%3E%3Cpath d='M210 100 L236 34 L262 100 Z'/%3E%3Cpath d='M218 72 L236 18 L254 72 Z'/%3E%3Cpath d='M330 100 L346 54 L362 100 Z'/%3E%3Cpath d='M420 100 L442 42 L464 100 Z'/%3E%3Crect x='280' y='72' width='40' height='28'/%3E%3Cpath d='M274 74 L300 54 L326 74 Z'/%3E%3C/g%3E%3C/svg%3E"),
+    /* 遠景:樹線和小木屋,貼齊底部並依比例寬度撐滿 */
+    url("../img/snow-scene.webp"),
     /* 天空 */
     linear-gradient(180deg, var(--sky-top) 0%, var(--sky-low) 62%, var(--sky-low) 100%);
-  background-repeat: no-repeat, no-repeat, repeat-x, no-repeat;
-  background-position: center bottom, center bottom, left top, center;
-  background-size: auto, auto, 480px 120px, cover;
+  background-repeat: no-repeat, no-repeat;
+  background-position: center bottom, center;
+  background-size: 100% auto, cover;
   background-attachment: fixed;
   color: var(--ink);
   font-family: ui-rounded, "Hiragino Maru Gothic ProN", "PingFang TC",
