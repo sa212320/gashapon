@@ -27,6 +27,13 @@ export const POSES = Object.freeze(['idle', 'watch', 'cheer', 'aww', 'empty']);
 // 狐狸尾巴改成用「靠近尾巴根部的樞紐」旋轉(見 mascot.css 的
 // transform-origin),而不是整體放大 —— 轉一個角度就能把 idle
 // 留的開口蓋住,對之後 cheer 要甩尾巴去別的角度更好重用。
+//
+// v3(減法):v2 每條回饋都加了一個形狀上去,結果臉被擠爆。這版
+// 把眼睛放到最大(可愛度唯一最大的來源,放在臉的中下方、拉開間距),
+// 腮紅整個拿掉(做不好比沒有更糟),狐狸耳朵退回圓潤三角形、顏色用
+// 身體的橘色只有耳尖略深(不是深咖啡色塊),白鼬尾巴重畫成看得出來
+// 是「一條尾巴」而不是背上一塊斑,狐狸口鼻的淺色區塊縮小成一個
+// 蓋在鼻子嘴巴上的圓角色塊,不再橫貫整張臉把頭切成兩截。
 const RIG = `
 <svg class="mascots__svg" viewBox="0 0 200 140" aria-hidden="true">
   <g class="m-rig">
@@ -39,37 +46,33 @@ const RIG = `
       <ellipse class="m-fox__belly" cx="100" cy="109" rx="13" ry="15"/>
       <g class="m-fox__head">
         <ellipse class="m-fox__skull" cx="100" cy="58" rx="33" ry="30"/>
-        <path class="m-fox__ear m-fox__ear--l" d="M73 54 L80 28 L90 28 L97 54 Z"/>
-        <path class="m-fox__ear m-fox__ear--r" d="M103 54 L110 28 L120 28 L127 54 Z"/>
-        <path class="m-fox__ear-tip m-fox__ear-tip--l" d="M80 28 L90 28 L92 37 L78 37 Z"/>
-        <path class="m-fox__ear-tip m-fox__ear-tip--r" d="M120 28 L110 28 L108 37 L122 37 Z"/>
-        <path class="m-fox__cheek" d="M70 74 C78 96 122 96 130 74"/>
-        <ellipse class="m-fox__blush m-fox__blush--l" cx="76" cy="66" rx="7" ry="5"/>
-        <ellipse class="m-fox__blush m-fox__blush--r" cx="124" cy="66" rx="7" ry="5"/>
-        <circle class="m-fox__eye m-fox__eye--l" cx="86" cy="56" r="6.5"/>
-        <circle class="m-fox__eye m-fox__eye--r" cx="114" cy="56" r="6.5"/>
-        <circle class="m-fox__eye m-fox__eye-highlight m-fox__eye-highlight--l" cx="83.5" cy="53" r="2"/>
-        <circle class="m-fox__eye m-fox__eye-highlight m-fox__eye-highlight--r" cx="111.5" cy="53" r="2"/>
-        <ellipse class="m-fox__nose" cx="100" cy="68" rx="5" ry="4"/>
-        <path class="m-fox__mouth" d="M92 74 Q100 80 108 74"/>
+        <path class="m-fox__ear m-fox__ear--l" d="M72 50 L66 18 L92 36 Z"/>
+        <path class="m-fox__ear m-fox__ear--r" d="M128 50 L134 18 L108 36 Z"/>
+        <path class="m-fox__ear-tip m-fox__ear-tip--l" d="M66 18 L68 26 L73 23 Z"/>
+        <path class="m-fox__ear-tip m-fox__ear-tip--r" d="M134 18 L132 26 L127 23 Z"/>
+        <ellipse class="m-fox__cheek" cx="100" cy="82" rx="19" ry="14"/>
+        <ellipse class="m-fox__eye m-fox__eye--l" cx="82" cy="60" rx="10" ry="13"/>
+        <ellipse class="m-fox__eye m-fox__eye--r" cx="118" cy="60" rx="10" ry="13"/>
+        <circle class="m-fox__eye m-fox__eye-highlight m-fox__eye-highlight--l" cx="78" cy="55" r="3.2"/>
+        <circle class="m-fox__eye m-fox__eye-highlight m-fox__eye-highlight--r" cx="114" cy="55" r="3.2"/>
+        <ellipse class="m-fox__nose" cx="100" cy="76" rx="4.5" ry="3.5"/>
+        <path class="m-fox__mouth" d="M92 82 Q100 87 108 82"/>
       </g>
     </g>
     <g class="m-erm">
-      <path class="m-erm__tail" d="M40 112 C24 118 8 110 8 92 C8 80 18 72 30 76 C38 79 40 90 32 94 Z"/>
-      <ellipse class="m-erm__tip" cx="16" cy="84" rx="9" ry="10"/>
+      <path class="m-erm__tail" d="M40 108 C30 114 18 112 12 100 C8 92 12 82 22 80 C30 79 36 86 36 96 C36 100 38 105 40 108 Z"/>
+      <ellipse class="m-erm__tip" cx="18" cy="88" rx="7" ry="9"/>
       <ellipse class="m-erm__body" cx="56" cy="104" rx="19" ry="15"/>
       <g class="m-erm__head">
         <circle class="m-erm__skull" cx="58" cy="82" r="20"/>
         <ellipse class="m-erm__ear m-erm__ear--l" cx="40" cy="68" rx="8" ry="9"/>
         <ellipse class="m-erm__ear m-erm__ear--r" cx="76" cy="68" rx="8" ry="9"/>
-        <ellipse class="m-erm__blush m-erm__blush--l" cx="42" cy="88" rx="5.5" ry="4"/>
-        <ellipse class="m-erm__blush m-erm__blush--r" cx="74" cy="88" rx="5.5" ry="4"/>
-        <circle class="m-erm__eye m-erm__eye--l" cx="50" cy="80" r="5"/>
-        <circle class="m-erm__eye m-erm__eye--r" cx="66" cy="80" r="5"/>
-        <circle class="m-erm__eye m-erm__eye-highlight m-erm__eye-highlight--l" cx="48" cy="77.5" r="1.6"/>
-        <circle class="m-erm__eye m-erm__eye-highlight m-erm__eye-highlight--r" cx="64" cy="77.5" r="1.6"/>
-        <ellipse class="m-erm__nose" cx="58" cy="90" rx="3.4" ry="2.6"/>
-        <path class="m-erm__mouth" d="M52 95 Q58 99 64 95"/>
+        <ellipse class="m-erm__eye m-erm__eye--l" cx="48" cy="86" rx="6" ry="8"/>
+        <ellipse class="m-erm__eye m-erm__eye--r" cx="68" cy="86" rx="6" ry="8"/>
+        <circle class="m-erm__eye m-erm__eye-highlight m-erm__eye-highlight--l" cx="45.5" cy="82" r="2"/>
+        <circle class="m-erm__eye m-erm__eye-highlight m-erm__eye-highlight--r" cx="65.5" cy="82" r="2"/>
+        <ellipse class="m-erm__nose" cx="58" cy="95" rx="3.2" ry="2.4"/>
+        <path class="m-erm__mouth" d="M52 99 Q58 102 64 99"/>
       </g>
     </g>
     <g class="m-box">

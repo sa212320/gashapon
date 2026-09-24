@@ -31,10 +31,10 @@
 .m-fox__tail-tip { fill: #FFF3E4; }
 .m-fox__body, .m-fox__skull { fill: #F5A868; }
 .m-fox__belly { fill: #FFF3E4; stroke: none; }
-.m-fox__ear { fill: #E2803F; }
-.m-fox__ear-tip { fill: #7A4A32; }
+/* 耳朵用身體的橘色,不是自己一塊色 —— 只有耳尖略深,別做成色塊。 */
+.m-fox__ear { fill: #F5A868; }
+.m-fox__ear-tip { fill: #D97D3E; }
 .m-fox__cheek { fill: #FFF3E4; stroke: none; }
-.m-fox__blush { fill: #FFB4C6; stroke: none; opacity: .8; }
 .m-fox__nose { fill: var(--ink); }
 .m-fox__eye { fill: var(--ink); stroke: none; }
 .m-fox__eye-highlight { fill: #FFFFFF; stroke: none; }
@@ -42,7 +42,6 @@
 
 .m-erm__body, .m-erm__skull, .m-erm__tail { fill: #FFFDF8; }
 .m-erm__ear { fill: #FFC7D6; }
-.m-erm__blush { fill: #FFB4C6; stroke: none; opacity: .8; }
 .m-erm__tip { fill: var(--ink); }
 .m-erm__nose { fill: var(--ink); }
 .m-erm__eye { fill: var(--ink); stroke: none; }
