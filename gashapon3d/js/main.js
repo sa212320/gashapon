@@ -257,7 +257,11 @@ function dismissPrize() {
 document.addEventListener('click', e => {
   // 工具列與對話框的按鈕不算「點外面」,不然按設定會被吃掉一次點擊
   if (e.target.closest('.toolbar, dialog')) return;
-  if (dismissPrize()) e.stopPropagation();
+  // 抽掉最後一顆時 prizeCard 跟 emptyState 會同時顯示。這裡照樣把卡片
+  // 關掉(不對空狀態的按鈕特殊放行的話,連卡片都關不掉),但不
+  // stopPropagation() —— 讓點擊繼續往下傳到「一鍵裝滿」,不然小孩第一下
+  // 點擊只會關卡片,要點第二下才真的裝滿。
+  if (dismissPrize() && !e.target.closest('.empty-state')) e.stopPropagation();
 }, true);
 $('refillBtn').addEventListener('click', () => {
   state = replaceSetup(state, refillSetup3d(getActive(state)));
