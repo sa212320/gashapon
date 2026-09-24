@@ -6,11 +6,13 @@
 <meta name="theme-color" content="#FFF7EC">
 <title>抽獎小工具</title>
 <link rel="stylesheet" href="shared/css/tokens.css">
+<link rel="stylesheet" href="shared/css/mascot.css">
 <link rel="stylesheet" href="css/home.css">
 </head>
 <body>
 <header class="home-head">
   <h1>要玩哪一個?</h1>
+  <div id="homeMascots"></div>
 </header>
 <main class="home-grid">
   <a class="card" href="gashapon/">
@@ -42,6 +44,14 @@
 <script type="module">
   import { mountSnow } from './shared/js/snow.js';
   mountSnow();
+</script>
+<script type="module">
+  import { mountMascots } from './shared/js/mascot.js';
+  // 首頁的兩隻只是主視覺:不飛也不換姿勢,永遠 idle + 待機小動作,
+  // 所以不需要錨點。mountMascots 預設會把元素 append 到 body,
+  // 這裡再搬進標題旁邊的容器 —— append 是移動節點,不是複製。
+  const m = mountMascots({ home: true });
+  document.getElementById('homeMascots').append(m.el);
 </script>
 </body>
 </html>

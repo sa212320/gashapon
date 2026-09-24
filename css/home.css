@@ -10,6 +10,10 @@ body {
 }
 
 .home-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   padding: max(28px, env(safe-area-inset-top)) 18px 8px;
   text-align: center;
 }
@@ -18,6 +22,12 @@ body {
   font-size: clamp(24px, 6vw, 32px);
   letter-spacing: .04em;
 }
+
+/* 首頁的兩隻不會飛也不會換姿勢,純主視覺。
+   它不是第三種 placement —— placement 還是 corner,只是外觀不同
+   (mascots--home 已經在 shared/css/mascot.css 裡把 position 改回
+   static、把尺寸放大,這裡不用重複定義)。 */
+.home-head .mascots--home { position: static; }
 
 .home-grid {
   display: grid;
