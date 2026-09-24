@@ -24,6 +24,18 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
 .empty-state__icon { font-size: 54px; }
 .empty-state__text { margin: 0; font-size: 18px; font-weight: 700; }
 
+/* emptyAnchor 是 .stage 底下的普通 sibling(.stage 是 position:relative,
+   不是 grid/flex)——不脫離排版流的話,這個空 div 會多佔一段區塊高度。
+   改成 position:absolute 完全脫離排版流,只當座標錨點用。位置刻意偏左、
+   不疊在正中央 —— 正中央是 .empty-state 自己置中「去加隊伍」按鈕的地方,
+   疊上去吉祥物會蓋住按鈕,小孩點不到。 */
+#emptyAnchor {
+  position: absolute;
+  left: 8%;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
 .winner {
   position: absolute;
   left: 50%;
@@ -40,6 +52,17 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
 }
 .winner__label { margin: 0; font-size: 14px; opacity: .7; }
 .winner__name { margin: 0; font-size: clamp(26px, 9vw, 40px); font-weight: 900; color: var(--team-color, var(--ink)); }
+
+/* revealAnchor 是 #winner 底下的普通 sibling,而 #winner 是 display:grid;
+   justify-items:center —— 不脫離排版流的話,這個空 div 會多佔一個 grid row
+   (連同 gap),把「再來一場」往下擠。改成 position:absolute 完全脫離排版流,
+   只當座標錨點用。#winner 本身已經是 position:absolute,所以這裡的座標是
+   相對於獲勝卡片,不是整個畫面。放在卡片右上角,離下方的按鈕遠遠的。 */
+#revealAnchor {
+  position: absolute;
+  right: -8px;
+  top: -8px;
+}
 
 .toolbar {
   display: flex;

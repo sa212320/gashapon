@@ -7,6 +7,7 @@
 <title>阿彌陀籤</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🪜</text></svg>">
 <link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/mascot.css">
 <link rel="stylesheet" href="css/ghostleg.css">
 <script type="importmap">
 {"imports":{"three":"../vendor/three.module.min.js"}}
@@ -35,11 +36,13 @@
     <p class="empty-state__text">至少要兩個人才跑得起來</p>
     <button class="btn btn--primary" id="emptySettingsBtn" type="button">去加人</button>
   </div>
+  <div class="mascot-anchor" id="emptyAnchor" aria-hidden="true"></div>
 
   <!-- 結果清單。40 個人的結果不可能在一個畫面上讀完,而且老師要抄下來。 -->
   <section class="results" id="results" hidden>
     <h2 class="results__head">結果</h2>
     <ol class="results__list" id="resultList"></ol>
+    <div class="mascot-anchor" id="revealAnchor" aria-hidden="true"></div>
     <button class="btn btn--primary" id="againBtn" type="button">再跑一次</button>
   </section>
 </main>

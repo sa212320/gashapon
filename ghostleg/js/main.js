@@ -12,6 +12,7 @@ import { createAsk } from '../../shared/js/ask.js';
 import { loadPrefs, savePrefs } from '../../shared/js/prefs.js';
 import { sfx, setEnabled, unlock } from '../../shared/js/sound.js';
 import { requestPersistence } from '../../shared/js/storage.js';
+import { mountMascots } from '../../shared/js/mascot.js';
 
 const $ = id => document.getElementById(id);
 
@@ -20,6 +21,8 @@ let prefs = loadPrefs();
 const persist = store.createDebouncedSave();
 requestPersistence();
 setEnabled(prefs.soundOn);
+
+const mascots = mountMascots();
 
 const track = createTrack($('track'));
 const ask = createAsk({ dialog: $('askDialog'), text: $('askText'), yes: $('askYes'), no: $('askNo') });
@@ -33,6 +36,12 @@ function render() {
   $('remaining').textContent = `${n} 個人 · ${setup.prizes.reduce((a, p) => a + p.count, 0)} 個獎`;
   const ready = n >= 2;
   $('emptyState').hidden = ready;
+  // 吉祥物「該待在哪裡」只由這裡一個地方決定(空了才飛去 emptyAnchor,
+  // 否則回角落)——一定要有 else,不然結果揭曉後重新鋪一組設定,
+  // 吉祥物會永遠卡在 empty。演出中途的 watch/cheer/aww 是暫時姿勢,
+  // 由 start()/finish() 自己接手,不受這裡打擾(這裡不在演出流程裡被呼叫)。
+  if (!ready) mascots.flyTo($('emptyAnchor'), { pose: 'empty' });
+  else mascots.home();
   $('track').hidden = !ready;
   $('startBtn').disabled = !ready;
   $('soundIcon').textContent = prefs.soundOn ? '🔊' : '🔇';
@@ -74,6 +83,7 @@ function start() {
   running = true;
   $('results').hidden = true;
   $('startBtn').disabled = true;
+  mascots.setPose('watch');
 
   // 待機時擺出來的那一局就是要跑的這一局 —— 重新產一局的話,
   // 使用者剛剛看到的梯子跟等一下跑的會是兩張不同的圖。
@@ -133,11 +143,15 @@ function finish(round) {
     return li;
   }));
   $('results').hidden = false;
+  // 全部都是銘謝惠顧才是真的槓龜。有人中獎就值得歡呼。
+  const anyWin = round.results.some(r => r.slot.prizeId !== null);
+  mascots.flyTo($('revealAnchor'), { pose: anyWin ? 'cheer' : 'aww' });
 }
 
 $('startBtn').addEventListener('click', start);
 $('againBtn').addEventListener('click', () => {
   $('results').hidden = true;
+  mascots.home();
   showIdle();
   start();
 });

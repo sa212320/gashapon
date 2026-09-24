@@ -13,6 +13,7 @@ import { createAsk } from '../../shared/js/ask.js';
 import { loadPrefs, savePrefs } from '../../shared/js/prefs.js';
 import { sfx, setEnabled, unlock } from '../../shared/js/sound.js';
 import { requestPersistence } from '../../shared/js/storage.js';
+import { mountMascots } from '../../shared/js/mascot.js';
 
 const $ = id => document.getElementById(id);
 
@@ -28,6 +29,7 @@ setEnabled(prefs.soundOn);
 
 const scene = createScene($('arena'));
 const ask = createAsk({ dialog: $('askDialog'), text: $('askText'), yes: $('askYes'), no: $('askNo') });
+const mascots = mountMascots();
 
 let world = null;
 let running = false;
@@ -44,6 +46,12 @@ function render() {
   $('remaining').textContent = `${teams.length} 隊 · ${people} 個人`;
   const ready = teams.length >= 2;
   $('emptyState').hidden = ready;
+  // 吉祥物「該待在哪裡」只由這裡一個地方決定(空了才飛去 emptyAnchor,
+  // 否則回角落)——一定要有 else,不然刪隊伍刪到空了之後又補回來,
+  // 吉祥物會永遠卡在 empty。比賽中的 watch/cheer/aww 是暫時姿勢,
+  // 由 start()/finish() 自己接手,不受這裡打擾(這裡不在比賽流程裡被呼叫)。
+  if (!ready) mascots.flyTo($('emptyAnchor'), { pose: 'empty' });
+  else mascots.home();
   $('arena').hidden = !ready;
   $('startBtn').disabled = !ready || running;
   $('soundIcon').textContent = prefs.soundOn ? '🔊' : '🔇';
@@ -78,9 +86,11 @@ function hitSound(impacts, dt) {
 function start() {
   if (running) return;
   $('winner').hidden = true;
+  mascots.home();
   reset();
   running = true;
   $('startBtn').disabled = true;
+  mascots.setPose('watch');
   sfx.drop();
 
   let last = performance.now();
@@ -132,6 +142,8 @@ function finish(teamId) {
     $('winner').style.setProperty('--team-color', '#574239');
   }
   $('winner').hidden = false;
+  // f 存在 = 有贏家;沒有 = 平手或同歸於盡
+  mascots.flyTo($('revealAnchor'), { pose: f ? 'cheer' : 'aww' });
 }
 
 $('startBtn').addEventListener('click', start);
