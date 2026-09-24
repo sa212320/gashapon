@@ -12,84 +12,76 @@
 // pose 屬於**這一對**,不屬於個別動物。沒有 fox.pose / ermine.pose:
 // 拆開能多表達的組合全部都是我們不想要的組合(狐狸在抱空氣),
 // 而且兩隻會不同步。
+//
+// 修訂一(2026-09-24):素材從手刻 SVG 骨架改成生成的 WebP 圖。
+// 三輪手刻 SVG(aad0c4e / cd9eda9 / ed488f1)都沒通過使用者驗收,
+// 根本原因是媒材不是技巧 —— 討喜的角色靠上千個微小曲線決定,
+// 手寫 path 是模型看不到即時畫面刻出來的,這正是最弱的地方。
+// 換成圖之後,姿勢切換從「換 class 讓 CSS transform 補間」變成
+// 「換 <img> 的 src,配交叉淡入」。
 
 export const POSES = Object.freeze(['idle', 'watch', 'cheer', 'aww', 'empty']);
 
-// 骨架。四個姿勢(idle / watch / cheer / aww)共用這一套零件,
-// 差別全部靠 CSS 的 transform —— 切換時會**滑過去**,不是換圖。
-// empty 是完全不同的場景(有箱子、白鼬睡著),獨立一組,平常隱藏。
-//
-// v2(參考使用者提供的橫幅/貼圖重畫):chibi 比例(頭明顯大於身體)、
-// 大眼睛 + 白色高光、腮紅、尾巴尖有對比色(狐狸白尖、白鼬黑尖)。
-// 白鼬的耳朵在 v1 被畫在 skull 圓形「後面」,面積又幾乎全部落在
-// skull 範圍內,結果整個被蓋住 —— 這版改成 skull 先畫、耳朵疊在
-// 上面,徹底不會再被蓋住。
-// 狐狸尾巴改成用「靠近尾巴根部的樞紐」旋轉(見 mascot.css 的
-// transform-origin),而不是整體放大 —— 轉一個角度就能把 idle
-// 留的開口蓋住,對之後 cheer 要甩尾巴去別的角度更好重用。
-//
-// v3(減法):v2 每條回饋都加了一個形狀上去,結果臉被擠爆。這版
-// 把眼睛放到最大(可愛度唯一最大的來源,放在臉的中下方、拉開間距),
-// 腮紅整個拿掉(做不好比沒有更糟),狐狸耳朵退回圓潤三角形、顏色用
-// 身體的橘色只有耳尖略深(不是深咖啡色塊),白鼬尾巴重畫成看得出來
-// 是「一條尾巴」而不是背上一塊斑,狐狸口鼻的淺色區塊縮小成一個
-// 蓋在鼻子嘴巴上的圓角色塊,不再橫貫整張臉把頭切成兩截。
-const RIG = `
-<svg class="mascots__svg" viewBox="0 0 200 140" aria-hidden="true">
-  <g class="m-rig">
-    <g class="m-fox">
-      <g class="m-fox__tailwrap">
-        <path class="m-fox__tail" d="M86 120 C68 132 34 132 16 112 C2 96 0 72 12 56 C22 44 40 40 48 48 C52 52 50 58 44 58 C40 78 52 96 70 106 C78 110 82 116 86 120 Z"/>
-        <ellipse class="m-fox__tail-tip" cx="44" cy="55" rx="8" ry="7"/>
-      </g>
-      <ellipse class="m-fox__body" cx="100" cy="104" rx="25" ry="21"/>
-      <ellipse class="m-fox__belly" cx="100" cy="109" rx="13" ry="15"/>
-      <g class="m-fox__head">
-        <ellipse class="m-fox__skull" cx="100" cy="58" rx="33" ry="30"/>
-        <path class="m-fox__ear m-fox__ear--l" d="M72 50 L66 18 L92 36 Z"/>
-        <path class="m-fox__ear m-fox__ear--r" d="M128 50 L134 18 L108 36 Z"/>
-        <path class="m-fox__ear-tip m-fox__ear-tip--l" d="M66 18 L68 26 L73 23 Z"/>
-        <path class="m-fox__ear-tip m-fox__ear-tip--r" d="M134 18 L132 26 L127 23 Z"/>
-        <ellipse class="m-fox__cheek" cx="100" cy="82" rx="19" ry="14"/>
-        <ellipse class="m-fox__eye m-fox__eye--l" cx="82" cy="60" rx="10" ry="13"/>
-        <ellipse class="m-fox__eye m-fox__eye--r" cx="118" cy="60" rx="10" ry="13"/>
-        <circle class="m-fox__eye m-fox__eye-highlight m-fox__eye-highlight--l" cx="78" cy="55" r="3.2"/>
-        <circle class="m-fox__eye m-fox__eye-highlight m-fox__eye-highlight--r" cx="114" cy="55" r="3.2"/>
-        <ellipse class="m-fox__nose" cx="100" cy="76" rx="4.5" ry="3.5"/>
-        <path class="m-fox__mouth" d="M92 82 Q100 87 108 82"/>
-      </g>
-    </g>
-    <g class="m-erm">
-      <path class="m-erm__tail" d="M40 108 C30 114 18 112 12 100 C8 92 12 82 22 80 C30 79 36 86 36 96 C36 100 38 105 40 108 Z"/>
-      <ellipse class="m-erm__tip" cx="18" cy="88" rx="7" ry="9"/>
-      <ellipse class="m-erm__body" cx="56" cy="104" rx="19" ry="15"/>
-      <g class="m-erm__head">
-        <circle class="m-erm__skull" cx="58" cy="82" r="20"/>
-        <ellipse class="m-erm__ear m-erm__ear--l" cx="40" cy="68" rx="8" ry="9"/>
-        <ellipse class="m-erm__ear m-erm__ear--r" cx="76" cy="68" rx="8" ry="9"/>
-        <ellipse class="m-erm__eye m-erm__eye--l" cx="48" cy="86" rx="6" ry="8"/>
-        <ellipse class="m-erm__eye m-erm__eye--r" cx="68" cy="86" rx="6" ry="8"/>
-        <circle class="m-erm__eye m-erm__eye-highlight m-erm__eye-highlight--l" cx="45.5" cy="82" r="2"/>
-        <circle class="m-erm__eye m-erm__eye-highlight m-erm__eye-highlight--r" cx="65.5" cy="82" r="2"/>
-        <ellipse class="m-erm__nose" cx="58" cy="95" rx="3.2" ry="2.4"/>
-        <path class="m-erm__mouth" d="M52 99 Q58 102 64 99"/>
-      </g>
-    </g>
-    <g class="m-box">
-      <path class="m-box__back" d="M118 94 L182 94 L176 76 L124 76 Z"/>
-      <rect class="m-box__front" x="118" y="94" width="64" height="30" rx="4"/>
-    </g>
-  </g>
-</svg>`;
+// doze 不是第六個 pose,它是 idle 的待機變化(打瞌睡),跟「打哈欠」
+// 「抖耳朵」是同一類東西 —— 只在待機排程裡用,不會被 setPose 接受
+// (POSES 沒有它,applyPose 的檢查會直接擋掉)。
+const DOZE = 'doze';
 
-export function mountMascots({ home = false, doc = globalThis.document } = {}) {
+// 五個模式跟首頁在檔案樹裡的深度不一樣(/gashapon/ 是一層,首頁是零層),
+// 寫死相對路徑(例如 '../shared/img/...')一定有一邊是壞的。用
+// import.meta.url 算,不管是誰載入這個模組,算出來的路徑永遠對。
+function assetURL(name) {
+  return new URL(`../img/mascot/${name}.webp`, import.meta.url).href;
+}
+
+const SRC = Object.freeze({
+  idle: assetURL('idle'),
+  watch: assetURL('watch'),
+  cheer: assetURL('cheer'),
+  aww: assetURL('aww'),
+  empty: assetURL('empty'),
+  [DOZE]: assetURL('doze'),
+});
+
+// 待機排程:每隔一段時間有機率切到 doze 停一下再回 idle。
+const DOZE_GAP = [4000, 9000];  // ms —— 下一次「有機會」打瞌睡的間隔
+const DOZE_LEN = 1600;          // ms —— 打瞌睡停留多久
+
+export function mountMascots({ home = false, fidget = true, doc = globalThis.document } = {}) {
   let pose = 'idle';
   let placement = 'corner';
+  let dozing = false;
+  let fidgetTimer = 0;
+
+  // 使用者要求減少動態效果時,呼吸跟 doze 都不該發生 —— 不是靠 CSS
+  // 藏起來,是排程本身就不要開。fakeDoc / node 環境沒有 matchMedia,
+  // 這裡要防呆。
+  const reduceMotion =
+    typeof globalThis.matchMedia === 'function' &&
+    globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const el = doc.createElement('div');
   el.setAttribute('aria-hidden', 'true');
-  el.innerHTML = RIG;
+
+  // 兩張 <img> 疊放:一張是「目前顯示」,一張是「下一張要淡入的」。
+  // 只需要兩個角色輪流互換,永遠不會有第三張同時參與動畫。
+  const imgA = doc.createElement('img');
+  imgA.className = 'mascots__img mascots__img--visible';
+  imgA.alt = '';
+  imgA.src = SRC.idle;   // 只有 idle 在首屏就載,其餘延後到第一次要用才抓
+
+  const imgB = doc.createElement('img');
+  imgB.className = 'mascots__img';
+  imgB.alt = '';
+  // 故意不設 src —— 六張合計 278 KB,不能全部預載。設成空字串在真的
+  // 瀏覽器裡會被解析成「目前頁面的網址」,反而多發一個沒用的請求,
+  // 所以是完全不設,不是設空字串。
+
+  el.append(imgA, imgB);
   doc.body.append(el);
+
+  let front = imgA;
+  let back = imgB;
 
   function paint() {
     // 每次整串重寫,不用 classList.add/remove —— 假 DOM 裡沒有 classList,
@@ -99,23 +91,94 @@ export function mountMascots({ home = false, doc = globalThis.document } = {}) {
       `mascots--${pose}`,
       `mascots--at-${placement}`,
       home ? 'mascots--home' : '',
+      dozing ? 'mascots--dozing' : '',
     ].filter(Boolean).join(' ');
+  }
+
+  // 換成另一張圖,交叉淡入:舊的淡出、新的淡入。已經是這張就不用切,
+  // 不然每次呼叫 setPose('idle') 兩次會白白重播一次淡入動畫。
+  function crossfadeTo(url) {
+    if (front.src === url) return;
+    back.src = url;
+    back.className = 'mascots__img mascots__img--visible';
+    front.className = 'mascots__img';
+    const swap = front;
+    front = back;
+    back = swap;
   }
 
   // 抽成區域函式而不是只放在回傳物件上:flyTo / home 內部也要用它,
   // 走 this.setPose 的話,被解構出來呼叫(const { flyTo } = mascots)就會壞掉。
   function applyPose(next) {
-    if (!POSES.includes(next)) return;
+    if (!POSES.includes(next)) return;   // 這一關順便擋掉 'doze'
     pose = next;
+    dozing = false;
+    crossfadeTo(SRC[next]);
     paint();
   }
 
+  function scheduleFidget(rng = Math.random) {
+    clearTimeout(fidgetTimer);
+    const gap = DOZE_GAP[0] + rng() * (DOZE_GAP[1] - DOZE_GAP[0]);
+    fidgetTimer = setTimeout(() => {
+      // 只有閒置在角落時才打瞌睡 —— 正在歡呼或正在飛的時候睡著很怪
+      if (pose === 'idle' && placement === 'corner') {
+        dozing = true;
+        crossfadeTo(SRC[DOZE]);
+        paint();
+        setTimeout(() => {
+          // 這段時間裡姿勢可能被 setPose 換掉了,那樣的話圖已經是
+          // 新姿勢,不該被這裡搶回 idle。
+          if (pose === 'idle') {
+            dozing = false;
+            crossfadeTo(SRC.idle);
+            paint();
+          }
+        }, DOZE_LEN);
+      }
+      scheduleFidget(rng);
+    }, gap);
+  }
+
   paint();
+  // fidget: false 是測試專用的關閉開關 —— 排程用 setTimeout 且會自己
+  // 重排,node 的事件迴圈永遠清不空,node --test 會直接掛住不結束。
+  if (fidget && !reduceMotion) scheduleFidget();
 
   return {
     el,
     getState: () => ({ pose, placement }),
     setPose: applyPose,
-    // Task 4 會在這裡補上 flyTo / home
+
+    flyTo(anchor, { pose: next } = {}) {
+      if (next) applyPose(next);
+      const rect = anchor?.getBoundingClientRect?.();
+      // 錨點還掛著 hidden 的話 rect 是全 0。照算會把兩隻送到畫面
+      // 左上角 (0,0) 卡在那裡 —— 寧可留在角落。
+      if (!rect || rect.width === 0 || rect.height === 0) {
+        placement = 'corner';
+        el.style.setProperty('--fly-x', '0px');
+        el.style.setProperty('--fly-y', '0px');
+        paint();
+        return;
+      }
+      const self = el.getBoundingClientRect();
+      // 位移用 transform,不改 left/bottom —— transform 跑在合成器上,
+      // 而且不會觸發整頁重排。
+      el.style.setProperty('--fly-x', `${rect.left + rect.width / 2 - self.left - self.width / 2}px`);
+      el.style.setProperty('--fly-y', `${rect.top + rect.height / 2 - self.top - self.height / 2}px`);
+      placement = 'reveal';
+      paint();
+    },
+
+    home({ pose: next = 'idle' } = {}) {
+      el.style.setProperty('--fly-x', '0px');
+      el.style.setProperty('--fly-y', '0px');
+      placement = 'corner';
+      applyPose(next);
+      paint();
+    },
+
+    stop() { clearTimeout(fidgetTimer); },
   };
 }

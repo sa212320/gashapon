@@ -1,11 +1,19 @@
-/* 吉祥物。固定層,不可點,不參與任何模式的排版。 */
+/* 吉祥物。固定層,不可點,不參與任何模式的排版。
+   兩張 <img> 疊放,姿勢切換靠換 src + 交叉淡入,不再是 SVG 骨架
+   (見 shared/js/mascot.js 開頭「修訂一」的說明)。 */
 .mascots {
   position: fixed;
   left: 16px;
   bottom: 16px;
   width: clamp(96px, 15vh, 180px);
+  /* 六張素材的寬度不一致(裁到內容邊界,不是統一畫布),用一個
+     接近平均值的框 + object-fit: contain 吸收差異,不會變形。 */
+  aspect-ratio: 11 / 10;
   pointer-events: none;   /* 這層永遠不可點,飛行途中也是 */
   z-index: 50;            /* 蓋在揭曉面板之上;設定面板是 <dialog>,在 top layer,蓋不到也不需要蓋 */
+  --fly-x: 0px;
+  --fly-y: 0px;
+  transform: translate3d(var(--fly-x), var(--fly-y), 0);
   transition: transform .5s cubic-bezier(.34, 1.2, .5, 1);
 }
 
@@ -14,91 +22,48 @@
   width: clamp(140px, 26vw, 260px);
 }
 
-.mascots__svg { display: block; width: 100%; height: auto; overflow: visible; }
-
-/* 平塗 + 粗描邊,跟全站一致。線寬用 viewBox 單位,跟著整體縮放。 */
-.m-rig * {
-  stroke: var(--ink);
-  stroke-width: 4;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-  transform-box: fill-box;
-  transform-origin: center;
-  transition: transform .45s cubic-bezier(.34, 1.2, .5, 1);
+/* 飛到揭曉區時放大一點,因為那是主角時刻 */
+.mascots--at-reveal {
+  transform: translate3d(var(--fly-x), var(--fly-y), 0) scale(1.1);
 }
 
-.m-fox__tail { fill: #F09A5B; }
-.m-fox__tail-tip { fill: #FFF3E4; }
-.m-fox__body, .m-fox__skull { fill: #F5A868; }
-.m-fox__belly { fill: #FFF3E4; stroke: none; }
-/* 耳朵用身體的橘色,不是自己一塊色 —— 只有耳尖略深,別做成色塊。 */
-.m-fox__ear { fill: #F5A868; }
-.m-fox__ear-tip { fill: #D97D3E; }
-.m-fox__cheek { fill: #FFF3E4; stroke: none; }
-.m-fox__nose { fill: var(--ink); }
-.m-fox__eye { fill: var(--ink); stroke: none; }
-.m-fox__eye-highlight { fill: #FFFFFF; stroke: none; }
-.m-fox__mouth { fill: none; stroke-width: 2.4; }
+.mascots__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  transition: opacity .22s ease;
+}
 
-.m-erm__body, .m-erm__skull, .m-erm__tail { fill: #FFFDF8; }
-.m-erm__ear { fill: #FFC7D6; }
-.m-erm__tip { fill: var(--ink); }
-.m-erm__nose { fill: var(--ink); }
-.m-erm__eye { fill: var(--ink); stroke: none; }
-.m-erm__eye-highlight { fill: #FFFFFF; stroke: none; }
-.m-erm__mouth { fill: none; stroke-width: 2.2; }
-
-.m-box__front { fill: #E3C79B; }
-.m-box__back { fill: #CDAE7E; }
-
-/* empty 以外的姿勢不顯示箱子 */
-.m-box { opacity: 0; transition: opacity .3s; }
-.mascots--empty .m-box { opacity: 1; }
+.mascots__img--visible { opacity: 1; }
 
 /* ---------- 待機:呼吸 ---------- */
 /* 等速的動作小孩兩分鐘就不看了,所以呼吸只是底,真正抓注意力的是
-   Task 4 那些「偶爾發生、不知道什麼時候」的小動作。 */
-.mascots--idle .m-fox__body,
-.mascots--idle .m-erm__body {
-  animation: m-breathe 3.4s ease-in-out infinite;
-}
-.mascots--idle .m-erm__body { animation-delay: .6s; }
-
+   偶爾切到 doze(打瞌睡)那張、不知道什麼時候會發生。只在「閒置
+   且停在角落」時呼吸 —— 正在歡呼或飛去領獎的時候不該喘氣。 */
 @keyframes m-breathe {
   0%, 100% { transform: scaleY(1); }
-  50%      { transform: scaleY(1.035); }
+  50%      { transform: scaleY(1.03); }
+}
+
+.mascots--idle.mascots--at-corner {
+  animation: m-breathe 3.4s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mascots, .m-rig *, .m-box { transition: none; }
-  .mascots--idle .m-fox__body, .mascots--idle .m-erm__body { animation: none; }
+  .mascots,
+  .mascots__img { transition: none; }
+  .mascots--idle.mascots--at-corner { animation: none; }
 }
 
-/* 尾巴繞著白鼬轉的樞紐要在尾巴「根部」(接狐狸屁股那端),不是整條
-   尾巴的幾何中心 —— 這樣轉角度時是甩尾巴的弧線動作,尾尖能掃過一大段
-   距離去蓋住白鼬,而不是整條尾巴憑空跳到新位置。座標是 m-fox__tail
-   path 自己 bbox 裡的相對位置(fill-box 的百分比)。 */
-.m-fox__tailwrap { transform-origin: 96% 87%; }
-
-/* 白鼬耳朵的樞紐放在耳朵根部(接頭的那端),垂耳才會像「耷拉下來」
-   而不是原地打轉(圓形耳朵繞自己中心轉是看不出來的)。 */
-.m-erm__ear { transform-origin: 50% 12%; }
-
-/* ---------- idle:白鼬窩在狐狸尾巴裡,狐狸盤坐半瞇眼守著 ---------- */
-/* 尾巴的靜止形狀本身就繞著白鼬畫(見 RIG 裡的 m-fox__tail path),
-   idle 只需要極小的調整,大部分「窩著」的觀感來自骨架本身。 */
-.mascots--idle .m-fox__head  { transform: rotate(-4deg) translateY(2px); }
-.mascots--idle .m-fox__eye   { transform: scaleY(.4); }   /* 半瞇 */
-.mascots--idle .m-erm__head  { transform: rotate(-6deg); }
-
-/* ---------- aww:白鼬垂耳,狐狸用尾巴把牠整個裹起來輕拍 ---------- */
-/* 尾巴繞著根部(見上面的 transform-origin)甩一個角度,把 idle 留的
-   開口蓋住 —— 不再靠放大尾巴取巧,轉角度就是唯一的差異。 */
-.mascots--aww .m-fox__tailwrap { transform: rotate(30deg); }
-.mascots--aww .m-fox__head   { transform: rotate(-10deg) translate(-3px, 5px); }
-.mascots--aww .m-fox__eye    { transform: scaleY(.5); }
-.mascots--aww .m-erm         { transform: translate(6px, 10px) scale(.82); }
-.mascots--aww .m-erm__head   { transform: rotate(-14deg) translateY(3px); }
-.mascots--aww .m-erm__ear--l { transform: translate(-2px, 6px) rotate(-24deg) scaleY(.7); }
-.mascots--aww .m-erm__ear--r { transform: translate(2px, 6px) rotate(24deg) scaleY(.7); }
-.mascots--aww .m-erm__eye    { transform: scaleY(.28); }
+/* 錨點只是座標,不是容器。它不能佔空間,也不能被看到。 */
+.mascot-anchor {
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+  opacity: 0;
+}
