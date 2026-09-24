@@ -211,6 +211,14 @@ body {
   font-size: 14px;
 }
 
+/* revealAnchor 是 overlay 底下的普通 sibling。overlay 用 display:grid +
+   place-items:center,其他每個手足不是 grid-area:1/1(疊在同一格)就是
+   position:absolute/fixed(跳出排版)—— 只有這個普通 <div> 沒有,會讓隱式
+   grid 從一列變兩列,理論上可能分掉版面、擠動 .machine / .prize-card。
+   改成 position:absolute 讓它完全脫離 grid 流,結構上保證不會發生這件事,
+   不是「今天量起來剛好沒事」而已。 */
+#revealAnchor { position: absolute; left: 50%; top: 70%; transform: translate(-50%, -50%); }
+
 /* ---------- empty ---------- */
 .empty-state {
   position: absolute;
@@ -224,6 +232,13 @@ body {
 }
 .empty-state__egg { font-size: 72px; animation: idle-bob 2.4s ease-in-out infinite; }
 .empty-state__text { margin: 0; font-size: 24px; }
+
+/* emptyAnchor 是 stage 底下的普通 sibling(stage 也是 display:grid +
+   place-items:center),同樣的道理:不脫離 grid 流就可能多分一列出來,
+   擠動 .machine。改成 position:absolute 完全脫離排版。位置刻意不疊在
+   正中央 —— 那是 empty-state 自己置中「再裝滿一次」按鈕的地方,疊上去
+   吉祥物會蓋住按鈕,小孩點不到。改成貼在左側、垂直置中,落在面板旁邊。 */
+#emptyAnchor { position: absolute; left: 8%; top: 50%; transform: translateY(-50%); }
 
 /* ---------- toolbar ---------- */
 .toolbar {

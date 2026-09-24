@@ -70,19 +70,51 @@ function render() {
   const empty = setup.removeOnDraw && left === 0;
   $('emptyState').hidden = !empty;
   if (empty) {
-    mascots.flyTo($('emptyAnchor'), { pose: 'empty' });
-  } else if (mascots.getState().pose === 'empty') {
-    // 這個 render() 在每次演出結束後也會被呼叫(見 play() 的 finally),
-    // 這時候吉祥物可能正在獎項卡旁邊歡呼 —— 不能無條件把牠們送回角落,
-    // 那樣會讓歡呼還沒被看到就被這裡取消。只有「上一輪還卡在 empty
-    // 姿勢、現在裝滿重來了」這個情境才需要在這裡收尾,歡呼跟一般抽獎的
-    // 收尾交給 dismissPrize() 的 mascots.home()。
+    // 卡片還開著就不搶著切 empty —— 這個 render() 在每次演出結束後也會
+    // 被呼叫(見 play() 的 finally),如果剛好最後一顆就是 SSR/UR,
+    // 這裡會在歡呼姿勢都還沒被看到之前立刻蓋成 empty。真正的空機切換
+    // 交給 dismissPrize() 關卡片的那一刻自己判斷。
+    if ($('prizeCard').hidden) goEmpty3d();
+  } else if (mascots.getState().pose === 'empty' || mascots.getState().pose === 'watch') {
+    // empty:上一輪卡在 empty 姿勢、現在裝滿重來了,要收尾。
+    // watch:play() 若在跑到 'show' 步驟之前就丟例外(drop/shake/upgrade/
+    // crack/burst 任何一個 tween 出錯),這裡的 finally 還是會呼叫
+    // render(),但 prizeCard 從沒顯示過、dismissPrize() 也不會被觸發,
+    // 吉祥物會卡在 watch 回不了角落,要等下一次抽獎才被蓋掉 —— 這裡一起收。
+    // cheer 不在這個名單裡:那是歡呼中,收尾交給 dismissPrize() 的
+    // mascots.home() 或 flyTo(emptyAnchor),不該在這裡被打斷。
     mascots.home();
   }
   $('pickHint').hidden = empty || playing;
   $('turnBtn').disabled = empty || playing;
   $('soundIcon').textContent = prefs.soundOn ? '🔊' : '🔇';
   if (!playing) dealTable();
+}
+
+// flyTo() 是拿「畫面上現在的位置」去算下一段位移量,不是拿目前的
+// --fly-x/--fly-y 數值。如果吉祥物才剛從獎項卡旁飛回來、CSS transition
+// 還沒真的跑完,直接呼叫 flyTo(emptyAnchor) 量到的還是舊位置,兩隻會飛到
+// 螢幕外面去(這是 shared/js/mascot.js 既有的行為,不能改那個檔案 ——
+// 只能保證每次呼叫 flyTo() 之前吉祥物一定先穩穩站在角落)。render() 跟
+// dismissPrize() 都要切到 empty,共用這一個函式。
+function goEmpty3d() {
+  const s = mascots.getState();
+  if (s.pose === 'empty' && s.placement === 'reveal') return; // 已經在那裡了,不用再飛一次
+  const needsSettle = s.placement !== 'corner';
+  if (needsSettle) mascots.home();
+  // home() 的歸零是靠 CSS transition(.5s)補間,不是瞬間生效 —— 分頁被
+  // 切到背景時瀏覽器會暫停動畫,transitionend / Animation.finished 可能
+  // 永遠不會 settle(跟 2D 那台 doDraw/reveal.js 的「逾時保險」是同一個
+  // 坑),所以這裡一樣用 setTimeout 卡一個固定時間,不依賴事件真的有沒有
+  // 觸發。已經穩穩站在角落的話不用等。
+  setTimeout(() => {
+    // 等待這段期間狀態可能又變了(例如剛好裝滿重來),收尾前重新確認
+    // 一次還是不是空的。
+    const setup = getActive(state);
+    if (setup.removeOnDraw && remaining3d(setup) === 0) {
+      mascots.flyTo($('emptyAnchor'), { pose: 'empty' });
+    }
+  }, needsSettle ? 550 : 0);
 }
 
 // 每次抽完重新抽樣一批擺上桌 —— 固定擺前面幾顆的話,排在後面的蛋永遠不會被挑到。
@@ -230,13 +262,31 @@ $('scene').addEventListener('click', e => {
 function dismissPrize() {
   if ($('prizeCard').hidden) return false;
   $('prizeCard').hidden = true;
-  mascots.home();
+  // 關卡片的當下才是「是不是空了」該由誰接手的正確時機點。空了就交給
+  // goEmpty3d()(它會自己確保吉祥物先穩穩站在角落再飛,不會飛錯地方);
+  // 沒空的話直接 home() 就好 —— home() 是把座標直接歸零,不像 flyTo()
+  // 要拿「現在畫面上的位置」去算,不會有量到舊座標的問題。
+  const setup = getActive(state);
+  if (setup.removeOnDraw && remaining3d(setup) === 0) {
+    goEmpty3d();
+  } else {
+    mascots.home();
+  }
   return true;
 }
+// 獎項卡開著時,點畫面任何地方都只做「關卡片」這一件事 —— 呼叫
+// stopPropagation() 是關鍵:沒有它的話,這個 capture 監聽器把卡片關掉後,
+// 同一次點擊還是會繼續往下傳到 #scene 自己的 bubble 監聽器,那裡再呼叫
+// 一次 dismissPrize() 時卡片已經是關的(回傳 false),於是往下執行到
+// scene.pick() 開下一顆蛋 —— 使用者只是想關卡片,卻被多抽了一顆,而且
+// 抽獎結果已經寫進 localStorage,不可逆。根本原因是同一次點擊被兩個
+// 各自呼叫 dismissPrize() 的監聽器處理了兩次;stopPropagation() 讓「這次
+// 點擊已經被關卡片這個動作吃掉」的事實真的擋住後面的監聽器,而不是
+// 事後用旗標補洞。
 document.addEventListener('click', e => {
   // 工具列與對話框的按鈕不算「點外面」,不然按設定會被吃掉一次點擊
   if (e.target.closest('.toolbar, dialog')) return;
-  dismissPrize();
+  if (dismissPrize()) e.stopPropagation();
 }, true);
 $('refillBtn').addEventListener('click', () => {
   state = replaceSetup(state, refillSetup3d(getActive(state)));

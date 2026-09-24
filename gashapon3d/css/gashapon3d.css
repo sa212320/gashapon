@@ -27,9 +27,12 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
 /* emptyAnchor 是 stage 底下的普通 sibling,不是 empty-state 內部的一份子 ——
    empty-state 本身用 position:absolute 跳出了 stage 的排版,一個沒特別定位的
    普通 <div> 不會跟著它一起置中,量到的座標會是 stage 版面裡「下一格」的
-   位置,跟畫面上實際看到的空機提示對不上。這裡直接讓它疊在 stage 正中央,
-   跟 empty-state 的 place-content: center 落在同一點。 */
-#emptyAnchor { position: absolute; inset: 0; margin: auto; }
+   位置,跟畫面上實際看到的空機提示對不上。這裡讓它跟 stage 一樣定位。
+   刻意不疊在正中央(那是 empty-state 自己 place-content: center 的位置,
+   剛好跟裡面垂直排列的圖示/文字/「一鍵裝滿」按鈕同一點)—— 疊在正中央會讓
+   飛過去的吉祥物蓋住按鈕,小孩點不到。改成貼在左側、垂直置中,吉祥物飛過去
+   後落在面板旁邊,不會擋住任何可以點的東西。 */
+#emptyAnchor { position: absolute; left: 8%; top: 50%; transform: translateY(-50%); }
 
 /* 獎項卡蓋在畫面上。文字放 DOM 而不是畫進貼圖 —— 中文小字貼圖會糊,
    而且獎項名要能被螢幕閱讀器讀到。 */

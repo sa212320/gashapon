@@ -64,8 +64,33 @@ function render() {
   view.setSoundIcon(prefs.soundOn);
   const machine = getActiveMachine(state);
   const empty = machine.removeOnDraw && machine.pool.every(c => c.drawn);
-  if (empty) mascots.flyTo($('emptyAnchor'), { pose: 'empty' });
+  if (empty) goEmpty();
   else mascots.home();
+}
+
+// flyTo() 是拿「畫面上現在的位置」去算下一段位移量,不是拿目前的
+// --fly-x/--fly-y 數值。如果吉祥物才剛從獎項卡旁飛回來、CSS transition
+// 還沒真的跑完,直接呼叫 flyTo(emptyAnchor) 量到的還是舊位置,兩隻會飛到
+// 螢幕外面去(這是 shared/js/mascot.js 既有的行為,不能改那個檔案 ——
+// 只能保證每次呼叫 flyTo() 之前吉祥物一定先穩穩站在角落)。
+function goEmpty() {
+  const s = mascots.getState();
+  if (s.pose === 'empty' && s.placement === 'reveal') return; // 已經在那裡了,不用再飛一次
+  const needsSettle = s.placement !== 'corner';
+  if (needsSettle) mascots.home();
+  // home() 的歸零是靠 CSS transition(.5s)補間,不是瞬間生效 —— 分頁被
+  // 切到背景時瀏覽器會暫停動畫,transitionend / Animation.finished 可能
+  // 永遠不會 settle(跟 reveal.js 那段「逾時保險」的註解是同一個坑),
+  // 所以這裡跟那裡一樣用 setTimeout 卡一個固定時間,不依賴事件真的有沒有
+  // 觸發。已經穩穩站在角落的話不用等。
+  setTimeout(() => {
+    // 等待這段期間狀態可能又變了(例如剛好裝滿重來),收尾前重新確認
+    // 一次還是不是空的。
+    const machine = getActiveMachine(state);
+    if (machine.removeOnDraw && machine.pool.every(c => c.drawn)) {
+      mascots.flyTo($('emptyAnchor'), { pose: 'empty' });
+    }
+  }, needsSettle ? 550 : 0);
 }
 
 function commit() {
