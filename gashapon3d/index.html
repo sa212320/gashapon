@@ -8,6 +8,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🔮</text></svg>">
 <link rel="stylesheet" href="../shared/css/tokens.css">
 <link rel="stylesheet" href="css/gashapon3d.css">
+<link rel="stylesheet" href="../shared/css/mascot.css">
 <script type="importmap">
 {"imports":{"three":"../vendor/three.module.min.js"}}
 </script>
@@ -36,12 +37,14 @@
     <p class="empty-state__text">扭蛋機空了!</p>
     <button class="btn btn--primary" id="refillBtn" type="button">一鍵裝滿</button>
   </div>
+  <div class="mascot-anchor" id="emptyAnchor" aria-hidden="true"></div>
 
   <div class="prize-card" id="prizeCard" hidden>
     <span class="prize-card__badge" id="prizeBadge"></span>
     <p class="prize-card__name" id="prizeName"></p>
     <p class="skip-hint">點一下繼續</p>
   </div>
+  <div class="mascot-anchor" id="revealAnchor" aria-hidden="true"></div>
 </main>
 
 <footer class="toolbar">

@@ -24,6 +24,13 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
 .empty-state__icon { font-size: 54px; }
 .empty-state__text { margin: 0; font-size: 20px; font-weight: 800; }
 
+/* emptyAnchor 是 stage 底下的普通 sibling,不是 empty-state 內部的一份子 ——
+   empty-state 本身用 position:absolute 跳出了 stage 的排版,一個沒特別定位的
+   普通 <div> 不會跟著它一起置中,量到的座標會是 stage 版面裡「下一格」的
+   位置,跟畫面上實際看到的空機提示對不上。這裡直接讓它疊在 stage 正中央,
+   跟 empty-state 的 place-content: center 落在同一點。 */
+#emptyAnchor { position: absolute; inset: 0; margin: auto; }
+
 /* 獎項卡蓋在畫面上。文字放 DOM 而不是畫進貼圖 —— 中文小字貼圖會糊,
    而且獎項名要能被螢幕閱讀器讀到。 */
 .prize-card {
@@ -57,6 +64,10 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
   overflow-wrap: anywhere;
 }
 .prize-card .skip-hint { position: static; margin: 4px 0 0; background: none; color: inherit; opacity: .6; font-size: 13px; }
+
+/* revealAnchor 同理:跟著 prize-card 的定位方式(絕對定位、位置寫死),
+   才會量到跟獎項卡同一個地方,而不是 stage 排版裡隨便一個空格子。 */
+#revealAnchor { position: absolute; left: 50%; bottom: 8%; }
 
 .pick-hint {
   position: absolute;

@@ -12,6 +12,7 @@ import { createSettingsDialog } from './ui-settings.js';
 import { createAsk } from '../../shared/js/ask.js';
 import { setEnabled, unlock, sfx } from '../../shared/js/sound.js';
 import { loadPrefs, savePrefs } from '../../shared/js/prefs.js';
+import { mountMascots } from '../../shared/js/mascot.js';
 
 const $ = id => document.getElementById(id);
 
@@ -61,6 +62,10 @@ const ask = createAsk({
 function render() {
   view.render(getActiveMachine(state));
   view.setSoundIcon(prefs.soundOn);
+  const machine = getActiveMachine(state);
+  const empty = machine.removeOnDraw && machine.pool.every(c => c.drawn);
+  if (empty) mascots.flyTo($('emptyAnchor'), { pose: 'empty' });
+  else mascots.home();
 }
 
 function commit() {
@@ -70,9 +75,19 @@ function commit() {
 
 /* ---------- 抽獎 ---------- */
 const overlay = $('overlay');
+const mascots = mountMascots();
+
+// 只有高階才值得讓牠們衝過來。每抽一次就衝一次的話,那個動作三次之後
+// 就不特別了,而且會變成干擾 —— 普通結果在角落換個表情就好。
+const BIG = new Set(['SSR', 'UR']);
 
 function closeOverlay() {
   overlay.hidden = true;
+  // 不在這裡呼叫 mascots.home() —— render() 底下已經有「空了飛去 emptyAnchor,
+  // 否則回角落」的判斷。flyTo() 是用「現在畫面上的位置」算出要飛多遠,如果
+  // 這裡先呼叫 home() 把座標歸零,CSS transition 還沒轉場、下一行 render()
+  // 馬上又用同一個元素現在的畫面位置去算 flyTo(emptyAnchor) 的位移,
+  // 量到的會是「歸零指令生效前」那個舊位置,兩隻會飛錯地方。
   revealer.clear();
   $('capsule').hidden = true;
   render();
@@ -100,8 +115,14 @@ async function doDraw({ turn = true } = {}) {
 
   overlay.hidden = false;
   $('skipHint').hidden = false;
+  mascots.setPose('watch');
   await revealer.play(result.revealSteps);
   $('skipHint').hidden = true;
+  if (BIG.has(result.prize.rarity)) {
+    mascots.flyTo($('revealAnchor'), { pose: 'cheer' });
+  } else {
+    mascots.home();
+  }
   view.render(getActiveMachine(state));
 }
 

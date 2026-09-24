@@ -14,6 +14,7 @@ import { createAsk } from '../../shared/js/ask.js';
 import { loadPrefs, savePrefs } from '../../shared/js/prefs.js';
 import { sfx, setEnabled, unlock } from '../../shared/js/sound.js';
 import { requestPersistence } from '../../shared/js/storage.js';
+import { mountMascots } from '../../shared/js/mascot.js';
 
 const $ = id => document.getElementById(id);
 
@@ -37,6 +38,11 @@ setEnabled(prefs.soundOn);
 
 const scene = createScene($('scene'));
 const ask = createAsk({ dialog: $('askDialog'), text: $('askText'), yes: $('askYes'), no: $('askNo') });
+const mascots = mountMascots();
+
+// 只有高階才值得讓牠們衝過來。每抽一次就衝一次的話,那個動作三次之後
+// 就不特別了,而且會變成干擾 —— 普通結果在角落換個表情就好。
+const BIG = new Set(['SSR', 'UR']);
 
 /* ---------- 桌上的蛋 ---------- */
 
@@ -63,6 +69,16 @@ function render() {
     : `共 ${setup.pool.length} 顆(抽到的不會拿走)`;
   const empty = setup.removeOnDraw && left === 0;
   $('emptyState').hidden = !empty;
+  if (empty) {
+    mascots.flyTo($('emptyAnchor'), { pose: 'empty' });
+  } else if (mascots.getState().pose === 'empty') {
+    // 這個 render() 在每次演出結束後也會被呼叫(見 play() 的 finally),
+    // 這時候吉祥物可能正在獎項卡旁邊歡呼 —— 不能無條件把牠們送回角落,
+    // 那樣會讓歡呼還沒被看到就被這裡取消。只有「上一輪還卡在 empty
+    // 姿勢、現在裝滿重來了」這個情境才需要在這裡收尾,歡呼跟一般抽獎的
+    // 收尾交給 dismissPrize() 的 mascots.home()。
+    mascots.home();
+  }
   $('pickHint').hidden = empty || playing;
   $('turnBtn').disabled = empty || playing;
   $('soundIcon').textContent = prefs.soundOn ? '🔊' : '🔇';
@@ -134,6 +150,9 @@ async function play(result, egg) {
         $('prizeBadge').textContent = meta.label;
         $('prizeName').textContent = step.prize?.name ?? '';
         $('prizeCard').hidden = false;
+        if (BIG.has(step.rarity)) {
+          mascots.flyTo($('revealAnchor'), { pose: 'cheer' });
+        }
         await tween(400, () => {});
       }
     }
@@ -179,6 +198,9 @@ function tween(ms, fn) {
 
 async function openEgg(egg) {
   if (playing || !egg) return;
+  // drawForMe() 跟直接點蛋都會走到這裡,是唯一的抽獎入口 —— 演出一開始
+  // 就讓吉祥物抬頭看,不用在兩個呼叫端各自重複一次。
+  mascots.setPose('watch');
   const setup = getActive(state);
   const result = openCapsule(setup, egg.capsule);
   state = replaceSetup(state, { ...setup, pool: result.pool });
@@ -208,6 +230,7 @@ $('scene').addEventListener('click', e => {
 function dismissPrize() {
   if ($('prizeCard').hidden) return false;
   $('prizeCard').hidden = true;
+  mascots.home();
   return true;
 }
 document.addEventListener('click', e => {
