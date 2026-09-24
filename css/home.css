@@ -9,17 +9,22 @@ body {
   min-height: 100dvh;
 }
 
+/* spec 寫「放大版主視覺放在標題旁」——「旁」是並排,不是疊在下面。
+   直向堆疊會把吉祥物的高度整個吃進 header,在手機直向螢幕上會把
+   第五張卡片擠出第一屏(要滑動才看得到,對國小生等於看不到)。
+   並排的話 header 高度只取決於「標題跟吉祥物誰比較高」,不是兩者相加。 */
 .home-head {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 4px;
-  padding: max(28px, env(safe-area-inset-top)) 18px 8px;
+  justify-content: center;
+  gap: 10px;
+  padding: max(20px, env(safe-area-inset-top)) 18px 8px;
   text-align: center;
 }
 .home-head h1 {
   margin: 0;
-  font-size: clamp(24px, 6vw, 32px);
+  font-size: clamp(20px, 5.5vw, 32px);
   letter-spacing: .04em;
 }
 
@@ -28,6 +33,15 @@ body {
    (mascots--home 已經在 shared/css/mascot.css 裡把 position 改回
    static、把尺寸放大,這裡不用重複定義)。 */
 .home-head .mascots--home { position: static; }
+
+/* 極窄螢幕(<360px)並排會擠,退回直向堆疊——這種寬度已經比大部分
+   手機還窄,犧牲「旁邊」換取不擠壓文字或吉祥物本身。 */
+@media (max-width: 360px) {
+  .home-head {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
 
 .home-grid {
   display: grid;
