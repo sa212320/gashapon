@@ -13,6 +13,25 @@ function seq(values) {
   return () => values[i++ % values.length];
 }
 
+// 最小的假 DOM,只做 mountSnow() 真正會用到的部分:createElement、
+// className、style.cssText(整段字串直接指派,不是靠 setProperty)、
+// setAttribute、append、childElementCount(mountSnow 回傳值靠它算)。
+// 參考 test/mascot.test.js 的 fakeDoc() 寫法。
+function fakeDoc() {
+  const make = () => {
+    const kids = [];
+    return {
+      className: '',
+      style: { cssText: '' },
+      children: kids,
+      get childElementCount() { return kids.length; },
+      setAttribute() {},
+      append(...items) { kids.push(...items); },
+    };
+  };
+  return { createElement: make, body: make() };
+}
+
 test('雪花數量等於常數', () => {
   assert.equal(flakeSpecs().length, FLAKES);
   assert.equal(flakeSpecs(7).length, 7);
@@ -44,4 +63,40 @@ test('delay 一律是負的 —— 一載入就該滿天都是雪,不是等十�
 test('prefers-reduced-motion 時產生 0 個節點', () => {
   const made = mountSnow({ reduceMotion: true });
   assert.equal(made, 0);
+});
+
+/* ---------- mountSnow() 實際產生節點的路徑 ----------
+   最終審查實測:把 mountSnow 整個函式換成 `return 0`,236 條測試照樣
+   全綠 —— 上面那些測試全部只測 flakeSpecs() 這個純函式,沒有一條真的
+   檢查 mountSnow() 掛進 DOM 的節點長什麼樣子。下面補上。 */
+
+test('mountSnow 產生的節點數等於 FLAKES', () => {
+  const doc = fakeDoc();
+  const made = mountSnow({ doc, reduceMotion: false, rng: () => 0.5 });
+  assert.equal(made, FLAKES);
+});
+
+test('容器 class 是 snow,裡面每片的 class 是 snow__flake', () => {
+  const doc = fakeDoc();
+  mountSnow({ doc, reduceMotion: false, rng: () => 0.5 });
+  const layer = doc.body.children[0];
+  assert.equal(layer.className, 'snow');
+  assert.equal(layer.children.length, FLAKES);
+  for (const flake of layer.children) {
+    assert.equal(flake.className, 'snow__flake');
+  }
+});
+
+test('每片的 style.cssText 帶著五個自訂屬性', () => {
+  const doc = fakeDoc();
+  mountSnow({ doc, reduceMotion: false, rng: () => 0.5 });
+  const layer = doc.body.children[0];
+  for (const flake of layer.children) {
+    for (const prop of ['--size', '--dur', '--left', '--delay', '--drift']) {
+      assert.ok(
+        flake.style.cssText.includes(`${prop}:`),
+        `${prop} 不在 cssText 裡:${flake.style.cssText}`,
+      );
+    }
+  }
 });
