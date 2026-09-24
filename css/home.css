@@ -32,7 +32,6 @@ body {
    它不是第三種 placement —— placement 還是 corner,只是外觀不同
    (mascots--home 已經在 shared/css/mascot.css 裡把 position 改回
    static、把尺寸放大,這裡不用重複定義)。 */
-.home-head .mascots--home { position: static; }
 
 /* 極窄螢幕(<360px)並排會擠,退回直向堆疊——這種寬度已經比大部分
    手機還窄,犧牲「旁邊」換取不擠壓文字或吉祥物本身。 */

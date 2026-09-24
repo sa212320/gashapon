@@ -49,7 +49,9 @@ function render() {
   // 吉祥物「該待在哪裡」只由這裡一個地方決定(空了才飛去 emptyAnchor,
   // 否則回角落)——一定要有 else,不然刪隊伍刪到空了之後又補回來,
   // 吉祥物會永遠卡在 empty。比賽中的 watch/cheer/aww 是暫時姿勢,
-  // 由 start()/finish() 自己接手,不受這裡打擾(這裡不在比賽流程裡被呼叫)。
+  // 由 start()/finish() 自己接手 —— 但 render() 不是只在設定異動時才會
+  // 被呼叫:音效鈕在比賽中與結果顯示期間都可以點,點下去一樣會觸發
+  // 這裡的 render()。
   if (!ready) mascots.flyTo($('emptyAnchor'), { pose: 'empty' });
   else mascots.home();
   $('arena').hidden = !ready;

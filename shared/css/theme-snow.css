@@ -5,8 +5,6 @@
 :root {
   --sky-top: #DCEBF7;
   --sky-low: #F3F8FC;
-  --snow: #FFFFFF;
-  --snow-shade: #E8F1F8;
 }
 
 /* 雪花那一層。整層不可點,而且不佔排版。 */
