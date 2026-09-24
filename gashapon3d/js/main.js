@@ -74,7 +74,7 @@ function render() {
     // 被呼叫(見 play() 的 finally),如果剛好最後一顆就是 SSR/UR,
     // 這裡會在歡呼姿勢都還沒被看到之前立刻蓋成 empty。真正的空機切換
     // 交給 dismissPrize() 關卡片的那一刻自己判斷。
-    if ($('prizeCard').hidden) goEmpty3d();
+    if ($('prizeCard').hidden) mascots.flyTo($('emptyAnchor'), { pose: 'empty' });
   } else if (mascots.getState().pose === 'empty' || mascots.getState().pose === 'watch') {
     // empty:上一輪卡在 empty 姿勢、現在裝滿重來了,要收尾。
     // watch:play() 若在跑到 'show' 步驟之前就丟例外(drop/shake/upgrade/
@@ -89,32 +89,6 @@ function render() {
   $('turnBtn').disabled = empty || playing;
   $('soundIcon').textContent = prefs.soundOn ? '🔊' : '🔇';
   if (!playing) dealTable();
-}
-
-// flyTo() 是拿「畫面上現在的位置」去算下一段位移量,不是拿目前的
-// --fly-x/--fly-y 數值。如果吉祥物才剛從獎項卡旁飛回來、CSS transition
-// 還沒真的跑完,直接呼叫 flyTo(emptyAnchor) 量到的還是舊位置,兩隻會飛到
-// 螢幕外面去(這是 shared/js/mascot.js 既有的行為,不能改那個檔案 ——
-// 只能保證每次呼叫 flyTo() 之前吉祥物一定先穩穩站在角落)。render() 跟
-// dismissPrize() 都要切到 empty,共用這一個函式。
-function goEmpty3d() {
-  const s = mascots.getState();
-  if (s.pose === 'empty' && s.placement === 'reveal') return; // 已經在那裡了,不用再飛一次
-  const needsSettle = s.placement !== 'corner';
-  if (needsSettle) mascots.home();
-  // home() 的歸零是靠 CSS transition(.5s)補間,不是瞬間生效 —— 分頁被
-  // 切到背景時瀏覽器會暫停動畫,transitionend / Animation.finished 可能
-  // 永遠不會 settle(跟 2D 那台 doDraw/reveal.js 的「逾時保險」是同一個
-  // 坑),所以這裡一樣用 setTimeout 卡一個固定時間,不依賴事件真的有沒有
-  // 觸發。已經穩穩站在角落的話不用等。
-  setTimeout(() => {
-    // 等待這段期間狀態可能又變了(例如剛好裝滿重來),收尾前重新確認
-    // 一次還是不是空的。
-    const setup = getActive(state);
-    if (setup.removeOnDraw && remaining3d(setup) === 0) {
-      mascots.flyTo($('emptyAnchor'), { pose: 'empty' });
-    }
-  }, needsSettle ? 550 : 0);
 }
 
 // 每次抽完重新抽樣一批擺上桌 —— 固定擺前面幾顆的話,排在後面的蛋永遠不會被挑到。
@@ -262,13 +236,10 @@ $('scene').addEventListener('click', e => {
 function dismissPrize() {
   if ($('prizeCard').hidden) return false;
   $('prizeCard').hidden = true;
-  // 關卡片的當下才是「是不是空了」該由誰接手的正確時機點。空了就交給
-  // goEmpty3d()(它會自己確保吉祥物先穩穩站在角落再飛,不會飛錯地方);
-  // 沒空的話直接 home() 就好 —— home() 是把座標直接歸零,不像 flyTo()
-  // 要拿「現在畫面上的位置」去算,不會有量到舊座標的問題。
+  // 關卡片的當下才是「是不是空了」該由誰接手的正確時機點。
   const setup = getActive(state);
   if (setup.removeOnDraw && remaining3d(setup) === 0) {
-    goEmpty3d();
+    mascots.flyTo($('emptyAnchor'), { pose: 'empty' });
   } else {
     mascots.home();
   }

@@ -177,11 +177,25 @@ export function mountMascots({
         paint();
         return;
       }
+      // self.getBoundingClientRect() 回的是「目前已經套用 --fly-x/--fly-y
+      // 位移之後」的矩形,不是回到角落(沒有位移)時的矩形。如果現在已經
+      // 有位移在身上(例如正在飛去別的錨點,或還沒歸零),直接拿它去算
+      // 下一段位移,結果會整整偏掉「目前的位移量」那麼多 —— 兩隻可能被
+      // 送到畫面外面去。做法是先讀出目前的 --fly-x/--fly-y,從量到的矩形
+      // 裡減掉,還原成「沒有位移時」(=角落)的中心點,再從那個基準點算
+      // 到新錨點的差。這樣不管現在飛到哪、呼叫幾次,算出來的結果只跟
+      // 「角落位置」和「錨點位置」有關,永遠一致 —— 不需要呼叫端先
+      // home() 再等轉場結束才能再飛一次。
+      const currentOffset = name => parseFloat(el.style.getPropertyValue(name)) || 0;
+      const dx0 = currentOffset('--fly-x');
+      const dy0 = currentOffset('--fly-y');
       const self = el.getBoundingClientRect();
+      const homeCenterX = self.left + self.width / 2 - dx0;
+      const homeCenterY = self.top + self.height / 2 - dy0;
       // 位移用 transform,不改 left/bottom —— transform 跑在合成器上,
       // 而且不會觸發整頁重排。
-      el.style.setProperty('--fly-x', `${rect.left + rect.width / 2 - self.left - self.width / 2}px`);
-      el.style.setProperty('--fly-y', `${rect.top + rect.height / 2 - self.top - self.height / 2}px`);
+      el.style.setProperty('--fly-x', `${rect.left + rect.width / 2 - homeCenterX}px`);
+      el.style.setProperty('--fly-y', `${rect.top + rect.height / 2 - homeCenterY}px`);
       placement = 'reveal';
       paint();
     },

@@ -16,19 +16,40 @@ import assert from 'node:assert/strict';
 
 import { POSES, mountMascots } from '../shared/js/mascot.js';
 
-// 只做這個模組真正會用到的最小 DOM
+// 只做這個模組真正會用到的最小 DOM。
+//
+// style 要真的記住 setProperty() 存的值(getPropertyValue() 讀得回來),
+// 而且 getBoundingClientRect() 要照著目前的 --fly-x/--fly-y 位移計算 ——
+// 不然測不出「flyTo() 拿目前畫面上的位置去算下一段位移」這件事:如果
+// getBoundingClientRect() 永遠回同一個固定值,不管 flyTo() 內部怎麼算,
+// 測試都會通過,等於沒測到。
 function fakeDoc() {
+  // 元素「沒有位移時」的基準矩形,模擬 position:fixed 的角落位置。
+  const BASE = { left: 0, top: 0, width: 100, height: 80 };
   const make = () => {
+    const props = {};
     const el = {
       className: '',
       innerHTML: '',
       src: '',
       alt: '',
-      style: { cssText: '', setProperty() {} },
+      style: {
+        cssText: '',
+        setProperty(name, value) { props[name] = value; },
+        getPropertyValue(name) { return props[name] ?? ''; },
+      },
       children: [],
       setAttribute() {},
       append(...kids) { el.children.push(...kids); },
-      getBoundingClientRect: () => ({ x: 0, y: 0, width: 0, height: 0, left: 0, top: 0 }),
+      getBoundingClientRect: () => {
+        const dx = parseFloat(props['--fly-x']) || 0;
+        const dy = parseFloat(props['--fly-y']) || 0;
+        return {
+          x: BASE.left + dx, y: BASE.top + dy,
+          left: BASE.left + dx, top: BASE.top + dy,
+          width: BASE.width, height: BASE.height,
+        };
+      },
     };
     return el;
   };
@@ -136,6 +157,32 @@ test('home 回到 idle / corner', () => {
   m.flyTo(anchorAt(300, 200), { pose: 'cheer' });
   m.home();
   assert.deepEqual(m.getState(), { pose: 'idle', placement: 'corner' });
+});
+
+// 這條釘死 flyTo() 的核心性質:算出來的位移只跟「角落位置」和「錨點
+// 位置」有關,跟呼叫當下已經飛到哪裡無關。回歸測試:flyTo() 原本是拿
+// el.getBoundingClientRect()(套用了目前位移之後的矩形)直接去算下一段
+// 位移,如果連續兩次 flyTo() 中間沒有先 home() 讓位移歸零,算出來的結果
+// 會偏掉「目前的位移量」那麼多 —— 曾經在瀏覽器裡實測撞到,兩隻被送到
+// 螢幕外面(x 座標變成負的)。這裡沒有呼叫 home(),直接連續飛兩次錨點,
+// 驗證第二次算出來的 --fly-x/--fly-y 跟「從角落直接飛到同一個錨點」
+// 完全相同。
+test('flyTo 連續呼叫不用先 home() 等歸零 —— 直接飛到下一個錨點,結果跟從角落飛過去一樣', () => {
+  const chained = mountMascots({ doc: fakeDoc(), fidget: false });
+  chained.flyTo(anchorAt(300, 200), { pose: 'cheer' }); // 先飛到 A,故意不 home()
+  chained.flyTo(anchorAt(500, 100), { pose: 'empty' }); // 直接飛到 B
+
+  const direct = mountMascots({ doc: fakeDoc(), fidget: false });
+  direct.flyTo(anchorAt(500, 100), { pose: 'empty' }); // 從角落直接飛到 B
+
+  assert.equal(
+    chained.el.style.getPropertyValue('--fly-x'),
+    direct.el.style.getPropertyValue('--fly-x'),
+  );
+  assert.equal(
+    chained.el.style.getPropertyValue('--fly-y'),
+    direct.el.style.getPropertyValue('--fly-y'),
+  );
 });
 
 /* ---------- 圖片版才有的規則 ---------- */
