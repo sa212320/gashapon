@@ -374,723 +374,108 @@ EOF
 
 ---
 
-## Task 2: 骨架 + `idle` 與 `aww` 兩個姿勢 —— **做完停下來,等使用者看過**
+## Task 2R: 圖片版吉祥物模組(取代原 Task 2/3/4)
+
+> **原 Task 2/3/4(手刻 SVG 骨架 + 五組姿勢 transform + 待機小動作)已作廢。**
+> 三輪實作(`aad0c4e` / `cd9eda9` / `ed488f1`)都沒通過使用者那一關,素材改為生成圖。
+> 原因與新流程見 spec 的「修訂一」。那三個 commit 留在歷史裡,檔案內容由這個任務換掉。
 
 **Files:**
-- Create: `shared/js/mascot.js`
-- Create: `shared/css/mascot.css`
-- Create: `test/mascot.test.js`
-- Create: `_mascot-check.html`(**丟棄式**,Task 3 結束前刪掉)
+- Rewrite: `shared/js/mascot.js`(丟掉 SVG 骨架字串,改成 `<img>` 切換)
+- Rewrite: `shared/css/mascot.css`(丟掉五組零件 transform,改成圖片層的定位/淡入/呼吸)
+- Modify: `test/mascot.test.js`(狀態機的斷言保留,拿掉針對 SVG 內部結構的部分)
+- 素材已就位(不要動,也不要重新產生):`shared/img/mascot/{idle,watch,cheer,aww,empty,doze}.webp`
 
 **Interfaces:**
+- Produces:
+  - `POSES` = `['idle','watch','cheer','aww','empty']` —— **仍然是五個**
+  - `mountMascots({ home = false, fidget = true, doc } = {})` → `{ el, getState(), setPose(p), flyTo(el, {pose}), home({pose}), stop() }`
+  - `getState()` 回 `{ pose, placement }`,初始 `{ pose:'idle', placement:'corner' }`
 - Consumes: 無
-- Produces: `shared/js/mascot.js` 匯出 `POSES`(`['idle','watch','cheer','aww','empty']`)、`mountMascots({ home, doc } = {})`,回傳 `{ el, setPose(pose), getState() }`。Task 4 會在同一個回傳物件上加 `flyTo` 與 `home`
 
-> **這是一個人為關卡。** 五張雙人構圖是這次工作量的大頭。風格一致與會動我保證得了,但「夠不夠可愛」只有使用者說了算。
-> `aww`(狐狸用尾巴把白鼬整個裹起來)是四個共用骨架的姿勢裡**對骨架最嚴苛**的一個 —— 它過得了,其餘三個就沒問題;它過不了,現在就知道要退回「五張獨立構圖」,而不是畫到第四張才發現。
-> **Task 2 完成後不得自動進入 Task 3。** 把檢查頁截圖給使用者,等明確點頭。
+**這個任務的硬性要求**
 
-- [ ] **Step 1: 寫失敗的測試**
+1. **`doze` 不是第六個 pose。** 它是 `idle` 的待機變化,跟「打哈欠」同一類。`POSES` 保持五個值,`setPose('doze')` 必須被擋掉。
+2. **只有 `idle` 在首屏載入。** 其餘五張(含 `doze`)延後到第一次要用時才抓。六張合計 278 KB,全部預載會把首屏成本從 45 KB 變成 278 KB —— 這個站的首屏延遲已經被抱怨過。
+   做法:`idle` 的 `<img>` 一開始就有 `src`;其餘的在 `setPose` / 待機第一次需要時才建立或指定 `src`。
+3. **切換要淡入淡出,不能硬切。** 兩層 `<img>` 交叉淡入(舊的淡出、新的淡入),約 220ms。硬切在換姿勢時會「啪」一下。
+4. **吉祥物仍然是 `<body>` 底下的 fixed 層,絕不進入任何模式的 DOM。** 錨點只當座標來源。
+5. **待機**:整體 `scaleY` 呼吸(常駐);每 4~9 秒有機率切到 `doze` 停約 1.6 秒再回 `idle`。`pickFidget` 那種「不連續兩次抽到同一個」的邏輯不再需要(只有一個變化),但**排程仍須可用假亂數注入並且可以關掉**(`fidget: false`),否則 `node --test` 會因為計時器不斷重排而**永遠不結束**。
+6. `prefers-reduced-motion` 時:不呼吸、不切 `doze`、飛行不補間。
 
-建立 `test/mascot.test.js`:
+- [ ] **Step 1: 改測試(先讓它紅)**
+
+`test/mascot.test.js` 保留原有的狀態機斷言(初始狀態、`setPose` 只改姿勢、不認得的姿勢被擋、`flyTo` 遇到 rect 全 0 退回角落、`home()` 回 idle/corner),並**新增**:
 
 ```js
-// 吉祥物。這個 session 已經有 test/dialog.test.js 用假 DOM 測過 shared 模組,
-// 這裡沿用同一套做法。
-//
-// 最要釘死的一句:**pose 屬於這一對,不屬於個別動物**。
-// 沒有 fox.pose / ermine.pose —— 拆開會生出「狐狸在抱空氣」這種組合,
-// 而且兩隻會不同步。
-import test from 'node:test';
-import assert from 'node:assert/strict';
-
-import { POSES, mountMascots } from '../shared/js/mascot.js';
-
-// 只做這個模組真正會用到的最小 DOM
-function fakeDoc() {
-  const make = () => {
-    const el = {
-      className: '',
-      innerHTML: '',
-      style: { cssText: '', setProperty() {} },
-      children: [],
-      setAttribute() {},
-      append(...kids) { el.children.push(...kids); },
-      getBoundingClientRect: () => ({ x: 0, y: 0, width: 0, height: 0, left: 0, top: 0 }),
-    };
-    return el;
-  };
-  const body = make();
-  return { createElement: make, body };
-}
-
-test('POSES 就是那五個,順序固定', () => {
-  assert.deepEqual([...POSES], ['idle', 'watch', 'cheer', 'aww', 'empty']);
-});
-
-test('初始狀態是 idle / corner', () => {
-  const m = mountMascots({ doc: fakeDoc() });
-  assert.deepEqual(m.getState(), { pose: 'idle', placement: 'corner' });
-});
-
-test('setPose 只改姿勢,不動位置', () => {
-  const m = mountMascots({ doc: fakeDoc() });
-  m.setPose('aww');
-  assert.deepEqual(m.getState(), { pose: 'aww', placement: 'corner' });
-});
-
-test('不認得的姿勢會被擋掉,不會把 class 弄成垃圾', () => {
-  const m = mountMascots({ doc: fakeDoc() });
-  m.setPose('nope');
+test('doze 不是 pose,setPose 擋掉它', () => {
+  const m = mountMascots({ doc: fakeDoc(), fidget: false });
+  m.setPose('doze');
   assert.equal(m.getState().pose, 'idle');
 });
 
-test('根元素的 class 帶著目前的姿勢 —— CSS 就是靠這個選的', () => {
-  const m = mountMascots({ doc: fakeDoc() });
-  m.setPose('cheer');
-  assert.ok(m.el.className.includes('mascots--cheer'), m.el.className);
-  assert.ok(!m.el.className.includes('mascots--idle'), m.el.className);
+test('只有 idle 在一開始就有 src —— 其餘五張延後載入', () => {
+  const m = mountMascots({ doc: fakeDoc(), fidget: false });
+  const srcs = m.el.children.flatMap(c => c.src ? [c.src] : []);
+  assert.equal(srcs.length, 1, `一開始只該有一個 src,實際 ${srcs.length}`);
+  assert.ok(srcs[0].includes('idle'), srcs[0]);
 });
 
-test('home 模式只影響外觀,不是第三種 placement', () => {
-  const m = mountMascots({ doc: fakeDoc(), home: true });
-  assert.equal(m.getState().placement, 'corner');
-  assert.ok(m.el.className.includes('mascots--home'), m.el.className);
+test('fidget: false 時不排任何計時器 —— 不然 node --test 不會結束', () => {
+  const m = mountMascots({ doc: fakeDoc(), fidget: false });
+  assert.equal(typeof m.stop, 'function');
+  m.stop();  // 呼叫兩次也不能爆
+  m.stop();
 });
 ```
 
-- [ ] **Step 2: 跑測試確認它失敗**
+假 DOM 需要補上 `src` 屬性與 `children` 陣列(原本的 `fakeDoc` 已有 `children`)。
+
+- [ ] **Step 2: 跑測試確認新的斷言失敗**
 
 Run: `node --test test/mascot.test.js`
-Expected: FAIL —— `Cannot find module '../shared/js/mascot.js'`
+Expected: 新增的三條紅(舊的 SVG 結構斷言若還在也會紅,一併拿掉)
 
-- [ ] **Step 3: 寫 `shared/js/mascot.js`(這一輪只要狀態機 + SVG 骨架)**
+- [ ] **Step 3: 重寫 `shared/js/mascot.js`**
 
-```js
-// 一對吉祥物:小狐狸 + 白鼬。
-//
-// 最關鍵的結構決定:牠們是 <body> 底下一個 position: fixed 的獨立層,
-// **從頭到尾不進入任何模式的 DOM**。揭曉時要飛到獎項旁邊,錨點也只當
-// 座標來源(讀 getBoundingClientRect),不當父容器。
-//
-// 這讓「揭曉面板的排版完全不知道吉祥物存在」從一個**約定**變成
-// **結構上不可能違反** —— 沒有人能不小心把吉祥物插進面板裡,
-// 因為它根本不在那棵樹上。一番賞出過「按鈕突然往上擠」的 bug,就是
-// 排版被新元素推開。
-//
-// pose 屬於**這一對**,不屬於個別動物。沒有 fox.pose / ermine.pose:
-// 拆開能多表達的組合全部都是我們不想要的組合(狐狸在抱空氣),
-// 而且兩隻會不同步。
+要點(不要照抄舊檔):
+- 移除 `RIG` 那個 SVG 字串與 `FIDGETS` / `pickFidget`
+- 建兩個 `<img class="mascots__img">` 疊在一起,一個是「目前」一個是「下一張」,交叉淡入
+- `POSES` 五個值;`SRC = { idle:'…/idle.webp', …, doze:'…/doze.webp' }`,`doze` 只給待機用
+- 路徑:`new URL('../img/mascot/idle.webp', import.meta.url)` —— 五個模式與首頁的深度不同,寫死相對路徑會有一個壞掉
+- `flyTo` / `home` / `--fly-x` / `--fly-y` 的做法**原封不動沿用**(那部分跟素材無關)
 
-export const POSES = Object.freeze(['idle', 'watch', 'cheer', 'aww', 'empty']);
-
-// 骨架。四個姿勢(idle / watch / cheer / aww)共用這一套零件,
-// 差別全部靠 CSS 的 transform —— 切換時會**滑過去**,不是換圖。
-// empty 是完全不同的場景(有箱子、白鼬睡著),獨立一組,平常隱藏。
-const RIG = `
-<svg class="mascots__svg" viewBox="0 0 200 140" aria-hidden="true">
-  <g class="m-rig">
-    <g class="m-fox">
-      <path class="m-fox__tail" d="M112 104 C150 108 168 88 166 68 C164 48 146 40 132 50 C120 58 118 76 128 84 C136 90 148 86 148 76"/>
-      <ellipse class="m-fox__body" cx="96" cy="98" rx="30" ry="26"/>
-      <g class="m-fox__head">
-        <path class="m-fox__ear m-fox__ear--l" d="M74 56 L70 30 L90 44 Z"/>
-        <path class="m-fox__ear m-fox__ear--r" d="M112 44 L124 24 L126 52 Z"/>
-        <ellipse class="m-fox__skull" cx="98" cy="62" rx="26" ry="23"/>
-        <path class="m-fox__cheek" d="M72 66 C78 82 118 82 124 66"/>
-        <circle class="m-fox__eye m-fox__eye--l" cx="88" cy="60" r="3.4"/>
-        <circle class="m-fox__eye m-fox__eye--r" cx="108" cy="60" r="3.4"/>
-        <ellipse class="m-fox__nose" cx="98" cy="70" rx="4" ry="3"/>
-      </g>
-    </g>
-    <g class="m-erm">
-      <ellipse class="m-erm__body" cx="56" cy="106" rx="20" ry="16"/>
-      <path class="m-erm__tail" d="M38 110 C24 112 18 104 22 96"/>
-      <path class="m-erm__tip" d="M22 96 C18 92 20 86 26 86 C30 86 32 90 30 94 Z"/>
-      <g class="m-erm__head">
-        <path class="m-erm__ear m-erm__ear--l" d="M44 80 L42 68 L54 76 Z"/>
-        <path class="m-erm__ear m-erm__ear--r" d="M66 76 L74 66 L76 80 Z"/>
-        <circle class="m-erm__skull" cx="60" cy="86" r="17"/>
-        <circle class="m-erm__eye m-erm__eye--l" cx="53" cy="85" r="2.8"/>
-        <circle class="m-erm__eye m-erm__eye--r" cx="67" cy="85" r="2.8"/>
-        <ellipse class="m-erm__nose" cx="60" cy="93" rx="3" ry="2.2"/>
-      </g>
-    </g>
-    <g class="m-box">
-      <path class="m-box__back" d="M118 94 L182 94 L176 76 L124 76 Z"/>
-      <rect class="m-box__front" x="118" y="94" width="64" height="30" rx="4"/>
-    </g>
-  </g>
-</svg>`;
-
-export function mountMascots({ home = false, doc = globalThis.document } = {}) {
-  let pose = 'idle';
-  let placement = 'corner';
-
-  const el = doc.createElement('div');
-  el.setAttribute('aria-hidden', 'true');
-  el.innerHTML = RIG;
-  doc.body.append(el);
-
-  function paint() {
-    // 每次整串重寫,不用 classList.add/remove —— 假 DOM 裡沒有 classList,
-    // 而且「目前狀態 = 這一串」比「累積了哪些 class」好推理。
-    el.className = [
-      'mascots',
-      `mascots--${pose}`,
-      `mascots--at-${placement}`,
-      home ? 'mascots--home' : '',
-    ].filter(Boolean).join(' ');
-  }
-
-  // 抽成區域函式而不是只放在回傳物件上:flyTo / home 內部也要用它,
-  // 走 this.setPose 的話,被解構出來呼叫(const { flyTo } = mascots)就會壞掉。
-  function applyPose(next) {
-    if (!POSES.includes(next)) return;
-    pose = next;
-    paint();
-  }
-
-  paint();
-
-  return {
-    el,
-    getState: () => ({ pose, placement }),
-    setPose: applyPose,
-    // Task 4 會在這裡補上 flyTo / home
-  };
-}
-```
-
-- [ ] **Step 4: 跑測試確認它通過**
-
-Run: `node --test test/mascot.test.js`
-Expected: PASS(6 個測試)
-
-- [ ] **Step 5: 寫 `shared/css/mascot.css`,只做 `idle` 與 `aww`**
-
-```css
-/* 吉祥物。固定層,不可點,不參與任何模式的排版。 */
-.mascots {
-  position: fixed;
-  left: 16px;
-  bottom: 16px;
-  width: clamp(96px, 15vh, 180px);
-  pointer-events: none;   /* 這層永遠不可點,飛行途中也是 */
-  z-index: 50;            /* 蓋在揭曉面板之上;設定面板是 <dialog>,在 top layer,蓋不到也不需要蓋 */
-  transition: transform .5s cubic-bezier(.34, 1.2, .5, 1);
-}
-
-.mascots--home {
-  position: static;
-  width: clamp(140px, 26vw, 260px);
-}
-
-.mascots__svg { display: block; width: 100%; height: auto; overflow: visible; }
-
-/* 平塗 + 粗描邊,跟全站一致。線寬用 viewBox 單位,跟著整體縮放。 */
-.m-rig * {
-  stroke: var(--ink);
-  stroke-width: 4;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-  transform-box: fill-box;
-  transform-origin: center;
-  transition: transform .45s cubic-bezier(.34, 1.2, .5, 1);
-}
-
-.m-fox__tail { fill: #F09A5B; }
-.m-fox__body, .m-fox__skull { fill: #F5A868; }
-.m-fox__ear { fill: #E2803F; }
-.m-fox__cheek { fill: #FFF3E4; stroke: none; }
-.m-fox__nose { fill: var(--ink); }
-.m-fox__eye { fill: var(--ink); stroke: none; }
-
-.m-erm__body, .m-erm__skull, .m-erm__tail { fill: #FFFDF8; }
-.m-erm__ear { fill: #FFE2E8; }
-.m-erm__tip { fill: var(--ink); }
-.m-erm__nose { fill: #E88AA0; }
-.m-erm__eye { fill: var(--ink); stroke: none; }
-
-.m-box__front { fill: #E3C79B; }
-.m-box__back { fill: #CDAE7E; }
-
-/* empty 以外的姿勢不顯示箱子 */
-.m-box { opacity: 0; transition: opacity .3s; }
-.mascots--empty .m-box { opacity: 1; }
-
-/* ---------- 待機:呼吸 ---------- */
-/* 等速的動作小孩兩分鐘就不看了,所以呼吸只是底,真正抓注意力的是
-   Task 4 那些「偶爾發生、不知道什麼時候」的小動作。 */
-.mascots--idle .m-fox__body,
-.mascots--idle .m-erm__body {
-  animation: m-breathe 3.4s ease-in-out infinite;
-}
-.mascots--idle .m-erm__body { animation-delay: .6s; }
-
-@keyframes m-breathe {
-  0%, 100% { transform: scaleY(1); }
-  50%      { transform: scaleY(1.035); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .mascots, .m-rig *, .m-box { transition: none; }
-  .mascots--idle .m-fox__body, .mascots--idle .m-erm__body { animation: none; }
-}
-
-/* ---------- idle:白鼬窩在狐狸尾巴裡,狐狸盤坐半瞇眼守著 ---------- */
-.mascots--idle .m-fox__head { transform: rotate(-4deg) translateY(2px); }
-.mascots--idle .m-fox__eye  { transform: scaleY(.34); }   /* 半瞇 */
-.mascots--idle .m-erm       { transform: translate(6px, 4px); }
-.mascots--idle .m-erm__head { transform: rotate(-8deg); }
-
-/* ---------- aww:白鼬垂耳,狐狸用尾巴把牠整個裹起來輕拍 ---------- */
-.mascots--aww .m-fox__tail { transform: rotate(38deg) translate(-26px, 6px) scale(1.08); }
-.mascots--aww .m-fox__head { transform: rotate(-12deg) translate(-6px, 4px); }
-.mascots--aww .m-fox__eye  { transform: scaleY(.5); }
-.mascots--aww .m-erm       { transform: translate(10px, 8px) rotate(-6deg); }
-.mascots--aww .m-erm__head { transform: rotate(-16deg) translateY(3px); }
-.mascots--aww .m-erm__ear--l { transform: rotate(34deg) translateY(4px); }
-.mascots--aww .m-erm__ear--r { transform: rotate(-30deg) translateY(4px); }
-.mascots--aww .m-erm__eye  { transform: scaleY(.3); }
-```
-
-- [ ] **Step 6: 做丟棄式檢查頁**
-
-建立 `_mascot-check.html`(放在 repo 根,Task 3 結束前刪掉):
-
-```html
-<!doctype html>
-<html lang="zh-Hant"><head><meta charset="utf-8"><title>mascot check</title>
-<link rel="stylesheet" href="shared/css/tokens.css">
-<link rel="stylesheet" href="shared/css/mascot.css">
-<style>
-  body { display: flex; gap: 40px; flex-wrap: wrap; padding: 40px; }
-  .cell { width: 260px; }
-  .cell h2 { font-size: 16px; margin: 0 0 8px; }
-  .cell .mascots { position: static; width: 240px; }
-</style>
-</head><body>
-<script type="module">
-  import { mountMascots } from './shared/js/mascot.js';
-  for (const pose of ['idle', 'aww']) {
-    const cell = document.createElement('div');
-    cell.className = 'cell';
-    const h = document.createElement('h2');
-    h.textContent = pose;
-    cell.append(h);
-    document.body.append(cell);
-    const m = mountMascots();
-    cell.append(m.el);          // mountMascots 會 append 到 body,這裡搬進格子裡
-    m.setPose(pose);
-  }
-</script>
-</body></html>
-```
-
-- [ ] **Step 7: 跑全部測試**
+- [ ] **Step 4: 跑測試確認通過**
 
 Run: `node --test test/*.test.js`
-Expected: PASS,總數 218 + 6 = 224
+Expected: PASS(既有 218 + mascot 的新測試)
 
-- [ ] **Step 8: 開新 port,截圖給使用者**
+- [ ] **Step 5: 重寫 `shared/css/mascot.css`**
 
-```bash
-cd /Users/willian/github/gashapon && python3 -m http.server 8201
-```
+- `.mascots` 固定層、`pointer-events:none`、`z-index:50`、`--fly-x/--fly-y` 的 translate(沿用)
+- `.mascots__img` 絕對疊放、`width:100%`、`opacity` 過渡 220ms
+- `.mascots--home` 放大版
+- 呼吸:`@keyframes` 對整層做 `scaleY(1 → 1.03)`,3.4s
+- `.mascot-anchor` 那條(1px、透明、不佔空間)保留
+- `prefers-reduced-motion` 時關掉呼吸與過渡
 
-在**前景**分頁打開 `http://localhost:8201/_mascot-check.html`,截圖。
+- [ ] **Step 6: 用檢查頁看五個姿勢 + 呼吸**
 
-- [ ] **Step 9: 停下來。把截圖交給使用者,等明確點頭。**
+改 `_mascot-check.html` 列出五個姿勢加 `doze`,開**新 port**,前景分頁截圖。
+(`document.visibilityState` 在這個環境會一直回報 hidden,**不要靠它** —— 改用連續兩次讀元素座標/樣式看有沒有變。)
 
-問使用者兩件事:
-1. 這兩隻夠不夠可愛?造型要不要調?
-2. `aww` 的「狐狸用尾巴把白鼬裹起來」看得出來嗎?
-
-**看不出來 = 骨架路線失敗**,要退回「五張獨立構圖」(spec 裡的做法 A),Task 3 整個重寫。
-**不得在沒有明確點頭的情況下進入 Task 3。**
-
-- [ ] **Step 10: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add shared/js/mascot.js shared/css/mascot.css test/mascot.test.js _mascot-check.html
 git commit -F - <<'EOF'
-feat(mascot): 骨架 + idle 與 aww 兩個姿勢
+feat(mascot): 改用生成圖,丟掉手刻的 SVG 骨架
 
-一對吉祥物(小狐狸 + 白鼬),是 <body> 底下一個 fixed 的獨立層,
-從頭到尾不進入任何模式的 DOM。
+素材改為 shared/img/mascot/*.webp。POSES 仍是五個值 —— doze 是 idle
+的待機變化,不是第六個 pose。
 
-pose 屬於**這一對**不屬於個別動物:沒有 fox.pose / ermine.pose,
-拆開能多表達的組合全部都是我們不想要的組合(狐狸在抱空氣),
-而且兩隻會不同步。
-
-這一輪只做 idle 與 aww。aww(狐狸用尾巴把白鼬裹起來)是四個共用
-骨架的姿勢裡對骨架最嚴苛的一個 —— 先驗它過不過得了,再決定要不要
-繼續走骨架路線。_mascot-check.html 是丟棄式檢查頁。
-
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_018HB492KLcUb11Bqr4pcBR9
-EOF
-```
-
----
-
-## Task 3: 其餘三個姿勢 `watch` / `cheer` / `empty`
-
-**前提:Task 2 的關卡已經由使用者明確點頭。沒點頭就不要開始。**
-
-**Files:**
-- Modify: `shared/css/mascot.css`(加三組姿勢)
-- Modify: `_mascot-check.html`(五個姿勢都列出來)
-
-**Interfaces:**
-- Consumes: Task 2 的 `mountMascots()` 與 `.mascots--<pose>` class 約定
-- Produces: 五個姿勢的 CSS 都齊了
-
-- [ ] **Step 1: 在 `shared/css/mascot.css` 末尾加三組姿勢**
-
-```css
-/* ---------- watch:兩隻一起抬頭盯著畫面中央,狐狸耳朵豎起、尾巴仍圈著白鼬 ---------- */
-.mascots--watch .m-fox__head   { transform: rotate(6deg) translateY(-4px); }
-.mascots--watch .m-fox__ear--l { transform: rotate(-12deg) translateY(-4px); }
-.mascots--watch .m-fox__ear--r { transform: rotate(10deg) translateY(-4px); }
-.mascots--watch .m-fox__eye    { transform: scaleY(1.15); }
-.mascots--watch .m-erm         { transform: translate(6px, 2px); }
-.mascots--watch .m-erm__head   { transform: rotate(8deg) translateY(-3px); }
-.mascots--watch .m-erm__eye    { transform: scaleY(1.2); }
-
-/* ---------- cheer:白鼬跳起來歡呼;狐狸**不跳**,眼睛彎起來看著白鼬,尾巴大力擺 ----------
-   狐狸看的是白鼬不是獎品 —— 這是刻意的。「深情專一」在畫面上只能這樣表達:
-   如果狐狸也跟著對獎品歡呼,牠就跟白鼬變成同一個角色,那個「孤傲,但對你溫柔」
-   的反差就消失了。改這段之前請先回頭看 spec。 */
-.mascots--cheer .m-erm       { transform: translate(4px, -26px) rotate(-6deg); }
-.mascots--cheer .m-erm__head { transform: rotate(-10deg) translateY(-2px); }
-.mascots--cheer .m-erm__eye  { transform: scaleY(.35); }   /* 彎彎的笑眼 */
-.mascots--cheer .m-fox__head { transform: rotate(-16deg) translate(-8px, -2px); }  /* 轉頭看白鼬 */
-.mascots--cheer .m-fox__eye  { transform: scaleY(.4); }
-.mascots--cheer .m-fox__tail { animation: m-wag .5s ease-in-out infinite; }
-
-@keyframes m-wag {
-  0%, 100% { transform: rotate(-6deg); }
-  50%      { transform: rotate(10deg); }
-}
-
-/* ---------- empty:空箱子,白鼬趴在箱沿睡著,狐狸靠著箱子守夜 ---------- */
-.mascots--empty .m-fox       { transform: translate(-16px, 6px); }
-.mascots--empty .m-fox__head { transform: rotate(-6deg) translateY(4px); }
-.mascots--empty .m-fox__eye  { transform: scaleY(.3); }
-.mascots--empty .m-fox__tail { transform: rotate(-10deg) translate(8px, 10px); }
-.mascots--empty .m-erm       { transform: translate(74px, -14px) rotate(6deg); }
-.mascots--empty .m-erm__head { transform: rotate(14deg) translateY(4px); }
-.mascots--empty .m-erm__eye  { transform: scaleY(.18); }   /* 睡著 */
-
-@media (prefers-reduced-motion: reduce) {
-  .mascots--cheer .m-fox__tail { animation: none; }
-}
-```
-
-- [ ] **Step 2: 改 `_mascot-check.html` 列出五個姿勢**
-
-把那一行:
-
-```js
-  for (const pose of ['idle', 'aww']) {
-```
-
-改成:
-
-```js
-  for (const pose of ['idle', 'watch', 'cheer', 'aww', 'empty']) {
-```
-
-- [ ] **Step 3: 跑全部測試**
-
-Run: `node --test test/*.test.js`
-Expected: PASS,總數維持 224(這一步只加 CSS,沒有新邏輯)
-
-- [ ] **Step 4: 開新 port 截圖確認五張都對**
-
-```bash
-cd /Users/willian/github/gashapon && python3 -m http.server 8202
-```
-
-前景分頁打開 `http://localhost:8202/_mascot-check.html`,截圖。逐張對照 spec 的構圖表:
-- `watch` 兩隻都抬頭、狐狸耳朵是豎的嗎?
-- `cheer` 狐狸的頭是**轉向白鼬**,不是朝正前方嗎?
-- `empty` 白鼬在箱沿、狐狸靠著箱子嗎?
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add shared/css/mascot.css _mascot-check.html
-git commit -F - <<'EOF'
-feat(mascot): 補上 watch / cheer / empty 三個姿勢
-
-cheer 時狐狸看的是白鼬不是獎品,這是刻意的:「深情專一」在畫面上
-只能這樣表達,狐狸也跟著對獎品歡呼的話,牠就跟白鼬變成同一個角色。
-
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_018HB492KLcUb11Bqr4pcBR9
-EOF
-```
-
----
-
-## Task 4: 飛行、回家、待機小動作
-
-**Files:**
-- Modify: `shared/js/mascot.js`
-- Modify: `shared/css/mascot.css`
-- Modify: `test/mascot.test.js`
-
-> **與 spec 的一處刻意差異 —— 請先讀過再實作。**
-> spec 的「兩個已經踩過的坑」第 1 點寫:「飛行用 CSS transition + `transitionend`,
-> 而且**一定要配 setTimeout 後備**」。那條規則的目的是防「分頁切到背景 → 動畫停住 →
-> 等 `transitionend` 的 promise 永遠不 resolve → 整段演出卡死」。
->
-> 這份計畫的做法**根本不等 `transitionend`**:`flyTo` 設完 CSS 變數就回傳,
-> 沒有 promise、沒有 await,所以沒有東西會卡住。**後備因此不需要,不是被忘記。**
-> 分頁切回來時,transition 會直接跳到終點,兩隻就在該在的位置 —— 這正是想要的結果。
->
-> 如果之後有人要讓 `flyTo` 變成 `async`(例如「等牠們飛到了再繼續」),
-> 那條 spec 規則立刻重新生效,**必須**補 setTimeout 後備。
-
-**Interfaces:**
-- Consumes: Task 2 的 `mountMascots({ home, doc })` 回傳物件
-- Produces: 同一個回傳物件上多出
-  - `flyTo(el, { pose } = {})` — 讀 `el.getBoundingClientRect()`,把整層移到它旁邊;rect 寬高為 0 時退回角落
-  - `home({ pose = 'idle' } = {})` — 飛回角落
-  - `FIDGETS`(匯出的常數陣列 `['yawn', 'ear', 'nuzzle']`)
-  - `pickFidget(prev, rng)` — 純函式,保證不會連續兩次抽到同一個
-
-- [ ] **Step 1: 在 `test/mascot.test.js` 末尾加失敗的測試**
-
-```js
-/* ---------- 飛行與待機 ---------- */
-
-import { FIDGETS, pickFidget } from '../shared/js/mascot.js';
-
-// 錨點有正常尺寸時,回傳的 rect 才有意義
-function anchorAt(x, y) {
-  return {
-    getBoundingClientRect: () => ({ x, y, left: x, top: y, width: 10, height: 10 }),
-  };
-}
-
-// 被 hidden 的元素,getBoundingClientRect 全部是 0
-const hiddenAnchor = {
-  getBoundingClientRect: () => ({ x: 0, y: 0, left: 0, top: 0, width: 0, height: 0 }),
-};
-
-test('flyTo 把位置換成 reveal,順便換姿勢', () => {
-  const m = mountMascots({ doc: fakeDoc() });
-  m.flyTo(anchorAt(300, 200), { pose: 'cheer' });
-  assert.deepEqual(m.getState(), { pose: 'cheer', placement: 'reveal' });
-});
-
-// 這一條是真的會發生的:揭曉面板還掛著 hidden 的時候就呼叫 flyTo,
-// rect 會是全 0,照算的話兩隻會飛到畫面左上角 (0,0) 卡在那裡。
-test('錨點是隱藏的(rect 全 0)→ 退回角落,不要飛到左上角', () => {
-  const m = mountMascots({ doc: fakeDoc() });
-  m.flyTo(hiddenAnchor, { pose: 'cheer' });
-  assert.equal(m.getState().placement, 'corner');
-});
-
-test('錨點給 null 也不能爆炸', () => {
-  const m = mountMascots({ doc: fakeDoc() });
-  m.flyTo(null, { pose: 'cheer' });
-  assert.equal(m.getState().placement, 'corner');
-});
-
-test('home 回到 idle / corner', () => {
-  const m = mountMascots({ doc: fakeDoc() });
-  m.flyTo(anchorAt(300, 200), { pose: 'cheer' });
-  m.home();
-  assert.deepEqual(m.getState(), { pose: 'idle', placement: 'corner' });
-});
-
-// 連抽到同一個小動作,看起來會像卡住 —— 小孩會以為壞了。
-test('待機小動作不會連續兩次抽到同一個', () => {
-  for (const prev of FIDGETS) {
-    for (const r of [0, 0.34, 0.5, 0.67, 0.99]) {
-      assert.notEqual(pickFidget(prev, () => r), prev, `prev=${prev} r=${r}`);
-    }
-  }
-});
-
-test('沒有前一個動作時,照樣抽得出東西', () => {
-  assert.ok(FIDGETS.includes(pickFidget(null, () => 0)));
-});
-```
-
-- [ ] **Step 2: 跑測試確認它失敗**
-
-Run: `node --test test/mascot.test.js`
-Expected: FAIL —— `FIDGETS` / `pickFidget` 不存在,`m.flyTo is not a function`
-
-- [ ] **Step 3: 在 `shared/js/mascot.js` 實作**
-
-在 `POSES` 下面加:
-
-```js
-// 待機的小動作。呼吸是等速的、可預測的,小孩兩分鐘就不看了;
-// 真正抓住注意力的是「偶爾發生、但不知道什麼時候」的事。
-export const FIDGETS = Object.freeze(['yawn', 'ear', 'nuzzle']);
-const FIDGET_GAP = [4000, 9000];   // ms
-const FIDGET_LEN = 1200;           // ms
-
-// 連續兩次抽到同一個,看起來會像卡住。從「除了上一個以外」的集合裡抽。
-export function pickFidget(prev, rng = Math.random) {
-  const pool = FIDGETS.filter(f => f !== prev);
-  return pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))];
-}
-```
-
-在 `mountMascots` 內、`return` 之前加:
-
-```js
-  let fidget = null;
-  let fidgetTimer = 0;
-
-  function scheduleFidget(rng = Math.random) {
-    clearTimeout(fidgetTimer);
-    const gap = FIDGET_GAP[0] + rng() * (FIDGET_GAP[1] - FIDGET_GAP[0]);
-    fidgetTimer = setTimeout(() => {
-      // 只有待機時才亂動 —— 正在歡呼或正在飛的時候插一個打哈欠很怪
-      if (pose === 'idle' && placement === 'corner') {
-        fidget = pickFidget(fidget, rng);
-        paint();
-        setTimeout(() => { fidget = null; paint(); }, FIDGET_LEN);
-      }
-      scheduleFidget(rng);
-    }, gap);
-  }
-```
-
-把 `paint()` 的 class 串補上 fidget:
-
-```js
-    el.className = [
-      'mascots',
-      `mascots--${pose}`,
-      `mascots--at-${placement}`,
-      home ? 'mascots--home' : '',
-      fidget ? `mascots--fidget-${fidget}` : '',
-    ].filter(Boolean).join(' ');
-```
-
-在回傳物件裡加三個方法:
-
-```js
-    flyTo(anchor, { pose: next } = {}) {
-      if (next) applyPose(next);
-      const rect = anchor?.getBoundingClientRect?.();
-      // 錨點還掛著 hidden 的話 rect 是全 0。照算會把兩隻送到畫面
-      // 左上角 (0,0) 卡在那裡 —— 寧可留在角落。
-      if (!rect || rect.width === 0 || rect.height === 0) {
-        placement = 'corner';
-        el.style.setProperty('--fly-x', '0px');
-        el.style.setProperty('--fly-y', '0px');
-        paint();
-        return;
-      }
-      const self = el.getBoundingClientRect();
-      // 位移用 transform,不改 left/bottom —— transform 跑在合成器上,
-      // 而且不會觸發整頁重排。
-      el.style.setProperty('--fly-x', `${rect.left + rect.width / 2 - self.left - self.width / 2}px`);
-      el.style.setProperty('--fly-y', `${rect.top + rect.height / 2 - self.top - self.height / 2}px`);
-      placement = 'reveal';
-      paint();
-    },
-
-    home({ pose: next = 'idle' } = {}) {
-      el.style.setProperty('--fly-x', '0px');
-      el.style.setProperty('--fly-y', '0px');
-      placement = 'corner';
-      applyPose(next);
-      paint();
-    },
-
-    stop() { clearTimeout(fidgetTimer); },
-```
-
-並在 `paint()` 第一次呼叫之後啟動排程:
-
-```js
-  paint();
-  scheduleFidget();
-```
-
-- [ ] **Step 4: 跑測試確認它通過**
-
-Run: `node --test test/mascot.test.js`
-Expected: PASS(6 + 6 = 12 個測試)
-
-- [ ] **Step 5: 證明「隱藏錨點」那條測試真的會咬**
-
-暫時把 `if (!rect || rect.width === 0 || rect.height === 0) {` 改成 `if (!rect) {`,跑 `node --test test/mascot.test.js`。
-
-Expected: 「錨點是隱藏的(rect 全 0)→ 退回角落」**變紅**。確認後改回來。
-
-- [ ] **Step 6: 在 `shared/css/mascot.css` 加飛行與小動作的樣式**
-
-```css
-/* 飛行。位移用 transform,不動 left/bottom —— 跑在合成器上,不觸發重排。 */
-.mascots {
-  --fly-x: 0px;
-  --fly-y: 0px;
-  transform: translate3d(var(--fly-x), var(--fly-y), 0);
-}
-
-/* 飛到揭曉區時放大一點,因為那是主角時刻 */
-.mascots--at-reveal { transform: translate3d(var(--fly-x), var(--fly-y), 0) scale(1.1); }
-
-/* ---------- 待機小動作 ---------- */
-.mascots--fidget-yawn .m-fox__head { animation: m-yawn 1.2s ease-in-out; }
-@keyframes m-yawn {
-  0%, 100% { transform: rotate(-4deg) translateY(2px); }
-  40%      { transform: rotate(-16deg) translateY(-3px); }
-}
-
-.mascots--fidget-ear .m-fox__ear--r { animation: m-ear .45s ease-in-out 2; }
-@keyframes m-ear {
-  0%, 100% { transform: rotate(0); }
-  50%      { transform: rotate(-16deg); }
-}
-
-.mascots--fidget-nuzzle .m-fox__head { animation: m-nuzzle 1.2s ease-in-out; }
-@keyframes m-nuzzle {
-  0%, 100% { transform: rotate(-4deg) translateY(2px); }
-  50%      { transform: rotate(-22deg) translate(-8px, 8px); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .mascots--fidget-yawn .m-fox__head,
-  .mascots--fidget-ear .m-fox__ear--r,
-  .mascots--fidget-nuzzle .m-fox__head { animation: none; }
-}
-```
-
-- [ ] **Step 7: 跑全部測試**
-
-Run: `node --test test/*.test.js`
-Expected: PASS,總數 224 + 6 = 230
-
-- [ ] **Step 8: Commit**
-
-```bash
-git add shared/js/mascot.js shared/css/mascot.css test/mascot.test.js
-git commit -F - <<'EOF'
-feat(mascot): 飛行、回家、待機小動作
-
-flyTo 只讀錨點的 getBoundingClientRect 當座標,**不把吉祥物插進
-錨點的 DOM** —— 揭曉面板的排版完全不知道吉祥物存在。位移用
-transform,跑在合成器上也不觸發重排。
-
-錨點還掛著 hidden 時 rect 是全 0,照算會把兩隻送到畫面左上角
-(0,0) 卡住,所以直接退回角落。
-
-待機小動作保證不會連續兩次抽到同一個 —— 連抽到一樣的看起來像卡住。
+只有 idle 在首屏載入,其餘五張延後:六張合計 278 KB,全部預載會把
+首屏成本從 45 KB 變成 278 KB。
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_018HB492KLcUb11Bqr4pcBR9
