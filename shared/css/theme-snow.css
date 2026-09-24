@@ -1,0 +1,38 @@
+/* 雪地舞台。四層由後到前:天空 → 遠景 → 雪坡 → 雪花。
+   前三層全部在 body 的 background 裡,零 DOM、零額外請求 ——
+   遠景用 data URI 內嵌,不多一次網路往返。 */
+
+:root {
+  --sky-top: #DCEBF7;
+  --sky-low: #F3F8FC;
+  --snow: #FFFFFF;
+  --snow-shade: #E8F1F8;
+  --far: #BCD2E4;
+}
+
+/* 雪花那一層。整層不可點,而且不佔排版。 */
+.snow {
+  position: fixed;
+  inset: 0;
+  z-index: -1;   /* 負值:畫在頁面背景之上、所有內容之下 */
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.snow__flake {
+  position: absolute;
+  top: -8px;
+  left: var(--left);
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  background: #FFFFFF;
+  opacity: .85;
+  /* translate3d 而不是 top/left:前者跑在合成器上,後者每幀都要重排 */
+  animation: snow-fall var(--dur) linear var(--delay) infinite;
+}
+
+@keyframes snow-fall {
+  from { transform: translate3d(0, -10vh, 0); }
+  to   { transform: translate3d(var(--drift), 110vh, 0); }
+}
