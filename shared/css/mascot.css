@@ -28,17 +28,26 @@
 }
 
 .m-fox__tail { fill: #F09A5B; }
+.m-fox__tail-tip { fill: #FFF3E4; }
 .m-fox__body, .m-fox__skull { fill: #F5A868; }
+.m-fox__belly { fill: #FFF3E4; stroke: none; }
 .m-fox__ear { fill: #E2803F; }
+.m-fox__ear-tip { fill: #7A4A32; }
 .m-fox__cheek { fill: #FFF3E4; stroke: none; }
+.m-fox__blush { fill: #FFB4C6; stroke: none; opacity: .8; }
 .m-fox__nose { fill: var(--ink); }
 .m-fox__eye { fill: var(--ink); stroke: none; }
+.m-fox__eye-highlight { fill: #FFFFFF; stroke: none; }
+.m-fox__mouth { fill: none; stroke-width: 2.4; }
 
 .m-erm__body, .m-erm__skull, .m-erm__tail { fill: #FFFDF8; }
-.m-erm__ear { fill: #FFE2E8; }
+.m-erm__ear { fill: #FFC7D6; }
+.m-erm__blush { fill: #FFB4C6; stroke: none; opacity: .8; }
 .m-erm__tip { fill: var(--ink); }
-.m-erm__nose { fill: #E88AA0; }
+.m-erm__nose { fill: var(--ink); }
 .m-erm__eye { fill: var(--ink); stroke: none; }
+.m-erm__eye-highlight { fill: #FFFFFF; stroke: none; }
+.m-erm__mouth { fill: none; stroke-width: 2.2; }
 
 .m-box__front { fill: #E3C79B; }
 .m-box__back { fill: #CDAE7E; }
@@ -66,20 +75,31 @@
   .mascots--idle .m-fox__body, .mascots--idle .m-erm__body { animation: none; }
 }
 
+/* 尾巴繞著白鼬轉的樞紐要在尾巴「根部」(接狐狸屁股那端),不是整條
+   尾巴的幾何中心 —— 這樣轉角度時是甩尾巴的弧線動作,尾尖能掃過一大段
+   距離去蓋住白鼬,而不是整條尾巴憑空跳到新位置。座標是 m-fox__tail
+   path 自己 bbox 裡的相對位置(fill-box 的百分比)。 */
+.m-fox__tailwrap { transform-origin: 96% 87%; }
+
+/* 白鼬耳朵的樞紐放在耳朵根部(接頭的那端),垂耳才會像「耷拉下來」
+   而不是原地打轉(圓形耳朵繞自己中心轉是看不出來的)。 */
+.m-erm__ear { transform-origin: 50% 12%; }
+
 /* ---------- idle:白鼬窩在狐狸尾巴裡,狐狸盤坐半瞇眼守著 ---------- */
 /* 尾巴的靜止形狀本身就繞著白鼬畫(見 RIG 裡的 m-fox__tail path),
    idle 只需要極小的調整,大部分「窩著」的觀感來自骨架本身。 */
 .mascots--idle .m-fox__head  { transform: rotate(-4deg) translateY(2px); }
-.mascots--idle .m-fox__eye   { transform: scaleY(.34); }   /* 半瞇 */
-.mascots--idle .m-erm__head  { transform: rotate(-8deg); }
+.mascots--idle .m-fox__eye   { transform: scaleY(.4); }   /* 半瞇 */
+.mascots--idle .m-erm__head  { transform: rotate(-6deg); }
 
 /* ---------- aww:白鼬垂耳,狐狸用尾巴把牠整個裹起來輕拍 ---------- */
-/* 尾巴在靜止形狀的基礎上再多繞一圈、收緊,把 idle 露出來的開口蓋住。 */
-.mascots--aww .m-fox__tail   { transform: rotate(-4deg) translate(-6px, 6px) scale(1.4); }
-.mascots--aww .m-fox__head   { transform: rotate(-9deg) translate(-3px, 5px); }
+/* 尾巴繞著根部(見上面的 transform-origin)甩一個角度,把 idle 留的
+   開口蓋住 —— 不再靠放大尾巴取巧,轉角度就是唯一的差異。 */
+.mascots--aww .m-fox__tailwrap { transform: rotate(30deg); }
+.mascots--aww .m-fox__head   { transform: rotate(-10deg) translate(-3px, 5px); }
 .mascots--aww .m-fox__eye    { transform: scaleY(.5); }
-.mascots--aww .m-erm         { transform: translate(4px, 12px) scale(.78); }
+.mascots--aww .m-erm         { transform: translate(6px, 10px) scale(.82); }
 .mascots--aww .m-erm__head   { transform: rotate(-14deg) translateY(3px); }
-.mascots--aww .m-erm__ear--l { transform: rotate(34deg) translateY(4px); }
-.mascots--aww .m-erm__ear--r { transform: rotate(-30deg) translateY(4px); }
-.mascots--aww .m-erm__eye    { transform: scaleY(.3); }
+.mascots--aww .m-erm__ear--l { transform: translate(-2px, 6px) rotate(-24deg) scaleY(.7); }
+.mascots--aww .m-erm__ear--r { transform: translate(2px, 6px) rotate(24deg) scaleY(.7); }
+.mascots--aww .m-erm__eye    { transform: scaleY(.28); }
