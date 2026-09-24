@@ -47,11 +47,26 @@ const SRC = Object.freeze({
 const DOZE_GAP = [4000, 9000];  // ms —— 下一次「有機會」打瞌睡的間隔
 const DOZE_LEN = 1600;          // ms —— 打瞌睡停留多久
 
-export function mountMascots({ home = false, fidget = true, doc = globalThis.document } = {}) {
+export function mountMascots({
+  home = false,
+  fidget = true,
+  // 計時器可注入:測試要能同步把「時間」推進去,驗證 doze 排程真的會
+  // 咬(不然那段邏輯 —— 包括競態保護 —— 永遠不會被自動測試執行到)。
+  // 用箭頭函式包一層,不要直接把 setTimeout/clearTimeout 存進物件屬性
+  // 再解構呼叫,避免依賴它們不需要 this 綁定這件事的環境差異。
+  timers = { set: (fn, ms) => setTimeout(fn, ms), clear: (id) => clearTimeout(id) },
+  rng = Math.random,
+  doc = globalThis.document,
+} = {}) {
   let pose = 'idle';
   let placement = 'corner';
   let dozing = false;
   let fidgetTimer = 0;
+  // 待機排程分兩層計時器:fidgetTimer 是「還要多久才有機會打瞌睡」,
+  // dozeTimer 是「已經在打瞌睡,還要多久醒來」。stop() 兩個都要清,
+  // 不然在打瞌睡的 1.6 秒視窗內呼叫 stop(),還是會有一個殘留計時器
+  // 在背景把圖片和 paint() 改回 idle —— 那就不是「完全停掉」了。
+  let dozeTimer = 0;
 
   // 使用者要求減少動態效果時,呼吸跟 doze 都不該發生 —— 不是靠 CSS
   // 藏起來,是排程本身就不要開。fakeDoc / node 環境沒有 matchMedia,
@@ -117,16 +132,16 @@ export function mountMascots({ home = false, fidget = true, doc = globalThis.doc
     paint();
   }
 
-  function scheduleFidget(rng = Math.random) {
-    clearTimeout(fidgetTimer);
+  function scheduleFidget() {
+    timers.clear(fidgetTimer);
     const gap = DOZE_GAP[0] + rng() * (DOZE_GAP[1] - DOZE_GAP[0]);
-    fidgetTimer = setTimeout(() => {
+    fidgetTimer = timers.set(() => {
       // 只有閒置在角落時才打瞌睡 —— 正在歡呼或正在飛的時候睡著很怪
       if (pose === 'idle' && placement === 'corner') {
         dozing = true;
         crossfadeTo(SRC[DOZE]);
         paint();
-        setTimeout(() => {
+        dozeTimer = timers.set(() => {
           // 這段時間裡姿勢可能被 setPose 換掉了,那樣的話圖已經是
           // 新姿勢,不該被這裡搶回 idle。
           if (pose === 'idle') {
@@ -136,12 +151,12 @@ export function mountMascots({ home = false, fidget = true, doc = globalThis.doc
           }
         }, DOZE_LEN);
       }
-      scheduleFidget(rng);
+      scheduleFidget();
     }, gap);
   }
 
   paint();
-  // fidget: false 是測試專用的關閉開關 —— 排程用 setTimeout 且會自己
+  // fidget: false 是測試專用的關閉開關 —— 排程用計時器且會自己
   // 重排,node 的事件迴圈永遠清不空,node --test 會直接掛住不結束。
   if (fidget && !reduceMotion) scheduleFidget();
 
@@ -179,6 +194,12 @@ export function mountMascots({ home = false, fidget = true, doc = globalThis.doc
       paint();
     },
 
-    stop() { clearTimeout(fidgetTimer); },
+    stop() {
+      // 兩層計時器都要清 —— 只清 fidgetTimer 的話,正在打瞌睡的 1.6
+      // 秒視窗內呼叫 stop() 還是會有 dozeTimer 殘留,之後把圖片和
+      // paint() 改回 idle,違反「完全停掉」的契約。
+      timers.clear(fidgetTimer);
+      timers.clear(dozeTimer);
+    },
   };
 }
