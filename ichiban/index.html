@@ -7,6 +7,7 @@
 <title>一番賞</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🎫</text></svg>">
 <link rel="stylesheet" href="../shared/css/tokens.css">
+<link rel="stylesheet" href="../shared/css/mascot.css">
 <link rel="stylesheet" href="css/ichiban.css">
 <script type="importmap">
 {"imports":{"three":"../vendor/three.module.min.js"}}
@@ -32,6 +33,8 @@
       <p class="empty-state__text">抽完了!</p>
       <button class="btn btn--primary" id="refillBtn" type="button">重新鋪一桌</button>
     </div>
+
+    <div class="mascot-anchor" id="emptyAnchor" aria-hidden="true"></div>
   </div>
 
   <div class="overlay" id="overlay" hidden>
@@ -52,6 +55,8 @@
       <div class="aura" id="aura" aria-hidden="true"></div>
       <div class="particles" id="particles" aria-hidden="true"></div>
     </div>
+
+    <div class="mascot-anchor" id="revealAnchor" aria-hidden="true"></div>
 
     <div class="ticket-actions" id="ticketActions" hidden>
       <p class="ticket-actions__ask">要撕開它嗎?</p>

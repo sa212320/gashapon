@@ -95,6 +95,18 @@ body {
 .empty-state__icon { font-size: 64px; }
 .empty-state__text { margin: 0; font-size: 24px; }
 
+/* emptyAnchor 是 .desk 底下的普通 sibling,而 .desk 是一般 block 排版
+   (不是 grid/flex)——不脫離排版流的話,這個空 div 會多佔一段區塊高度,
+   把上面的 .pile 往下推。改成 position:absolute 完全脫離排版流,只當
+   座標錨點用。位置刻意偏左、不疊在正中央 —— 正中央是 .empty-state 自己
+   置中「重新鋪一桌」按鈕的地方,疊上去吉祥物會蓋住按鈕,小孩點不到。 */
+#emptyAnchor {
+  position: absolute;
+  left: 8%;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
 /* ---------- 遮罩 / 拿起‧撕開演出 ---------- */
 .overlay {
   position: fixed;
@@ -129,6 +141,19 @@ body {
      比例不一致的話碎屑會噴在票卡外面。 */
   width: min(80vw, 340px);
   aspect-ratio: 34 / 15;
+}
+
+/* revealAnchor 是 #overlay 底下的普通 sibling,而 #overlay 是
+   display:flex; flex-direction:column —— 不脫離排版流的話,這個空 div
+   會被排進直向堆疊裡,多佔一段高度,把 .reveal-stack / .ticket-actions
+   往下擠(一番賞正是出過「按鈕突然往上擠」這個 bug 的模式)。改成
+   position:absolute 完全脫離排版流,只當座標錨點用。吉祥物飛過來時
+   ticket-actions 已經隱藏,所以位置不需要刻意避開那兩顆按鈕,
+   放在卡片右上方就好。 */
+#revealAnchor {
+  position: absolute;
+  right: 12%;
+  top: 20%;
 }
 
 /* 開籤演出。整張票卡畫在 canvas 上(js/curl.js),

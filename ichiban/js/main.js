@@ -8,8 +8,14 @@ import { createAsk } from '../../shared/js/ask.js';
 import { setEnabled, unlock, sfx } from '../../shared/js/sound.js';
 import { loadPrefs, savePrefs } from '../../shared/js/prefs.js';
 import { requestPersistence } from '../../shared/js/storage.js';
+import { mountMascots } from '../../shared/js/mascot.js';
 
 const $ = id => document.getElementById(id);
+
+const mascots = mountMascots();
+
+// A/B 賞跟最後一抽賞才值得衝過來。C 賞以下是常態,每次都衝會變干擾。
+const BIG_TIERS = new Set(['A', 'B']);
 
 let state = store.load();
 const persist = store.createDebouncedSave();
@@ -59,6 +65,15 @@ function render() {
     : `還剩 ${left} 張 / 共 ${setup.tickets.length} 張`;
   desk.render(setup);
   setSoundIcon();
+
+  // 吉祥物「該待在哪裡」只由這裡一個地方決定 —— 不要在 closeOverlay()
+  // 之類的地方也做這個判斷,不然兩邊算出來的落點會打架(飛錯地方)。
+  // 一定要有 else:少了它,抽完後重新鋪一桌,吉祥物會永遠卡在 empty。
+  if (setup.tickets.length > 0 && left === 0) {
+    mascots.flyTo($('emptyAnchor'), { pose: 'empty' });
+  } else {
+    mascots.home();
+  }
 }
 
 function commit() {
@@ -130,6 +145,8 @@ async function doDraw(ticketEl) {
   }
 
   overlay.hidden = false;
+  // 拿起籤紙、還沒決定撕不撕:吉祥物看著就好,不用衝過來。
+  mascots.setPose('watch');
   await revealer.hold({
     tier: result.prize.tier,
     name: result.prize.name,
@@ -144,6 +161,9 @@ async function doDraw(ticketEl) {
   if (choice === 'cancel') {
     await revealer.cancelReturn(originRect);
     closeOverlay();
+    // 取消不會改變 state,但吉祥物剛剛被設成 watch,不能就這樣卡住 ——
+    // 交回 render() 這個唯一負責人去決定該回角落還是去 empty。
+    render();
     return;
   }
 
@@ -154,6 +174,13 @@ async function doDraw(ticketEl) {
 
   skipHint.hidden = false;
   await revealer.tear();
+  // A/B 賞或最後一抽賞才值得吉祥物衝過來歡呼,其他賞別留在角落。
+  // 這裡只負責「要不要歡呼」,歡呼完之後該落腳在哪由 render() 決定
+  // (見下面 skipHint.hidden = true; render();),不在這裡搶著呼叫
+  // mascots.home(),免得兩個地方互相打架。
+  if (BIG_TIERS.has(result.prize.tier) || result.isLastOne) {
+    mascots.flyTo($('revealAnchor'), { pose: 'cheer' });
+  }
   await waitForDismiss();
   closeOverlay();
 
