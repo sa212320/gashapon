@@ -83,6 +83,12 @@ function start() {
   running = true;
   $('results').hidden = true;
   $('startBtn').disabled = true;
+  // footer 的開始鍵在結果卡片顯示期間一直是可點的(.results 蓋不到 footer,
+  // startBtn.disabled 只跟 running/ready 有關,跟 results.hidden 無關)——
+  // 小孩可能略過「再跑一次」直接按「開始」,所以 start() 自己要負責把吉祥物
+  // 從上一輪的 revealAnchor 收回角落,不能假設使用者一定按過「再跑一次」。
+  // 先 home() 把位移歸零、姿勢設回 idle,再用 setPose('watch') 只改姿勢不動位置。
+  mascots.home();
   mascots.setPose('watch');
 
   // 待機時擺出來的那一局就是要跑的這一局 —— 重新產一局的話,
