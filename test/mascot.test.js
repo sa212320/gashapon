@@ -28,6 +28,16 @@ function fakeDoc() {
   const BASE = { left: 0, top: 0, width: 100, height: 80 };
   const make = () => {
     const props = {};
+    // 預設模擬「位移瞬間生效」:getBoundingClientRect() 永遠照
+    // --fly-x/--fly-y 目前的值算,量到的矩形跟這個值同步。
+    //
+    // 真瀏覽器不是這樣 —— transform transition 播放中途,
+    // getBoundingClientRect() 讀到的是插值中的位置,但 --fly-x/--fly-y
+    // 早就是這次呼叫設下去的終點值。__setDisplayedOffset() 讓測試能
+    // 模擬這個「插值位置」跟「CSS 變數終點值」不同步的狀態:呼叫之後
+    // getBoundingClientRect() 改回傳這裡指定的座標,不再跟 props 同步,
+    // 直到 __clearDisplayedOffset() 或再次呼叫為止。
+    let displayed = null;
     const el = {
       className: '',
       innerHTML: '',
@@ -42,14 +52,16 @@ function fakeDoc() {
       setAttribute() {},
       append(...kids) { el.children.push(...kids); },
       getBoundingClientRect: () => {
-        const dx = parseFloat(props['--fly-x']) || 0;
-        const dy = parseFloat(props['--fly-y']) || 0;
+        const dx = displayed ? displayed.x : (parseFloat(props['--fly-x']) || 0);
+        const dy = displayed ? displayed.y : (parseFloat(props['--fly-y']) || 0);
         return {
           x: BASE.left + dx, y: BASE.top + dy,
           left: BASE.left + dx, top: BASE.top + dy,
           width: BASE.width, height: BASE.height,
         };
       },
+      __setDisplayedOffset(x, y) { displayed = { x, y }; },
+      __clearDisplayedOffset() { displayed = null; },
     };
     return el;
   };
@@ -140,16 +152,33 @@ test('flyTo 把位置換成 reveal,順便換姿勢', () => {
 
 // 這一條是真的會發生的:揭曉面板還掛著 hidden 的時候就呼叫 flyTo,
 // rect 會是全 0,照算的話兩隻會飛到畫面左上角 (0,0) 卡在那裡。
-test('錨點是隱藏的(rect 全 0)→ 退回角落,不要飛到左上角', () => {
+//
+// 先真的飛到一個正常錨點讓狀態變成 reveal,再飛去隱藏錨點 —— 不然從
+// 一開始就是 corner 的話,「退回角落」跟「本來就在角落、什麼都沒做」
+// 兩種結果長得一模一樣,測試分辨不出程式碼是真的處理了 rect 全 0
+// 這個分支,還是根本沒進去過。同時斷言 --fly-x/--fly-y 真的被歸零,
+// 不然位移可能還停在飛去正常錨點時的值,只是 placement 標籤被改回
+// corner,畫面上兩隻其實還在半空中。
+test('錨點是隱藏的(rect 全 0)→ 從 reveal 退回角落,位移歸零', () => {
   const m = mountMascots({ doc: fakeDoc(), fidget: false });
-  m.flyTo(hiddenAnchor, { pose: 'cheer' });
+  m.flyTo(anchorAt(300, 200), { pose: 'cheer' });
+  assert.equal(m.getState().placement, 'reveal');
+
+  m.flyTo(hiddenAnchor, { pose: 'aww' });
   assert.equal(m.getState().placement, 'corner');
+  assert.equal(m.el.style.getPropertyValue('--fly-x'), '0px');
+  assert.equal(m.el.style.getPropertyValue('--fly-y'), '0px');
 });
 
-test('錨點給 null 也不能爆炸', () => {
+test('錨點給 null 也不能爆炸,一樣從 reveal 退回角落並歸零位移', () => {
   const m = mountMascots({ doc: fakeDoc(), fidget: false });
-  m.flyTo(null, { pose: 'cheer' });
+  m.flyTo(anchorAt(300, 200), { pose: 'cheer' });
+  assert.equal(m.getState().placement, 'reveal');
+
+  m.flyTo(null, { pose: 'aww' });
   assert.equal(m.getState().placement, 'corner');
+  assert.equal(m.el.style.getPropertyValue('--fly-x'), '0px');
+  assert.equal(m.el.style.getPropertyValue('--fly-y'), '0px');
 });
 
 test('home 回到 idle / corner', () => {
@@ -185,6 +214,39 @@ test('flyTo 連續呼叫不用先 home() 等歸零 —— 直接飛到下一個�
   );
 });
 
+// 這條才是真正釘死修訂後的 flyTo():它完全不量自己。上面那條「連續呼叫」
+// 測試只證明得出「結果剛好正確」,如果假 DOM 把位移模擬成瞬間生效
+// (getBoundingClientRect 永遠照 --fly-x/--fly-y 算),那條測試就算
+// flyTo() 還在犯「拿呼叫當下的自己去算」這個錯,也會通過 —— 因為假
+// DOM 裡從來沒有「插值中」跟「終點值」不同步的情況。這裡故意用
+// __setDisplayedOffset() 製造這個不同步:呼叫 flyTo() 飛到 A 之後,
+// 把畫面矩形硬改成一個跟 home、跟 A 都不一樣的座標(模擬「飛往 A 的
+// 轉場正在播到一半,還沒到 A」),然後在這個狀態下再飛到 B。如果
+// flyTo() 有偷量自己,這裡算出來的 --fly-x/--fly-y 一定會被那個插值
+// 座標污染,跟「從角落直接飛到 B」的結果對不起來。
+test('flyTo 呼叫當下轉場正在播(矩形是插值位置,--fly-x 已是終點值)——下一次 flyTo 仍然算對', () => {
+  const m = mountMascots({ doc: fakeDoc(), fidget: false });
+  m.flyTo(anchorAt(300, 200), { pose: 'cheer' }); // 飛到 A,--fly-x/--fly-y 變成 A 的終點值
+
+  // 模擬轉場播到一半:畫面矩形卡在插值中的某個點,跟 home(0,0)、
+  // 跟終點值都不一樣。
+  m.el.__setDisplayedOffset(37, 51);
+
+  m.flyTo(anchorAt(500, 100), { pose: 'empty' }); // 在插值狀態下飛到 B
+
+  const direct = mountMascots({ doc: fakeDoc(), fidget: false });
+  direct.flyTo(anchorAt(500, 100), { pose: 'empty' }); // 從角落直接飛到 B
+
+  assert.equal(
+    m.el.style.getPropertyValue('--fly-x'),
+    direct.el.style.getPropertyValue('--fly-x'),
+  );
+  assert.equal(
+    m.el.style.getPropertyValue('--fly-y'),
+    direct.el.style.getPropertyValue('--fly-y'),
+  );
+});
+
 /* ---------- 圖片版才有的規則 ---------- */
 
 test('doze 不是 pose,setPose 擋掉它', () => {
@@ -201,10 +263,15 @@ test('只有 idle 在一開始就有 src —— 其餘五張延後載入', () =>
 });
 
 test('fidget: false 時不排任何計時器 —— 不然 node --test 不會結束', () => {
-  const m = mountMascots({ doc: fakeDoc(), fidget: false });
-  assert.equal(typeof m.stop, 'function');
-  m.stop();  // 呼叫兩次也不能爆
+  // 只斷言 m.stop 是函式、呼叫兩次不爆炸,測不出「真的沒排計時器」——
+  // 沒排跟排了但清得掉,兩種情況這樣寫都會通過。改注入假時鐘,直接
+  // 斷言排程佇列裡的計時器數量是 0。
+  const ft = fakeTimers();
+  const m = mountMascots({ doc: fakeDoc(), timers: ft, fidget: false });
+  assert.equal(ft.pending, 0, 'fidget: false 不該排任何計時器');
+  m.stop();  // 呼叫兩次也不能爆,而且不該讓 pending 變化
   m.stop();
+  assert.equal(ft.pending, 0);
 });
 
 /* ---------- 待機排程(注入假時鐘,真的把 doze 邏輯跑過一次) ---------- */

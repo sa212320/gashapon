@@ -95,6 +95,37 @@ export function mountMascots({
   el.append(imgA, imgB);
   doc.body.append(el);
 
+  // flyTo() 要知道「沒有位移時(=角落)的矩形」,但**不能在 flyTo() 呼叫
+  // 當下量自己**:呼叫的當下如果上一段飛行的轉場還沒播完,
+  // el.getBoundingClientRect() 讀到的是動畫**插值中**的位置,而這次要
+  // 設的 --fly-x/--fly-y 已經是**終點值**——兩者根本不是同一個時間點的
+  // 資料,拿插值位置去算下一段位移,插值差多少、結果就錯多少(一番賞
+  // 曾在真瀏覽器裡實測撞到)。正解是只在「確定沒有轉場在跑」的時機量
+  // 一次存起來,之後 flyTo() 只信任這個快取、完全不摸
+  // el.getBoundingClientRect()。「確定沒有轉場」的時機有兩個:
+  // mountMascots() 剛掛上(這時候還沒飛過,畫面就是角落原始位置)、
+  // 以及 window resize(版面改變,角落座標可能跟著變)。已知限制:
+  // 如果使用者剛好在飛行轉場播放中途拖動視窗改變大小,resize 當下量到
+  // 的一樣會是插值位置,快取仍可能被寫進錯的值 —— 沒有處理這個組合,
+  // 因為它需要「轉場進行中」+「同一時刻剛好 resize」同時發生,機率
+  // 極低,而且下一次 flyTo()/home() 就會用新錨點的位置蓋過去,不會卡住。
+  let homeRect = null;
+  function measureHome() {
+    const r = el.getBoundingClientRect?.();
+    // mount 當下版面可能還沒排好(例如圖片還沒載入,高度算出來是 0),
+    // 這種矩形不能拿來當基準,留到下一次有機會的時機(下一次 resize,
+    // 或者 flyTo() 第一次被呼叫時)再試一次量測。
+    if (r && (r.width || r.height)) homeRect = r;
+    return homeRect;
+  }
+  measureHome();
+
+  let onResize = null;
+  if (typeof globalThis.addEventListener === 'function') {
+    onResize = () => measureHome();
+    globalThis.addEventListener('resize', onResize);
+  }
+
   let front = imgA;
   let back = imgB;
 
@@ -106,7 +137,6 @@ export function mountMascots({
       `mascots--${pose}`,
       `mascots--at-${placement}`,
       home ? 'mascots--home' : '',
-      dozing ? 'mascots--dozing' : '',
     ].filter(Boolean).join(' ');
   }
 
@@ -177,21 +207,26 @@ export function mountMascots({
         paint();
         return;
       }
-      // self.getBoundingClientRect() 回的是「目前已經套用 --fly-x/--fly-y
-      // 位移之後」的矩形,不是回到角落(沒有位移)時的矩形。如果現在已經
-      // 有位移在身上(例如正在飛去別的錨點,或還沒歸零),直接拿它去算
-      // 下一段位移,結果會整整偏掉「目前的位移量」那麼多 —— 兩隻可能被
-      // 送到畫面外面去。做法是先讀出目前的 --fly-x/--fly-y,從量到的矩形
-      // 裡減掉,還原成「沒有位移時」(=角落)的中心點,再從那個基準點算
-      // 到新錨點的差。這樣不管現在飛到哪、呼叫幾次,算出來的結果只跟
-      // 「角落位置」和「錨點位置」有關,永遠一致 —— 不需要呼叫端先
-      // home() 再等轉場結束才能再飛一次。
-      const currentOffset = name => parseFloat(el.style.getPropertyValue(name)) || 0;
-      const dx0 = currentOffset('--fly-x');
-      const dy0 = currentOffset('--fly-y');
-      const self = el.getBoundingClientRect();
-      const homeCenterX = self.left + self.width / 2 - dx0;
-      const homeCenterY = self.top + self.height / 2 - dy0;
+      // 「角落位置」一律用 mount / resize 時量到的快取(見上方 measureHome
+      // 的說明),絕不在這裡量 el.getBoundingClientRect() —— 理由同上:
+      // 呼叫這裡的當下轉場可能正在播,量到的會是插值中的位置。
+      // 唯一的例外是快取還沒有值(mount 當下版面還沒排好):這裡是第一次
+      // 呼叫 flyTo(),代表從來沒飛過、身上還沒有任何位移,畫面上此刻
+      // 就是角落原始位置,這個時間點量測是安全的,量到之後就存進快取,
+      // 之後都不再走這條路。
+      const home = homeRect || measureHome();
+      if (!home) {
+        // 兩次都量不到(例如環境完全沒有 getBoundingClientRect):沒有
+        // 基準可用,寧可放棄這次飛行、留在角落,也不要拿錯的數字把
+        // 兩隻送到畫面外面去。
+        placement = 'corner';
+        el.style.setProperty('--fly-x', '0px');
+        el.style.setProperty('--fly-y', '0px');
+        paint();
+        return;
+      }
+      const homeCenterX = home.left + home.width / 2;
+      const homeCenterY = home.top + home.height / 2;
       // 位移用 transform,不改 left/bottom —— transform 跑在合成器上,
       // 而且不會觸發整頁重排。
       el.style.setProperty('--fly-x', `${rect.left + rect.width / 2 - homeCenterX}px`);
@@ -214,6 +249,9 @@ export function mountMascots({
       // paint() 改回 idle,違反「完全停掉」的契約。
       timers.clear(fidgetTimer);
       timers.clear(dozeTimer);
+      // resize 監聽也要拆,不然每次 mountMascots() 都疊一個永遠不會被
+      // 回收的監聽器上去。
+      if (onResize) globalThis.removeEventListener('resize', onResize);
     },
   };
 }
