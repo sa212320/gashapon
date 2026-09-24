@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><title>mascot check</title>
+<link rel="stylesheet" href="shared/css/tokens.css">
+<link rel="stylesheet" href="shared/css/mascot.css">
+<style>
+  body {
+    display: flex; gap: 48px; flex-wrap: wrap; padding: 48px;
+    background: var(--sky-low, #eaf4fb);
+    font-family: system-ui, sans-serif;
+  }
+  .cell {
+    width: 380px;
+    background: var(--cream);
+    border: var(--stroke) solid var(--ink);
+    border-radius: var(--radius);
+    padding: 16px 20px 24px;
+    box-sizing: border-box;
+  }
+  .cell h2 {
+    font-size: 20px; margin: 0 0 8px; color: var(--ink);
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  .cell .mascots { position: static; width: 100%; }
+</style>
+</head><body>
+<script type="module">
+  import { mountMascots } from './shared/js/mascot.js';
+  for (const pose of ['idle', 'aww']) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    const h = document.createElement('h2');
+    h.textContent = pose;
+    cell.append(h);
+    document.body.append(cell);
+    const m = mountMascots();
+    cell.append(m.el);          // mountMascots 會 append 到 body,這裡搬進格子裡
+    m.setPose(pose);
+  }
+</script>
+</body></html>

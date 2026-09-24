@@ -1,0 +1,85 @@
+/* 吉祥物。固定層,不可點,不參與任何模式的排版。 */
+.mascots {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  width: clamp(96px, 15vh, 180px);
+  pointer-events: none;   /* 這層永遠不可點,飛行途中也是 */
+  z-index: 50;            /* 蓋在揭曉面板之上;設定面板是 <dialog>,在 top layer,蓋不到也不需要蓋 */
+  transition: transform .5s cubic-bezier(.34, 1.2, .5, 1);
+}
+
+.mascots--home {
+  position: static;
+  width: clamp(140px, 26vw, 260px);
+}
+
+.mascots__svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+/* 平塗 + 粗描邊,跟全站一致。線寬用 viewBox 單位,跟著整體縮放。 */
+.m-rig * {
+  stroke: var(--ink);
+  stroke-width: 4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform .45s cubic-bezier(.34, 1.2, .5, 1);
+}
+
+.m-fox__tail { fill: #F09A5B; }
+.m-fox__body, .m-fox__skull { fill: #F5A868; }
+.m-fox__ear { fill: #E2803F; }
+.m-fox__cheek { fill: #FFF3E4; stroke: none; }
+.m-fox__nose { fill: var(--ink); }
+.m-fox__eye { fill: var(--ink); stroke: none; }
+
+.m-erm__body, .m-erm__skull, .m-erm__tail { fill: #FFFDF8; }
+.m-erm__ear { fill: #FFE2E8; }
+.m-erm__tip { fill: var(--ink); }
+.m-erm__nose { fill: #E88AA0; }
+.m-erm__eye { fill: var(--ink); stroke: none; }
+
+.m-box__front { fill: #E3C79B; }
+.m-box__back { fill: #CDAE7E; }
+
+/* empty 以外的姿勢不顯示箱子 */
+.m-box { opacity: 0; transition: opacity .3s; }
+.mascots--empty .m-box { opacity: 1; }
+
+/* ---------- 待機:呼吸 ---------- */
+/* 等速的動作小孩兩分鐘就不看了,所以呼吸只是底,真正抓注意力的是
+   Task 4 那些「偶爾發生、不知道什麼時候」的小動作。 */
+.mascots--idle .m-fox__body,
+.mascots--idle .m-erm__body {
+  animation: m-breathe 3.4s ease-in-out infinite;
+}
+.mascots--idle .m-erm__body { animation-delay: .6s; }
+
+@keyframes m-breathe {
+  0%, 100% { transform: scaleY(1); }
+  50%      { transform: scaleY(1.035); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascots, .m-rig *, .m-box { transition: none; }
+  .mascots--idle .m-fox__body, .mascots--idle .m-erm__body { animation: none; }
+}
+
+/* ---------- idle:白鼬窩在狐狸尾巴裡,狐狸盤坐半瞇眼守著 ---------- */
+/* 尾巴的靜止形狀本身就繞著白鼬畫(見 RIG 裡的 m-fox__tail path),
+   idle 只需要極小的調整,大部分「窩著」的觀感來自骨架本身。 */
+.mascots--idle .m-fox__head  { transform: rotate(-4deg) translateY(2px); }
+.mascots--idle .m-fox__eye   { transform: scaleY(.34); }   /* 半瞇 */
+.mascots--idle .m-erm__head  { transform: rotate(-8deg); }
+
+/* ---------- aww:白鼬垂耳,狐狸用尾巴把牠整個裹起來輕拍 ---------- */
+/* 尾巴在靜止形狀的基礎上再多繞一圈、收緊,把 idle 露出來的開口蓋住。 */
+.mascots--aww .m-fox__tail   { transform: rotate(-4deg) translate(-6px, 6px) scale(1.4); }
+.mascots--aww .m-fox__head   { transform: rotate(-9deg) translate(-3px, 5px); }
+.mascots--aww .m-fox__eye    { transform: scaleY(.5); }
+.mascots--aww .m-erm         { transform: translate(4px, 12px) scale(.78); }
+.mascots--aww .m-erm__head   { transform: rotate(-14deg) translateY(3px); }
+.mascots--aww .m-erm__ear--l { transform: rotate(34deg) translateY(4px); }
+.mascots--aww .m-erm__ear--r { transform: rotate(-30deg) translateY(4px); }
+.mascots--aww .m-erm__eye    { transform: scaleY(.3); }
