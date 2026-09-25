@@ -1,6 +1,24 @@
 /* 吉祥物。固定層,不可點,不參與任何模式的排版。
    兩張 <img> 疊放,姿勢切換靠換 src + 交叉淡入,不再是 SVG 骨架
-   (見 shared/js/mascot.js 開頭「修訂一」的說明)。 */
+   (見 shared/js/mascot.js 開頭「修訂一」的說明)。
+
+   修訂二(2026-09-25):使用者實測手機版之後回報「感覺都只是換圖,
+   沒有動畫的感覺」。查證後問題不在素材,是動作參數訂得太小(呼吸只有
+   3%、100px 高的元素上是 3 個像素)、換姿勢完全沒有位移(純 opacity
+   淡入淡出)。這一版把呼吸幅度拉大、加上換姿勢的擠壓拉伸、cheer 進場
+   彈跳、飛行傾斜與落地擠壓。
+
+   關鍵決定:呼吸、擠壓、彈跳、傾斜全部改用 CSS 的**獨立變換屬性**
+   (scale / rotate / translate),完全不碰 transform。transform 專職
+   飛行位移(translate3d(var(--fly-x), var(--fly-y), 0)),獨立屬性
+   跟 transform 是不同的合成階段,兩邊永遠不會互相覆蓋 —— 這是結構上
+   的保證,不是「小心別用到同一個屬性」的約定(smash/css/smash.css
+   已有用 translate: 這套獨立屬性的先例)。
+   scale 屬性本身還是只有一個值,呼吸(m-breathe)跟擠壓拉伸
+   (m-squash-stretch)都要用它,兩者用「animation-name 疊加列表」的
+   寫法同時掛在元素上(見 .mascots--squash),讓擠壓播放期間 scale 由
+   它接管(疊加順序後面的贏),播完之後呼吸的 timeline 沒有被中斷,
+   會自然接回去,不會整個重新從頭播。 */
 .mascots {
   position: fixed;
   left: 16px;
@@ -13,16 +31,28 @@
   z-index: 50;            /* 蓋在揭曉面板之上;設定面板是 <dialog>,在 top layer,蓋不到也不需要蓋 */
   --fly-x: 0px;
   --fly-y: 0px;
+  --fly-tilt: 0deg;
   transform: translate3d(var(--fly-x), var(--fly-y), 0);
-  transition: transform .5s cubic-bezier(.34, 1.2, .5, 1);
+  /* 腳釘在地上、只有身體起伏 —— 呼吸跟擠壓拉伸都是從下緣往上長,
+     不是從正中心對稱縮放(那樣腳會跟著上下浮動,看起來像在漂,不像
+     在呼吸)。 */
+  transform-origin: bottom center;
+  rotate: var(--fly-tilt);
+  transition:
+    transform .5s cubic-bezier(.34, 1.2, .5, 1),
+    rotate .22s ease-in-out;
+  animation: m-breathe 3.4s ease-in-out infinite;
 }
 
 .mascots--home {
   position: static;
-  width: clamp(140px, 26vw, 260px);
+  width: clamp(120px, 26vw, 260px);
 }
 
-/* 飛到揭曉區時放大一點,因為那是主角時刻 */
+/* 飛到揭曉區時放大一點,因為那是主角時刻。用 transform 裡的 scale()
+   函式(不是獨立的 scale 屬性)—— 這樣它跟呼吸/擠壓拉伸用的獨立 scale
+   屬性是兩個不同的合成階段,會疊乘在一起(呼吸持續在跑,揭曉時整體
+   再放大 1.1 倍),不會互相蓋掉。 */
 .mascots--at-reveal {
   transform: translate3d(var(--fly-x), var(--fly-y), 0) scale(1.1);
 }
@@ -40,22 +70,73 @@
 .mascots__img--visible { opacity: 1; }
 
 /* ---------- 待機:呼吸 ---------- */
-/* 等速的動作小孩兩分鐘就不看了,所以呼吸只是底,真正抓注意力的是
-   偶爾切到 doze(打瞌睡)那張、不知道什麼時候會發生。只在「閒置
-   且停在角落」時呼吸 —— 正在歡呼或飛去領獎的時候不該喘氣。 */
+/* 幅度從原本的 3%(scaleY(1.03),100px 高的元素上只有 3 個像素,肉眼
+   看不到)拉到 7%。以前只在「閒置且停在角落」時呼吸,飛到獎項旁邊
+   之後就完全靜止 —— 那正是「沒在動」感受最強的時刻,所以這一版呼吸
+   在所有姿勢、所有位置都跑(選擇器直接掛在 .mascots 本體上),歡呼、
+   飛行途中也不例外:角色不會因為在做別的動作就停止呼吸。 */
 @keyframes m-breathe {
-  0%, 100% { transform: scaleY(1); }
-  50%      { transform: scaleY(1.03); }
+  0%, 100% { scale: 1 1; }
+  50%      { scale: 1 1.07; }
 }
 
-.mascots--idle.mascots--at-corner {
-  animation: m-breathe 3.4s ease-in-out infinite;
+/* ---------- 換姿勢:擠壓拉伸(squash and stretch) ---------- */
+/* 卡通動畫讓「變化」讀起來像「動作」的標準手法:換姿勢的瞬間先快速
+   壓扁一點,再彈回並輕微過衝,而不是只有底下 img 交叉淡入。0.35 秒,
+   用獨立的 scale 屬性做。
+
+   .mascots--squash 用 animation-name 的疊加清單(而不是整個換掉
+   animation 這個 shorthand)把 m-breathe 跟 m-squash-stretch 兩個
+   動畫一起列出來 —— 疊加清單裡「後面」的動畫在合成時蓋在「前面」
+   的動畫上面,所以擠壓播放的這 0.35 秒 scale 由它決定,呼吸看起來
+   像是被短暫蓋過去;但因為 m-breathe 的名字沒有從清單裡消失,瀏覽器
+   認得這是同一個動畫的延續,它的 timeline 不會被重置,播完擠壓之後
+   呼吸接著原本的節奏繼續,不會整個從頭重播、也不會有明顯的跳動。 */
+@keyframes m-squash-stretch {
+  0%   { scale: 1    1; }
+  30%  { scale: 1.12 .86; }  /* 壓扁:橫向變寬、縱向變扁 */
+  60%  { scale: .92  1.1; }  /* 回彈過衝:略為拉長 */
+  100% { scale: 1    1; }
+}
+
+.mascots--squash {
+  animation-name: m-breathe, m-squash-stretch;
+  animation-duration: 3.4s, .35s;
+  animation-timing-function: ease-in-out, cubic-bezier(.36, .07, .19, .97);
+  animation-iteration-count: infinite, 1;
+}
+
+/* ---------- cheer 進場:彈跳 ---------- */
+/* cheer(抽到大獎、贏家)是最值得的時刻,原本只有淡入。進入 cheer 時
+   加一次短促的上下彈跳(兩次,衰減),用獨立的 translate 屬性(垂直
+   位移),跟呼吸用的 scale 是不同屬性,兩個動畫可以同時列在
+   animation-name 裡各自跑,互不干擾,呼吸完全不會被打斷。 */
+@keyframes m-cheer-bounce {
+  0%   { translate: 0 0; }
+  25%  { translate: 0 -14%; }
+  45%  { translate: 0 2%; }
+  65%  { translate: 0 -6%; }
+  85%  { translate: 0 1%; }
+  100% { translate: 0 0; }
+}
+
+.mascots--bounce {
+  animation-name: m-breathe, m-cheer-bounce;
+  animation-duration: 3.4s, .52s;
+  animation-timing-function: ease-in-out, ease-out;
+  animation-iteration-count: infinite, 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .mascots,
   .mascots__img { transition: none; }
-  .mascots--idle.mascots--at-corner { animation: none; }
+  .mascots,
+  .mascots--squash,
+  .mascots--bounce { animation: none; }
+  /* 飛行傾斜不是靠 transition 播出來的動畫,是直接設定的角度值,
+     上面關掉 transition 只會讓它「瞬間跳到」傾斜角度而不是動畫過去,
+     還是會歪 —— 這裡直接把角度釘回 0,飛行途中也不歪。 */
+  .mascots { rotate: none; }
 }
 
 /* 錨點只是座標,不是容器。它不能佔空間,也不能被看到。 */

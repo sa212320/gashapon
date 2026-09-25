@@ -47,6 +47,14 @@ const SRC = Object.freeze({
 const DOZE_GAP = [4000, 9000];  // ms —— 下一次「有機會」打瞌睡的間隔
 const DOZE_LEN = 1600;          // ms —— 打瞌睡停留多久
 
+// 動作感相關的時間常數,要跟 shared/css/mascot.css 的動畫時長對齊
+// (JS 只負責「什麼時候把 class 拿掉」,實際怎麼動全部在 CSS 裡)。
+const SQUASH_MS = 350;   // 換姿勢/落地的擠壓拉伸,對齊 .mascots--squash
+const BOUNCE_MS = 520;   // cheer 進場彈跳,對齊 .mascots--bounce
+const FLY_TILT_DEG = 5;      // 飛行途中的傾斜角度
+const FLY_TILT_LEVEL_MS = 260; // 傾斜維持多久後回正 —— 提前於 .5s 的飛行轉場結束,
+                                // 落地前就已經站正,不會「歪著撞上去」
+
 export function mountMascots({
   home = false,
   fidget = true,
@@ -67,6 +75,20 @@ export function mountMascots({
   // 不然在打瞌睡的 1.6 秒視窗內呼叫 stop(),還是會有一個殘留計時器
   // 在背景把圖片和 paint() 改回 idle —— 那就不是「完全停掉」了。
   let dozeTimer = 0;
+  // 換姿勢/落地擠壓、cheer 彈跳、飛行傾斜回正,各自的一次性計時器。
+  // 跟 fidgetTimer/dozeTimer 同一套道理:stop() 要能全部清乾淨,連續
+  // 觸發(例如換姿勢又立刻飛)也要能各自重新排程,不能疊加出殘留。
+  let squashTimer = 0;
+  let bounceTimer = 0;
+  let tiltTimer = 0;
+  let squashing = false;
+  let bouncing = false;
+  // 飛行傾斜的方向要看「這一次跟上一次的水平位移差」,不是看目的地
+  // 座標本身的正負號(不然「往左飛回角落」跟「本來就在角落左邊」會
+  // 分不出來)。這兩個變數只用來算這個差,跟 --fly-x/--fly-y 的值
+  // 保持同步。
+  let lastFlyX = 0;
+  let lastFlyY = 0;
 
   // 使用者要求減少動態效果時,呼吸跟 doze 都不該發生 —— 不是靠 CSS
   // 藏起來,是排程本身就不要開。fakeDoc / node 環境沒有 matchMedia,
@@ -126,6 +148,17 @@ export function mountMascots({
     globalThis.addEventListener('resize', onResize);
   }
 
+  // 降落瞬間的擠壓:transform 轉場(飛行位移)真的播完的那一刻觸發,
+  // 不管是飛去揭曉區還是飛回角落都算「落地,有重量地停下來」。只認
+  // propertyName === 'transform',避免飛行傾斜自己的 rotate 轉場也
+  // 觸發一次(那不是落地,只是傾斜角度歸零)。假 DOM 沒有
+  // addEventListener,guard 掉,不影響單元測試。
+  if (typeof el.addEventListener === 'function') {
+    el.addEventListener('transitionend', (event) => {
+      if (event.propertyName === 'transform') pulseSquash();
+    });
+  }
+
   let front = imgA;
   let back = imgB;
 
@@ -137,19 +170,81 @@ export function mountMascots({
       `mascots--${pose}`,
       `mascots--at-${placement}`,
       home ? 'mascots--home' : '',
+      squashing ? 'mascots--squash' : '',
+      bouncing ? 'mascots--bounce' : '',
     ].filter(Boolean).join(' ');
   }
 
   // 換成另一張圖,交叉淡入:舊的淡出、新的淡入。已經是這張就不用切,
-  // 不然每次呼叫 setPose('idle') 兩次會白白重播一次淡入動畫。
+  // 不然每次呼叫 setPose('idle') 兩次會白白重播一次淡入動畫。回傳
+  // 「真的換了圖嗎」給呼叫端判斷要不要順便播動作感動畫 —— doze 排程
+  // 直接呼叫這個函式(不經過 applyPose),不該被下面的擠壓/彈跳誤觸發。
   function crossfadeTo(url) {
-    if (front.src === url) return;
+    if (front.src === url) return false;
     back.src = url;
     back.className = 'mascots__img mascots__img--visible';
     front.className = 'mascots__img';
     const swap = front;
     front = back;
     back = swap;
+    return true;
+  }
+
+  // 換姿勢或降落瞬間的「擠壓拉伸」一次性播放。用注入的 timers 決定
+  // 什麼時候把 class 拿掉,不用真的監聽 animationend —— 假 DOM 沒有
+  // 這個事件,注入計時器才測得到、也才能跟現有的 doze 排程用同一套
+  // 假時鐘驗證。
+  //
+  // 先拿掉 class 再強制讀一次 offsetWidth 再重新加上,是為了讓連續
+  // 觸發(例如换姿勢後緊接著降落)也能各自重播一次動畫:如果 class
+  // 從頭到尾沒有真的離開過元素,瀏覽器不會重新播放同一個動畫。假 DOM
+  // 的元素沒有 offsetWidth,讀到 undefined 也不會噴錯,單純沒有強制
+  // 重排的效果而已。
+  function pulseSquash() {
+    if (reduceMotion) return;
+    timers.clear(squashTimer);
+    squashing = false;
+    paint();
+    void el.offsetWidth;
+    squashing = true;
+    paint();
+    squashTimer = timers.set(() => {
+      squashing = false;
+      paint();
+    }, SQUASH_MS);
+  }
+
+  function pulseBounce() {
+    if (reduceMotion) return;
+    timers.clear(bounceTimer);
+    bouncing = false;
+    paint();
+    void el.offsetWidth;
+    bouncing = true;
+    paint();
+    bounceTimer = timers.set(() => {
+      bouncing = false;
+      paint();
+    }, BOUNCE_MS);
+  }
+
+  // 位移統一從這裡設定,flyTo()/home() 都走這條路 —— 傾斜方向跟著
+  // 「這一次跟上一次的水平位移差」走(見上面 lastFlyX 的說明)。位移
+  // 差太小(幾乎沒有水平移動,例如原地換姿勢時 flyTo 到同一個錨點)
+  // 就不歪,不然浮點誤差會讓牠一直微微斜著。
+  function moveTo(nx, ny) {
+    const dx = nx - lastFlyX;
+    el.style.setProperty('--fly-x', `${nx}px`);
+    el.style.setProperty('--fly-y', `${ny}px`);
+    if (!reduceMotion && Math.abs(dx) > 1) {
+      el.style.setProperty('--fly-tilt', `${dx > 0 ? FLY_TILT_DEG : -FLY_TILT_DEG}deg`);
+      timers.clear(tiltTimer);
+      tiltTimer = timers.set(() => {
+        el.style.setProperty('--fly-tilt', '0deg');
+      }, FLY_TILT_LEVEL_MS);
+    }
+    lastFlyX = nx;
+    lastFlyY = ny;
   }
 
   // 抽成區域函式而不是只放在回傳物件上:flyTo / home 內部也要用它,
@@ -158,7 +253,14 @@ export function mountMascots({
     if (!POSES.includes(next)) return;   // 這一關順便擋掉 'doze'
     pose = next;
     dozing = false;
-    crossfadeTo(SRC[next]);
+    const changed = crossfadeTo(SRC[next]);
+    // 只有姿勢真的變了才播動作感動畫 —— setPose('idle') 連續打兩次
+    // 不該白白重播一次擠壓,doze 排程也不會誤觸發(它直接呼叫
+    // crossfadeTo(),不經過這裡)。
+    if (changed) {
+      pulseSquash();
+      if (next === 'cheer') pulseBounce();
+    }
     paint();
   }
 
@@ -202,8 +304,7 @@ export function mountMascots({
       // 左上角 (0,0) 卡在那裡 —— 寧可留在角落。
       if (!rect || rect.width === 0 || rect.height === 0) {
         placement = 'corner';
-        el.style.setProperty('--fly-x', '0px');
-        el.style.setProperty('--fly-y', '0px');
+        moveTo(0, 0);
         paint();
         return;
       }
@@ -220,35 +321,39 @@ export function mountMascots({
         // 基準可用,寧可放棄這次飛行、留在角落,也不要拿錯的數字把
         // 兩隻送到畫面外面去。
         placement = 'corner';
-        el.style.setProperty('--fly-x', '0px');
-        el.style.setProperty('--fly-y', '0px');
+        moveTo(0, 0);
         paint();
         return;
       }
       const homeCenterX = home.left + home.width / 2;
       const homeCenterY = home.top + home.height / 2;
       // 位移用 transform,不改 left/bottom —— transform 跑在合成器上,
-      // 而且不會觸發整頁重排。
-      el.style.setProperty('--fly-x', `${rect.left + rect.width / 2 - homeCenterX}px`);
-      el.style.setProperty('--fly-y', `${rect.top + rect.height / 2 - homeCenterY}px`);
+      // 而且不會觸發整頁重排。moveTo() 順便算飛行途中要往哪個方向傾斜。
+      moveTo(
+        rect.left + rect.width / 2 - homeCenterX,
+        rect.top + rect.height / 2 - homeCenterY,
+      );
       placement = 'reveal';
       paint();
     },
 
     home({ pose: next = 'idle' } = {}) {
-      el.style.setProperty('--fly-x', '0px');
-      el.style.setProperty('--fly-y', '0px');
+      moveTo(0, 0);
       placement = 'corner';
       applyPose(next);
       paint();
     },
 
     stop() {
-      // 兩層計時器都要清 —— 只清 fidgetTimer 的話,正在打瞌睡的 1.6
+      // 每一層計時器都要清 —— 只清 fidgetTimer 的話,正在打瞌睡的 1.6
       // 秒視窗內呼叫 stop() 還是會有 dozeTimer 殘留,之後把圖片和
-      // paint() 改回 idle,違反「完全停掉」的契約。
+      // paint() 改回 idle,違反「完全停掉」的契約。squashTimer /
+      // bounceTimer / tiltTimer 是同一種風險,一起清。
       timers.clear(fidgetTimer);
       timers.clear(dozeTimer);
+      timers.clear(squashTimer);
+      timers.clear(bounceTimer);
+      timers.clear(tiltTimer);
       // resize 監聽也要拆,不然每次 mountMascots() 都疊一個永遠不會被
       // 回收的監聽器上去。
       if (onResize) globalThis.removeEventListener('resize', onResize);
