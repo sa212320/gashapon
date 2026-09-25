@@ -39,7 +39,9 @@ body {
     /* 遠景:樹線和小木屋,貼齊底部並依比例寬度撐滿 */
     url("../img/snow-scene.webp"),
     /* 天空 */
-    linear-gradient(180deg, var(--sky-top) 0%, var(--sky-low) 62%, var(--sky-low) 100%);
+    linear-gradient(180deg, var(--sky-top) 0%, var(--sky-low) 45%, var(--sky-low) 100%);
+    /* 45% 之後就平掉成純色:背景圖的上緣會落在哪個高度要看視窗比例,
+       下半部維持單一顏色才能保證不管接在哪裡都沒有接縫。 */
   background-repeat: no-repeat, no-repeat;
   background-position: center bottom, center;
   background-size: 100% auto, cover;
