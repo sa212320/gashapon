@@ -119,14 +119,28 @@ async function doDraw({ turn = true } = {}) {
   overlay.hidden = false;
   $('skipHint').hidden = false;
   mascots.setPose('watch');
-  await revealer.play(result.revealSteps);
-  $('skipHint').hidden = true;
-  if (BIG.has(result.prize.rarity)) {
-    mascots.flyTo($('revealAnchor'), { pose: 'cheer' });
-  } else {
-    mascots.home();
+  // revealer.play() 中途丟例外的話(例如某個 rarity 對到不合法的演出資料),
+  // 後面收尾的三件事都不會執行:overlay 關不掉、skipHint 一直顯示、畫面也不會
+  // 重新整理 —— 小孩會卡在打不開的遮罩前。用 try/catch/finally 包住:catch
+  // 只負責留下線索,真正的收尾統一放 finally,不管成功或丟例外都會跑到。
+  try {
+    await revealer.play(result.revealSteps);
+    if (BIG.has(result.prize.rarity)) {
+      mascots.flyTo($('revealAnchor'), { pose: 'cheer' });
+    } else {
+      mascots.home();
+    }
+  } catch (err) {
+    // 不吞掉錯誤:留下稀有度等上下文,不然以後出事完全查不到是哪一步炸的。
+    console.error('[gashapon] 演出中斷', err, { rarity: result.prize?.rarity });
+    // 正常演出完成後,overlay 本來就該留著讓小孩看獎項、按「再抽一次」才會關,
+    // 不能在這裡順手把它關掉,不然就改變了正常路徑的行為。但演出真的斷在
+    // 半路的話,遮罩後面通常什麼都沒畫好,留著只會卡死畫面,這裡才主動關掉。
+    closeOverlay();
+  } finally {
+    $('skipHint').hidden = true;
+    view.render(getActiveMachine(state));
   }
-  view.render(getActiveMachine(state));
 }
 
 $('drawBtn').addEventListener('click', () => doDraw());

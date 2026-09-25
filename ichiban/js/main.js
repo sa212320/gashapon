@@ -147,55 +147,70 @@ async function doDraw(ticketEl) {
   overlay.hidden = false;
   // 拿起籤紙、還沒決定撕不撕:吉祥物看著就好,不用衝過來。
   mascots.setPose('watch');
-  await revealer.hold({
-    tier: result.prize.tier,
-    name: result.prize.name,
-    // 用桌上那張籤紙自己的顏色,飛到中央顏色才是連續的,而且不洩漏賞別。
-    faceColor: ticketEl.dataset.color,
-  }, originRect);
-  ticketActions.hidden = false;
 
-  const choice = await waitForChoice();
-  ticketActions.hidden = true;
+  // 演出(hold / tear / playBonus)任何一步丟例外,都不能讓遮罩卡死在畫面上 ——
+  // 尤其一番賞後面還在 await waitForDismiss(),那是在等一次點擊才會 resolve
+  // 的 promise,例外發生後不會再有人去點,永遠不會 resolve。用 try/catch/
+  // finally 把整段包起來:catch 只負責留下線索(console.error),真正的
+  // 收尾(關遮罩、收 skipHint、讓吉祥物回到正確位置)統一交給 finally,
+  // 不管演出是正常播完、中途取消、還是丟例外,都會跑到同一個地方。
+  try {
+    await revealer.hold({
+      tier: result.prize.tier,
+      name: result.prize.name,
+      // 用桌上那張籤紙自己的顏色,飛到中央顏色才是連續的,而且不洩漏賞別。
+      faceColor: ticketEl.dataset.color,
+    }, originRect);
+    ticketActions.hidden = false;
 
-  if (choice === 'cancel') {
-    await revealer.cancelReturn(originRect);
-    closeOverlay();
-    // 取消不會改變 state,但吉祥物剛剛被設成 watch,不能就這樣卡住 ——
-    // 交回 render() 這個唯一負責人去決定該回角落還是去 empty。
-    render();
-    return;
-  }
+    const choice = await waitForChoice();
+    ticketActions.hidden = true;
 
-  // 撕開了才是真的抽獎:這時候才把結果寫進 state、存進 localStorage。
-  state = replaceSetup(state, { ...setup, tickets: result.tickets });
-  persist(state);
-  desk.render(getActive(state));
+    if (choice === 'cancel') {
+      await revealer.cancelReturn(originRect);
+      // 取消不會改變 state。關遮罩、讓吉祥物從 watch 回到正確位置這兩件事
+      // 交給下面的 finally 統一處理,不在這裡重複做一次。
+      return;
+    }
 
-  skipHint.hidden = false;
-  await revealer.tear();
-  // A/B 賞或最後一抽賞才值得吉祥物衝過來歡呼,其他賞別留在角落。
-  // 這裡只負責「要不要歡呼」,歡呼完之後該落腳在哪由 render() 決定
-  // (見下面 skipHint.hidden = true; render();),不在這裡搶著呼叫
-  // mascots.home(),免得兩個地方互相打架。
-  if (BIG_TIERS.has(result.prize.tier) || result.isLastOne) {
-    mascots.flyTo($('revealAnchor'), { pose: 'cheer' });
-  }
-  await waitForDismiss();
-  closeOverlay();
+    // 撕開了才是真的抽獎:這時候才把結果寫進 state、存進 localStorage。
+    state = replaceSetup(state, { ...setup, tickets: result.tickets });
+    persist(state);
+    desk.render(getActive(state));
 
-  // 最後一抽賞是額外加碼的驚喜:那張籤自己的獎項已經正常顯示過了,
-  // 抽走最後一張且設定了名字才會多跳這一張金色的卡。
-  if (result.isLastOne && result.lastOnePrize) {
-    overlay.hidden = false;
     skipHint.hidden = false;
-    await revealer.playBonus(result.lastOnePrize);
+    await revealer.tear();
+    // A/B 賞或最後一抽賞才值得吉祥物衝過來歡呼,其他賞別留在角落。
+    // 這裡只負責「要不要歡呼」,歡呼完之後該落腳在哪由 render() 決定
+    // (在 finally 裡呼叫),不在這裡搶著呼叫 mascots.home(),免得兩個
+    // 地方互相打架。
+    if (BIG_TIERS.has(result.prize.tier) || result.isLastOne) {
+      mascots.flyTo($('revealAnchor'), { pose: 'cheer' });
+    }
     await waitForDismiss();
     closeOverlay();
-  }
 
-  skipHint.hidden = true;
-  render();
+    // 最後一抽賞是額外加碼的驚喜:那張籤自己的獎項已經正常顯示過了,
+    // 抽走最後一張且設定了名字才會多跳這一張金色的卡。
+    if (result.isLastOne && result.lastOnePrize) {
+      overlay.hidden = false;
+      skipHint.hidden = false;
+      await revealer.playBonus(result.lastOnePrize);
+      await waitForDismiss();
+      closeOverlay();
+    }
+  } catch (err) {
+    // 不吞掉錯誤:留下賞別等上下文,不然以後出事完全查不到是哪一步炸的。
+    console.error('[ichiban] 演出中斷', err, { tier: result.prize?.tier, isLastOne: result.isLastOne });
+  } finally {
+    // 演出中途丟例外的話,overlay 會永遠卡在畫面上關不掉、skipHint 永遠
+    // 顯示著、waitForDismiss() 也永遠不會有人點它 —— 這裡是最後一道防線。
+    // 正常路徑其實已經呼叫過 closeOverlay(),這裡再呼叫一次是安全的
+    // no-op(都是設 hidden = true / 重置動畫),不會改變正常結果。
+    closeOverlay();
+    skipHint.hidden = true;
+    render();
+  }
 }
 
 overlay.addEventListener('click', () => {
