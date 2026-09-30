@@ -48,3 +48,13 @@ def make_sheet(frames, cols):
         r, col = divmod(i, cols)
         sheet[r * h:(r + 1) * h, col * w:(col + 1) * w] = f
     return sheet
+
+
+def select_frames(frames, end):
+    """挑選時可以指定「在第幾格結束」(含那一格),裁掉高峰之後又退回起點的部分。
+    至少要留 3 格,接縫混合頭尾各要 2 格。"""
+    if end is None:
+        return list(frames)
+    if not 2 <= end < len(frames):
+        raise ValueError(f'結束格 {end} 超出範圍 2..{len(frames) - 1}')
+    return list(frames[:end + 1])

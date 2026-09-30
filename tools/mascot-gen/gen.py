@@ -6,6 +6,7 @@
   $PY tools/mascot-gen/gen.py sheet 0          # 每個候選一張逐格縮圖,給 Claude 過濾
   $PY tools/mascot-gen/gen.py review 0         # 產生比較頁
   $PY tools/mascot-gen/gen.py pick idle-loop 2 # 記錄使用者的挑選
+  $PY tools/mascot-gen/gen.py pick idle-cheer 1 --end 16  # 只用到第 16 格(高峰)
   $PY tools/mascot-gen/gen.py build            # 輸出正式素材
 """
 import argparse
@@ -19,7 +20,7 @@ import numpy as np
 from PIL import Image
 
 import comfy
-from post import key_green, blend_seam, resample, make_sheet
+from post import key_green, blend_seam, resample, make_sheet, select_frames
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
@@ -131,11 +132,11 @@ REVIEW_HTML = """<!doctype html>
   .row {{ display: flex; gap: 12px; flex-wrap: wrap; }}
   figure {{ margin: 0; background: url(../../../shared/img/snow-scene.webp) center/cover; border-radius: 12px; padding: 8px; }}
   canvas {{ width: 320px; height: 288px; display: block; }}
-  figcaption {{ background: #fffaf2; border-radius: 8px; padding: 4px 8px; margin-top: 6px; }}
+  figcaption {{ font-variant-numeric: tabular-nums; background: #fffaf2; border-radius: 8px; padding: 4px 8px; margin-top: 6px; }}
   .rejected {{ opacity: .45; }}
   .note {{ color: #b3261e; font-size: 14px; }}
 </style>
-<h1>第 {round} 輪:每段挑一個(回覆「<code>idle-loop 選 2</code>」)</h1>
+<h1>第 {round} 輪:每段挑一個(回覆「<code>idle-cheer 選 1 到第 16 格</code>」;不裁就只說「選 N」)</h1>
 <div id="app"></div>
 <script>
 const DATA = {data};
@@ -161,13 +162,19 @@ for (const seg of DATA) {{
     const cv = document.createElement('canvas'); cv.width = 640; cv.height = 576;
     fig.append(cv);
     const cap = document.createElement('figcaption');
-    cap.innerHTML = `<b>${{cand.n}}</b> seed ${{cand.seed}}` + (cand.note ? `<div class="note">淘汰:${{cand.note}}</div>` : '');
+    cap.innerHTML = `<b>${{cand.n}}</b> seed ${{cand.seed}} · 第 <span class="fi">0</span> / ${{cand.frames.length - 1}} 格`
+      + `<br><input type="range" min="0" max="${{cand.frames.length - 1}}" value="0" style="width:100%">`
+      + `<label><input type="checkbox" checked> 播放</label>`
+      + (cand.note ? `<div class="note">${{cand.note}}</div>` : '');
     fig.append(cap);
     sec.querySelector('.row').append(fig);
     Promise.all(cand.frames.map(src => new Promise(r => {{ const i = new Image(); i.onload = () => r(key(i)); i.src = src; }})))
       .then(frames => {{
         const x = cv.getContext('2d'); let k = 0;
-        setInterval(() => {{ x.clearRect(0, 0, 640, 576); x.drawImage(frames[k], 0, 0); k = (k + 1) % frames.length; }}, 1000 / FPS);
+        const fi = cap.querySelector('.fi'), slider = cap.querySelector('input[type=range]'), play = cap.querySelector('input[type=checkbox]');
+        const show = () => {{ x.clearRect(0, 0, 640, 576); x.drawImage(frames[k], 0, 0); fi.textContent = k; slider.value = k; }};
+        slider.oninput = () => {{ play.checked = false; k = +slider.value; show(); }};
+        setInterval(() => {{ if (!play.checked) return; show(); k = (k + 1) % frames.length; }}, 1000 / FPS);
       }});
   }}
 }}
@@ -198,8 +205,13 @@ def cmd_review(args):
 def cmd_pick(args):
     cfg = load_cfg()
     s = seg_cfg(cfg, args.id)
-    files = frames_of(args.id, args.n)   # 先確認有影格,失敗時不留下半套 pick
+    # 先確認有影格、結束格合法,失敗時不留下半套 pick
+    files = select_frames(frames_of(args.id, args.n), args.end)
     s['pick'] = args.n
+    if args.end is None:
+        s.pop('pick_end', None)
+    else:
+        s['pick_end'] = args.end
     save_cfg(cfg)
     KEYS.mkdir(parents=True, exist_ok=True)
     if s['round'] == 0:
@@ -241,7 +253,7 @@ def cmd_build(args):
                 'keyframes': {p: f'key/{p}.webp' for p in keys},
                 'segments': []}
     for s in cfg['segments']:
-        files = frames_of(s['id'], s['pick'])
+        files = select_frames(frames_of(s['id'], s['pick']), s.get('pick_end'))
         frames = [to_rgba(f, args.w, args.h) for f in files]
         frames = resample(frames, cfg['src_fps'], args.fps)
         frames = blend_seam(frames, keys[s['from']], keys[s['to']])
@@ -271,7 +283,7 @@ def main():
     r = sub.add_parser('run'); r.add_argument('round', type=int); r.add_argument('--only')
     sh = sub.add_parser('sheet'); sh.add_argument('round', type=int)
     rv = sub.add_parser('review'); rv.add_argument('round', type=int)
-    pk = sub.add_parser('pick'); pk.add_argument('id'); pk.add_argument('n', type=int)
+    pk = sub.add_parser('pick'); pk.add_argument('id'); pk.add_argument('n', type=int); pk.add_argument('--end', type=int)
     b = sub.add_parser('build'); b.add_argument('--w', type=int, default=480); b.add_argument('--h', type=int, default=432); b.add_argument('--fps', type=int, default=16)
     args = ap.parse_args()
     {'run': cmd_run, 'sheet': cmd_sheet, 'review': cmd_review, 'pick': cmd_pick, 'build': cmd_build}[args.cmd](args)

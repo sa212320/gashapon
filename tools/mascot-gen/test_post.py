@@ -3,7 +3,7 @@ import unittest
 
 import numpy as np
 
-from post import key_green, blend_seam, resample, make_sheet
+from post import key_green, blend_seam, resample, make_sheet, select_frames
 
 
 def px(rgb):
@@ -70,6 +70,22 @@ class MakeSheet(unittest.TestCase):
         self.assertEqual(int(sheet[0, 4 * 4, 0]), 4)       # 第 4 格在第一列最後
         self.assertEqual(int(sheet[3, 4 * 1, 0]), 6)       # 第 6 格在第二列第 2 個
         self.assertEqual(int(sheet[3, 4 * 3, 3]), 0)       # 空格是透明的
+
+
+class SelectFrames(unittest.TestCase):
+    def test_no_end_keeps_all(self):
+        self.assertEqual(select_frames(list(range(33)), None), list(range(33)))
+
+    def test_end_is_inclusive_and_becomes_last_frame(self):
+        out = select_frames(list(range(33)), 16)
+        self.assertEqual(out[-1], 16)
+        self.assertEqual(len(out), 17)
+
+    def test_end_out_of_range_is_an_error(self):
+        with self.assertRaises(ValueError):
+            select_frames(list(range(33)), 33)
+        with self.assertRaises(ValueError):
+            select_frames(list(range(33)), 1)
 
 
 if __name__ == '__main__':
