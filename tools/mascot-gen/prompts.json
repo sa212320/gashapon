@@ -3,43 +3,173 @@
   "negative": "色调艳丽,过曝,细节模糊不清,字幕,风格,作品,画作,整体发灰,最差质量,低质量,JPEG压缩残留,丑陋的,残缺的,多余的手指,画得不好的手部,画得不好的脸部,畸形的,毁容的,形态畸形的肢体,手指融合,杂乱的背景,三条腿,镜头移动,背景变化,photorealistic,3d render,camera zoom,the ermine leaves",
   "src_fps": 16,
   "segments": [
-    { "id": "idle-loop", "kind": "loop", "from": "idle", "to": "idle", "round": 0, "length": 49,
-      "prompt": "the fox breathes gently and blinks once slowly, the ermine blinks, calm and cozy, tiny idle motion only" },
-
-    { "id": "idle-watch", "kind": "transition", "from": "idle", "to": "watch", "round": 1, "length": 25,
-      "prompt": "the fox and the ermine turn their heads slightly to the side and look curiously, ears perk up, eyes wide with anticipation, then hold that curious look still" },
-    { "id": "idle-cheer", "kind": "transition", "from": "idle", "to": "cheer", "round": 1, "length": 33,
-      "prompt": "the fox happily raises one paw high and cheers with a big open smile, the ermine bounces with joy in the fox's arms, then they hold the happy cheering pose still" },
-    { "id": "idle-aww", "kind": "transition", "from": "idle", "to": "aww", "round": 1, "length": 33,
-      "prompt": "the fox and the ermine look a little disappointed, ears droop down, small pout, the fox gently pats the ermine, then they hold that slightly sad pose still" },
-    { "id": "idle-empty", "kind": "transition", "from": "idle", "to": "empty", "round": 1, "length": 33,
-      "prompt": "the fox and the ermine look around and find nothing, ears droop low, tired sleepy sad eyes, then they hold that droopy pose still" },
-
-    { "id": "watch-loop", "kind": "loop", "from": "watch", "to": "watch", "round": 2, "length": 33,
-      "prompt": "the fox and the ermine keep watching curiously with wide eyes, ears twitch slightly, tiny anticipation motion" },
-    { "id": "cheer-loop", "kind": "loop", "from": "cheer", "to": "cheer", "round": 2, "length": 33,
-      "prompt": "the fox keeps cheering and waving the raised paw, the ermine keeps bouncing happily in the fox's arms" },
-    { "id": "aww-loop", "kind": "loop", "from": "aww", "to": "aww", "round": 2, "length": 33,
-      "prompt": "the fox and the ermine stay a little sad with drooped ears, the fox slowly pats the ermine, small sigh" },
-    { "id": "empty-loop", "kind": "loop", "from": "empty", "to": "empty", "round": 2, "length": 49,
-      "prompt": "the fox and the ermine stay droopy and sleepy, slow blinks, ears hang low, very small motion" },
-    { "id": "watch-idle", "kind": "transition", "from": "watch", "to": "idle", "round": 2, "length": 25,
-      "prompt": "the fox and the ermine relax and turn back to the calm cozy idle pose" },
-    { "id": "cheer-idle", "kind": "transition", "from": "cheer", "to": "idle", "round": 2, "length": 25,
-      "prompt": "the fox lowers the paw and settles back into the calm cozy hugging pose, still smiling" },
-    { "id": "aww-idle", "kind": "transition", "from": "aww", "to": "idle", "round": 2, "length": 25,
-      "prompt": "the fox and the ermine cheer up, ears rise back, and settle into the calm cozy hugging pose" },
-    { "id": "empty-idle", "kind": "transition", "from": "empty", "to": "idle", "round": 2, "length": 25,
-      "prompt": "the fox and the ermine perk up, ears rise, and settle into the calm cozy hugging pose" },
-    { "id": "watch-cheer", "kind": "transition", "from": "watch", "to": "cheer", "round": 2, "length": 17,
-      "prompt": "the fox suddenly raises one paw high and cheers with a big open smile, the ermine bounces with joy, quick happy reaction" },
-    { "id": "watch-aww", "kind": "transition", "from": "watch", "to": "aww", "round": 2, "length": 17,
-      "prompt": "the fox and the ermine suddenly look a little disappointed, ears droop, small pout, quick reaction" },
-    { "id": "idle-ear", "kind": "fidget", "from": "idle", "to": "idle", "round": 2, "length": 25,
-      "prompt": "the fox twitches one ear quickly twice, then back to calm" },
-    { "id": "idle-nuzzle", "kind": "fidget", "from": "idle", "to": "idle", "round": 2, "length": 33,
-      "prompt": "the ermine nuzzles its head against the fox's chest affectionately, the fox smiles, then back to calm" },
-    { "id": "idle-doze", "kind": "fidget", "from": "idle", "to": "idle", "round": 2, "length": 41,
-      "prompt": "the fox slowly closes its eyes and nods off, head dipping a little, then wakes up with a small start and opens its eyes" }
+    {
+      "id": "idle-loop",
+      "kind": "loop",
+      "from": "idle",
+      "to": "idle",
+      "round": 0,
+      "length": 49,
+      "prompt": "the fox breathes gently and blinks once slowly, the ermine blinks, calm and cozy, tiny idle motion only",
+      "seeds": [
+        11,
+        22,
+        33
+      ],
+      "pick": 2
+    },
+    {
+      "id": "idle-watch",
+      "kind": "transition",
+      "from": "idle",
+      "to": "watch",
+      "round": 1,
+      "length": 25,
+      "prompt": "the fox and the ermine turn their heads slightly to the side and look curiously, ears perk up, eyes wide with anticipation, then hold that curious look still"
+    },
+    {
+      "id": "idle-cheer",
+      "kind": "transition",
+      "from": "idle",
+      "to": "cheer",
+      "round": 1,
+      "length": 33,
+      "prompt": "the fox happily raises one paw high and cheers with a big open smile, the ermine bounces with joy in the fox's arms, then they hold the happy cheering pose still"
+    },
+    {
+      "id": "idle-aww",
+      "kind": "transition",
+      "from": "idle",
+      "to": "aww",
+      "round": 1,
+      "length": 33,
+      "prompt": "the fox and the ermine look a little disappointed, ears droop down, small pout, the fox gently pats the ermine, then they hold that slightly sad pose still"
+    },
+    {
+      "id": "idle-empty",
+      "kind": "transition",
+      "from": "idle",
+      "to": "empty",
+      "round": 1,
+      "length": 33,
+      "prompt": "the fox and the ermine look around and find nothing, ears droop low, tired sleepy sad eyes, then they hold that droopy pose still"
+    },
+    {
+      "id": "watch-loop",
+      "kind": "loop",
+      "from": "watch",
+      "to": "watch",
+      "round": 2,
+      "length": 33,
+      "prompt": "the fox and the ermine keep watching curiously with wide eyes, ears twitch slightly, tiny anticipation motion"
+    },
+    {
+      "id": "cheer-loop",
+      "kind": "loop",
+      "from": "cheer",
+      "to": "cheer",
+      "round": 2,
+      "length": 33,
+      "prompt": "the fox keeps cheering and waving the raised paw, the ermine keeps bouncing happily in the fox's arms"
+    },
+    {
+      "id": "aww-loop",
+      "kind": "loop",
+      "from": "aww",
+      "to": "aww",
+      "round": 2,
+      "length": 33,
+      "prompt": "the fox and the ermine stay a little sad with drooped ears, the fox slowly pats the ermine, small sigh"
+    },
+    {
+      "id": "empty-loop",
+      "kind": "loop",
+      "from": "empty",
+      "to": "empty",
+      "round": 2,
+      "length": 49,
+      "prompt": "the fox and the ermine stay droopy and sleepy, slow blinks, ears hang low, very small motion"
+    },
+    {
+      "id": "watch-idle",
+      "kind": "transition",
+      "from": "watch",
+      "to": "idle",
+      "round": 2,
+      "length": 25,
+      "prompt": "the fox and the ermine relax and turn back to the calm cozy idle pose"
+    },
+    {
+      "id": "cheer-idle",
+      "kind": "transition",
+      "from": "cheer",
+      "to": "idle",
+      "round": 2,
+      "length": 25,
+      "prompt": "the fox lowers the paw and settles back into the calm cozy hugging pose, still smiling"
+    },
+    {
+      "id": "aww-idle",
+      "kind": "transition",
+      "from": "aww",
+      "to": "idle",
+      "round": 2,
+      "length": 25,
+      "prompt": "the fox and the ermine cheer up, ears rise back, and settle into the calm cozy hugging pose"
+    },
+    {
+      "id": "empty-idle",
+      "kind": "transition",
+      "from": "empty",
+      "to": "idle",
+      "round": 2,
+      "length": 25,
+      "prompt": "the fox and the ermine perk up, ears rise, and settle into the calm cozy hugging pose"
+    },
+    {
+      "id": "watch-cheer",
+      "kind": "transition",
+      "from": "watch",
+      "to": "cheer",
+      "round": 2,
+      "length": 17,
+      "prompt": "the fox suddenly raises one paw high and cheers with a big open smile, the ermine bounces with joy, quick happy reaction"
+    },
+    {
+      "id": "watch-aww",
+      "kind": "transition",
+      "from": "watch",
+      "to": "aww",
+      "round": 2,
+      "length": 17,
+      "prompt": "the fox and the ermine suddenly look a little disappointed, ears droop, small pout, quick reaction"
+    },
+    {
+      "id": "idle-ear",
+      "kind": "fidget",
+      "from": "idle",
+      "to": "idle",
+      "round": 2,
+      "length": 25,
+      "prompt": "the fox twitches one ear quickly twice, then back to calm"
+    },
+    {
+      "id": "idle-nuzzle",
+      "kind": "fidget",
+      "from": "idle",
+      "to": "idle",
+      "round": 2,
+      "length": 33,
+      "prompt": "the ermine nuzzles its head against the fox's chest affectionately, the fox smiles, then back to calm"
+    },
+    {
+      "id": "idle-doze",
+      "kind": "fidget",
+      "from": "idle",
+      "to": "idle",
+      "round": 2,
+      "length": 41,
+      "prompt": "the fox slowly closes its eyes and nods off, head dipping a little, then wakes up with a small start and opens its eyes"
+    }
   ]
 }
