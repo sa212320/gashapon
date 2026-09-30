@@ -1,5 +1,5 @@
 {
-  "style": "2D flat cartoon animation, cute chibi orange fox sitting and hugging a small white ermine in its arms, thick dark brown outlines, flat colors, solid pure green background, static camera, the fox and the ermine stay in exactly the same place and size, the ermine stays in the fox's arms the whole time",
+  "style": "2D flat cartoon animation, cute chibi orange fox with only one fluffy tail sitting and hugging a small white ermine in its arms, thick dark brown outlines, flat colors, solid pure green background, static camera, the fox and the ermine stay in exactly the same place and size, the ermine stays in the fox's arms the whole time",
   "negative": "色调艳丽,过曝,细节模糊不清,字幕,风格,作品,画作,整体发灰,最差质量,低质量,JPEG压缩残留,丑陋的,残缺的,多余的手指,画得不好的手部,画得不好的脸部,畸形的,毁容的,形态畸形的肢体,手指融合,杂乱的背景,三条腿,镜头移动,背景变化,photorealistic,3d render,camera zoom,the ermine leaves",
   "src_fps": 16,
   "segments": [
@@ -15,8 +15,7 @@
         11,
         22,
         33
-      ],
-      "pick": 2
+      ]
     },
     {
       "id": "idle-watch",
@@ -25,7 +24,12 @@
       "to": "watch",
       "round": 1,
       "length": 25,
-      "prompt": "the fox and the ermine turn their heads slightly to the side and look curiously, ears perk up, eyes wide with anticipation, then hold that curious look still"
+      "prompt": "the fox and the ermine turn their heads slightly to the side and look curiously, ears perk up, eyes wide with anticipation, then hold that curious look still",
+      "seeds": [
+        11,
+        22,
+        33
+      ]
     },
     {
       "id": "idle-cheer",
@@ -34,7 +38,12 @@
       "to": "cheer",
       "round": 1,
       "length": 33,
-      "prompt": "the fox happily raises one paw high and cheers with a big open smile, the ermine bounces with joy in the fox's arms, then they hold the happy cheering pose still"
+      "prompt": "the fox happily raises one paw high and cheers with a big open smile, the ermine bounces with joy in the fox's arms, then they hold the happy cheering pose still",
+      "seeds": [
+        11,
+        22,
+        33
+      ]
     },
     {
       "id": "idle-aww",
@@ -43,7 +52,12 @@
       "to": "aww",
       "round": 1,
       "length": 33,
-      "prompt": "the fox and the ermine look a little disappointed, ears droop down, small pout, the fox gently pats the ermine, then they hold that slightly sad pose still"
+      "prompt": "the fox and the ermine look a little disappointed, ears droop down, small pout, the fox gently pats the ermine, then they hold that slightly sad pose still",
+      "seeds": [
+        11,
+        22,
+        33
+      ]
     },
     {
       "id": "idle-empty",
@@ -52,7 +66,12 @@
       "to": "empty",
       "round": 1,
       "length": 33,
-      "prompt": "the fox and the ermine look around and find nothing, ears droop low, tired sleepy sad eyes, then they hold that droopy pose still"
+      "prompt": "the fox and the ermine look around and find nothing, ears droop low, tired sleepy sad eyes, then they hold that droopy pose still",
+      "seeds": [
+        11,
+        22,
+        33
+      ]
     },
     {
       "id": "watch-loop",

@@ -26,7 +26,8 @@ HERE = Path(__file__).resolve().parent
 OUT = HERE / 'out'
 KEYS = OUT / 'keys'
 PROMPTS = HERE / 'prompts.json'
-SRC_IDLE = ROOT / 'shared/img/mascot/idle.webp'
+# 原始 idle.webp 畫成兩條尾巴,fix_tail.py 擦掉右邊那截之後的版本(使用者確認過)
+SRC_IDLE = HERE / 'source-idle.png'
 ASSETS = ROOT / 'shared/img/mascot'
 DEFAULT_SEEDS = [11, 22, 33]
 
