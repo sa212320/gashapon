@@ -3,3 +3,6 @@ node_modules/
 .superpowers/
 _compare.html
 _probe*.html
+tools/mascot-gen/out/
+tools/mascot-gen/.venv/
+__pycache__/
