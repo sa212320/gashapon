@@ -67,7 +67,7 @@
       "to": "empty",
       "round": 1,
       "length": 33,
-      "prompt": "the little ermine slowly falls asleep in the fox's arms with its eyes closed, the fox stays awake with half-closed calm eyes quietly watching over the sleeping ermine, then they hold that quiet pose still",
+      "prompt": "the little ermine slowly falls asleep in the fox's arms with its eyes closed, the fox stays awake with soft open gentle eyes and looks down lovingly at the sleeping ermine, the fox tenderly rests its cheek on top of the ermine's head and hugs it a little closer, warm affectionate blush on the fox's cheeks, then they hold that loving pose still",
       "seeds": [
         11,
         22,
@@ -108,7 +108,7 @@
       "to": "empty",
       "round": 2,
       "length": 49,
-      "prompt": "the ermine keeps sleeping peacefully in the fox's arms, breathing slowly, the fox keeps quietly watching over it with half-closed calm eyes, very small motion"
+      "prompt": "the ermine keeps sleeping peacefully in the fox's arms, breathing slowly, the fox keeps its cheek resting on the ermine's head and looks down at it lovingly with soft open eyes, very small motion"
     },
     {
       "id": "watch-idle",
