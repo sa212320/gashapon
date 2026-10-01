@@ -337,7 +337,7 @@ def cmd_build_patterns(args):
     css = ROOT / 'gashapon' / 'css' / 'style.css'
     for r in RARITIES:
         rgb = np.asarray(Image.open(OUT / f'pattern-{r}' / f's{picks[f"pattern-{r}"]["n"]}.png').convert('RGB'))
-        rgb = crop_margin(rgb, 0.06)   # 模型常在貼圖外圈畫一圈方框
+        rgb = crop_margin(rgb, 0.10)   # 模型常在貼圖外圈畫一圈方框(N 的框在 2–8% 處)
         rgba = np.dstack([rgb, np.full(rgb.shape[:2], 255, np.uint8)])
         im = Image.fromarray(to_tint_gray(rgba)[..., :3]).resize((256, 256), Image.LANCZOS)
         path = IMG / f'pattern-{r}.webp'

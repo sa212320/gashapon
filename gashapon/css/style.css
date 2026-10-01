@@ -102,20 +102,41 @@ body {
   left: 0;
   width: 100%;
   height: 50%;
+  overflow: hidden;
   border: var(--stroke) solid var(--ink);
   background: var(--half-a);
 }
 .capsule__half--top {
   top: 0;
-  border-bottom: none;
+  /* 上下兩半的分界線 */
+  border-bottom: calc(var(--stroke) * .6) solid var(--ink);
   border-radius: 999px 999px 0 0;
+  /* 右側的暗面(月牙的上半) */
+  box-shadow: inset -12px 0 0 rgba(58, 40, 90, .14);
 }
 .capsule__half--bottom {
   top: 50%;
   border-top: none;
   border-radius: 0 0 999px 999px;
   background: var(--half-b);
+  /* 右下的暗面(月牙的下半) */
+  box-shadow: inset -12px -14px 0 rgba(58, 40, 90, .16);
 }
+/* 花紋貼圖(2026-10-01):球由 CSS 畫,圖只負責花紋,灰階用 multiply 疊在稀有度色上 ——
+   白的地方就是稀有度色,顏色由程式決定(issue #5 共同規則)。
+   上下兩半共用同一張圖:各鋪成整顆球的大小,上半對齊頂、下半對齊底,裂開時花紋跟著兩半走。 */
+.capsule__half::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 200%;
+  background: var(--pattern, none) center / cover no-repeat;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+.capsule__half--top::before { top: 0; }
+.capsule__half--bottom::before { bottom: 0; }
 .capsule__half--top::after {
   content: "";
   position: absolute;
@@ -124,12 +145,16 @@ body {
   width: 26%;
   height: 22%;
   border-radius: 50%;
-  background: rgba(255,255,255,.75);
+  background: rgba(255,255,255,.8);
 }
-.capsule[data-rarity="N"]   { --half-a: var(--r-N-a);   --half-b: var(--r-N-b); }
-.capsule[data-rarity="R"]   { --half-a: var(--r-R-a);   --half-b: var(--r-R-b); }
-.capsule[data-rarity="SR"]  { --half-a: var(--r-SR-a);  --half-b: var(--r-SR-b); }
-.capsule[data-rarity="SSR"] { --half-a: var(--r-SSR-a); --half-b: var(--r-SSR-b); }
+/* 落在下方的影子 */
+.capsule { filter: drop-shadow(0 12px 0 rgba(87, 66, 57, .18)); }
+
+.capsule[data-rarity="N"]   { --half-a: var(--r-N-a);   --half-b: var(--r-N-b);   --pattern: url(../img/pattern-N.webp?v=5bd43d8d); }
+.capsule[data-rarity="R"]   { --half-a: var(--r-R-a);   --half-b: var(--r-R-b);   --pattern: url(../img/pattern-R.webp?v=4a28a827); }
+.capsule[data-rarity="SR"]  { --half-a: var(--r-SR-a);  --half-b: var(--r-SR-b);  --pattern: url(../img/pattern-SR.webp?v=5fe470dd); }
+.capsule[data-rarity="SSR"] { --half-a: var(--r-SSR-a); --half-b: var(--r-SSR-b); --pattern: url(../img/pattern-SSR.webp?v=26007f16); }
+.capsule[data-rarity="UR"]   { --pattern: url(../img/pattern-UR.webp?v=6b924b7a); }
 .capsule[data-rarity="UR"] .capsule__half {
   background: var(--rainbow);
   animation: shimmer 3.2s linear infinite;

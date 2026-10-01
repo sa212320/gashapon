@@ -36,3 +36,22 @@ test('機台用插畫與把手按鈕,舊的 SVG 機台、標題、眼睛都拿�
     assert.ok(!html.includes(gone), `還有 ${gone}`);
   }
 });
+
+import { RARITIES } from '../gashapon/js/constants.js';
+
+test('5 張花紋貼圖都存在', () => {
+  for (const r of RARITIES) assert.ok(existsSync(join(root, `gashapon/img/pattern-${r}.webp`)), r);
+});
+
+test('每個稀有度的蛋殼都套上自己的花紋貼圖(帶內容雜湊)', () => {
+  const css = read('gashapon/css/style.css');
+  for (const r of RARITIES) {
+    const re = new RegExp(`\\.capsule\\[data-rarity="${r}"\\][^{]*\\{[^}]*--pattern:\\s*url\\(\\.\\./img/pattern-${r}\\.webp\\?v=[0-9a-f]{8}\\)`);
+    assert.match(css, re, r);
+  }
+});
+
+test('蛋殼是 CSS 畫的球:不用 mask(圖沒載入時蛋不能隱形)', () => {
+  const css = read('gashapon/css/style.css');
+  assert.ok(!/\bmask(-image)?\s*:/.test(css), 'style.css 不該再有 mask');
+});
