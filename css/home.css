@@ -25,10 +25,13 @@ body {
 .home-head h1 {
   display: inline-grid;
   place-items: center;
-  width: clamp(240px, 62vw, 380px);
+  --sign-w: clamp(240px, 62vw, 380px);
+  width: var(--sign-w);
   aspect-ratio: 766 / 400;            /* 跟 img/home/sign.webp 一樣 */
-  padding-top: 7%;
-  font-size: clamp(22px, 6.5vw, 38px);   /* 跟著木牌寬度放大,原本的字在木牌上太小 */
+  /* 不能寫 padding-top: 7% —— padding 的百分比是相對「外層容器」的寬度,
+     不是木牌本身,視窗越寬字被推得越低(1440 寬時字掉到木牌 75% 的高度)。 */
+  padding-top: calc(var(--sign-w) * .15);   /* 讓字落在積雪下方那塊木板的中間(約 65% 高度) */
+  font-size: calc(var(--sign-w) * .1);   /* 字跟著木牌大小縮放 */
   background: url("../img/home/sign.webp") center / contain no-repeat;
 }
 
