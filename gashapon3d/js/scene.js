@@ -6,6 +6,7 @@
 // 每顆蛋由**上下兩個半球**組成:上半彩色、下半白色,這就是扭蛋殼的長相。
 // 同一組幾何同時負責外觀跟「打開」—— 打開就是把兩個半球分開。
 import * as THREE from 'three';
+import { planarUV } from './skin-math.js';
 
 const R = 0.5;             // 蛋的半徑
 const TABLE_BASE = 3.4;    // 桌面幾何的基準半徑(實際大小靠 scale 跟著顆數變)
@@ -44,6 +45,12 @@ const TOP_EDGE = dome(R * EDGE);
 // 旋轉幾何而不是旋轉 mesh:rotateX 會連法線一起轉,winding 才不會反過來。
 const BOTTOM_GEO = dome(R).rotateX(Math.PI);
 const BOTTOM_EDGE = dome(R * EDGE).rotateX(Math.PI);
+
+// 花紋用正面投影(2026-10-01):蛋轉正後 local +z 朝鏡頭,UV 只看 x、y,跟 2D 平貼一樣。
+// 背面會是鏡像,但揭曉時背面永遠朝後,看不到。描邊幾何不貼圖,不用 UV。
+for (const g of [TOP_GEO, BOTTOM_GEO]) {
+  g.setAttribute('uv', new THREE.BufferAttribute(planarUV(g.attributes.position.array, R), 2));
+}
 
 // 邊框是「放大的背面」,它在輪廓處的深度值等於**球的背面**,非常靠後。
 // 蛋堆在一起時,旁邊那顆的正面往往比這個深度還近,就把邊框整段吃掉 ——
@@ -363,6 +370,32 @@ export function createScene(canvas) {
     look(TABLE * 1.62 - k * TABLE * 0.34, TABLE * 1.82 - k * TABLE * 0.62, k * 0.75);
   }
 
+  const AIM = new THREE.Object3D();
+  const SPIN_Q = new THREE.Quaternion();
+  const Z = new THREE.Vector3(0, 0, 1);
+  const P = new THREE.Vector3();
+
+  // 轉正:上半朝上、正面(local +z)朝鏡頭 —— Object3D.lookAt 讓 +z 指向目標、+y 保持朝上,
+  // 所以接縫在畫面上是水平的。鏡頭在推近,目標每格依鏡頭當下位置重算。
+  function upright(egg, k, from) {
+    egg.group.getWorldPosition(AIM.position);
+    AIM.lookAt(camera.position);
+    egg.group.quaternion.slerpQuaternions(from, AIM.quaternion, k);
+  }
+
+  // 轉正之後的搖晃要在「畫面平面」裡轉(繞 local z),直接改 rotation.z 會把轉正弄歪
+  function wobble(egg, angle, base) {
+    SPIN_Q.setFromAxisAngle(Z, angle);
+    egg.group.quaternion.copy(base).multiply(SPIN_Q);
+  }
+
+  // 蛋投影到螢幕上的位置(client 座標),DOM 特效層對準這一點
+  function screenPos(egg) {
+    egg.group.getWorldPosition(P).project(camera);
+    const rect = canvas.getBoundingClientRect();
+    return { x: rect.left + ((P.x + 1) / 2) * rect.width, y: rect.top + ((1 - P.y) / 2) * rect.height };
+  }
+
   homeView();
 
   return {
@@ -377,6 +410,9 @@ export function createScene(canvas) {
     homeView,
     focusView,
     pick,
+    upright,
+    wobble,
+    screenPos,
     look,
     resize,
     render() {
