@@ -17,6 +17,9 @@ export function mountPreloadRack(doc = document) {
     for (const half of ['top', 'bottom']) {
       const h = doc.createElement('span');
       h.className = `capsule__half capsule__half--${half}`;
+      const tint = doc.createElement('span');
+      tint.className = 'capsule__tint';   // UR 的彩虹底色層
+      h.appendChild(tint);
       capsule.appendChild(h);
     }
     rack.append(frame, capsule);

@@ -382,6 +382,8 @@ def cmd_build_patterns(args):
         path = IMG / f'pattern-{r}.webp'
         webp(Image.fromarray(out), path)   # 4 通道 → RGBA
         restamp(css, f'../img/pattern-{r}.webp', path)
+        if r != 'N':   # 立體扭蛋機讀同一張(N 不升級,用不到)
+            restamp(ROOT / 'gashapon3d' / 'js' / 'skin.js', f'../../gashapon/img/pattern-{r}.webp', path)
     print('patterns done')
     write_preload_manifest()
 

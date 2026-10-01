@@ -114,6 +114,17 @@ body {
   /* 右下的暗面(月牙的下半) */
   box-shadow: inset -12px -14px 0 rgba(58, 40, 90, .16);
 }
+/* 底色層:平常不顯示,UR 才用(見下面 UR 那段)。蓋在半球底色上、花紋下面;
+   月牙暗面用 inherit 再畫一次,不然會被這層蓋掉 */
+.capsule__tint {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  box-shadow: inherit;
+  pointer-events: none;
+}
 /* 花紋貼圖(2026-10-01 改白):球由 CSS 畫,圖只負責花紋 —— 圖本身是白色雪花(UR 是水晶藍加白邊)
    加透明度,直接疊在稀有度色上,底色由程式決定(issue #5 共同規則)。立體扭蛋機讀同一張圖。
    上下兩半共用同一張圖:各鋪成整顆球的大小,上半對齊頂、下半對齊底,裂開時花紋跟著兩半走。 */
@@ -125,6 +136,7 @@ body {
   height: 200%;
   background: var(--pattern, none) center / cover no-repeat;
   pointer-events: none;
+  z-index: 1;
 }
 .capsule__half--top::before { top: 0; }
 .capsule__half--bottom::before { bottom: 0; }
@@ -137,6 +149,7 @@ body {
   height: 22%;
   border-radius: 50%;
   background: rgba(255,255,255,.8);
+  z-index: 2;
 }
 /* 落在下方的影子 */
 .capsule { filter: drop-shadow(0 12px 0 rgba(87, 66, 57, .18)); }
@@ -149,7 +162,10 @@ body {
 .capsule[data-rarity="SSR"] .capsule__half { background: var(--gold); background-size: 100% 200%; }
 .capsule[data-rarity="SSR"] .capsule__half--bottom { background-position: 0 100%; }
 .capsule[data-rarity="UR"]   { --pattern: url(../img/pattern-UR.webp?v=565edd30); }
-.capsule[data-rarity="UR"] .capsule__half {
+/* UR:彩虹底色畫在獨立的底色層上,只有這一層轉色相(2026-10-02 使用者選 A)——
+   filter 掛在半球上的話,水晶藍雪花跟深棕描邊會跟著一起變色。 */
+.capsule[data-rarity="UR"] .capsule__tint {
+  display: block;
   background: var(--rainbow);
   animation: shimmer 3.2s linear infinite;
 }

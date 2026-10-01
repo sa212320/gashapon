@@ -140,3 +140,14 @@ test('外框圖還沒到時卡片有保底外觀(奶油色圓角卡片),不是�
   assert.match(read('shared/css/prize-frame.css'), /\.prize-frame\.is-frame-loading\s*\{[^}]*background-color:/);
   assert.match(read('gashapon/js/reveal.js'), /is-frame-loading/);
 });
+
+// UR 的流動只轉彩虹底色(2026-10-02 使用者選 A):水晶藍雪花跟深棕描邊都不能跟著變色。
+// filter 會連子元素、邊框一起轉,所以 shimmer 只能掛在獨立的底色層上。
+test('UR 的 shimmer 只掛在底色層,不掛在整個半球上', () => {
+  const css = read('gashapon/css/style.css');
+  const urHalf = /\.capsule\[data-rarity="UR"\] \.capsule__half\s*\{([^}]*)\}/.exec(css);
+  assert.ok(!urHalf || !/animation:/.test(urHalf[1]), '半球本身不能有 shimmer(會把花紋跟描邊一起轉色)');
+  assert.match(css, /\.capsule\[data-rarity="UR"\] \.capsule__tint\s*\{[^}]*animation:\s*shimmer/);
+  assert.equal((read('gashapon/index.html').match(/class="capsule__tint"/g) ?? []).length, 2, '上下兩半各一層');
+  assert.match(read('gashapon/js/patterns.js'), /capsule__tint/);
+});
