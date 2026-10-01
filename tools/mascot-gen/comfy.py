@@ -7,7 +7,8 @@ import urllib.parse
 import urllib.request
 import uuid
 
-HOST = os.environ.get('COMFY_URL', 'http://192.168.68.53:8188').rstrip('/')
+# 實際的 ComfyUI 在別台機器上,用 COMFY_URL 指定(例如 COMFY_URL=http://<那台的 IP>:8188)
+HOST = os.environ.get('COMFY_URL', 'http://localhost:8188').rstrip('/')
 W, H = 640, 576
 
 

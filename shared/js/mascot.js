@@ -82,6 +82,8 @@ export function mountMascots({
     return player ? player.target() : wanted;
   }
 
+  // mascots--<姿勢> 沒有 CSS 在用,留著是給除錯用:在開發者工具裡一眼看出
+  // 吉祥物現在被要求成哪個姿勢。
   function paint() {
     el.className = `mascots mascots--${pose()}`;
   }

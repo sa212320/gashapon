@@ -14,7 +14,7 @@
 import { POSES, route, loopOf, fidgetsOf } from './mascot-route.js';
 
 export const SEEK_STEP = 3;
-export const FALLBACK_FRAMES = 5;      // 約 300ms @ 16fps
+export const FALLBACK_FRAMES = 5;      // 素材是 12fps,約 417ms
 export const FIDGET_GAP_SEC = [4, 9];
 
 export function createPlayer({ manifest, isLoaded = () => true, rng = Math.random }) {

@@ -6,3 +6,4 @@ _probe*.html
 tools/mascot-gen/out/
 tools/mascot-gen/.venv/
 __pycache__/
+tools/mascot-gen/review/

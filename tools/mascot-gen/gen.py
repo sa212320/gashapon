@@ -1,6 +1,6 @@
 """吉祥物片段生成 CLI。規格:docs/superpowers/specs/2026-09-30-mascot-video-segments-design.md §3
 
-在 repo 根目錄執行:
+在 repo 根目錄執行(ComfyUI 不在本機的話先 export COMFY_URL=http://<IP>:8188):
   PY=tools/mascot-gen/.venv/bin/python
   $PY tools/mascot-gen/gen.py run 0            # 生成第 0 輪(每段 3 個 seed)
   $PY tools/mascot-gen/gen.py sheet 0          # 每個候選一張逐格縮圖,給 Claude 過濾

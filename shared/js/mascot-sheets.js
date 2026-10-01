@@ -55,9 +55,20 @@ export function frameRect(seg, index, frame) {
   return { sx: col * frame.w, sy: row * frame.h, sw: frame.w, sh: frame.h };
 }
 
+// draw() 每秒呼叫十幾次,id → segment 的查表每份 manifest 只建一次
+const segmentIndex = new WeakMap();
+function indexOf(manifest) {
+  let byId = segmentIndex.get(manifest);
+  if (!byId) {
+    byId = new Map(manifest.segments.map(s => [s.id, s]));
+    segmentIndex.set(manifest, byId);
+  }
+  return byId;
+}
+
 export function draw(ctx, view, { manifest, sheets }) {
   const { w, h } = manifest.frame;
-  const byId = new Map(manifest.segments.map(s => [s.id, s]));
+  const byId = indexOf(manifest);
   ctx.clearRect(0, 0, w, h);
   for (const layer of view.layers) {
     if (layer.kind === 'seg') {

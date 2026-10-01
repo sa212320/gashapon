@@ -12,7 +12,7 @@
 .snow {
   position: fixed;
   inset: 0;
-  z-index: -1;   /* 負值:畫在頁面背景之上、所有內容之下 */
+  z-index: -1;   /* 負值:畫在背景(-3)與吉祥物(-2)之上、所有內容之下 */
   pointer-events: none;
   overflow: hidden;
 }

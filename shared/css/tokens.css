@@ -49,12 +49,13 @@ body {
    background-attachment: fixed。使用者在 Safari 上重新整理時,遠景圖有時候
    整張沒畫出來,只剩天空(圖有下載到,伺服器紀錄是 200)。Safari 對 fixed
    背景的重繪一直有已知問題,改成一個 position: fixed 的獨立圖層,不再依賴
-   background-attachment。z-index -2 在雪花(-1)之下、body 底色之上。 */
+   background-attachment。
+   層級由後到前:這層背景 -3 → 吉祥物 -2(shared/css/mascot.css)→ 雪花 -1 → 頁面內容。 */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: -2;
+  z-index: -3;
   pointer-events: none;
   background:
     /* 遠景:樹線和小木屋,貼齊底部並依比例寬度撐滿 */
