@@ -34,7 +34,8 @@
 
 .mascots {
   position: fixed;
-  left: 16px;
+  /* 2026-10-01 使用者要求從左下角改到右下角 */
+  right: 16px;
   bottom: 16px;
   width: var(--mascot-w);
   /* JS 的 flyTo() 會讀這個值,把揭曉落點夾在畫面內 */
