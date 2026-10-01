@@ -76,9 +76,9 @@ import { bowlDepth } from '../gashapon3d/js/tray-motion.js';
 
 // 碗的深度跟著碗的大小走(2026-10-02 使用者選 A):蛋多、碗大的時候也要看起來像碗,
 // 不是一片盤子;但再小也至少有蛋高的 0.3 倍。
-// 2026-10-02 使用者看過 0.15 的版本後要「高一點」→ 0.22
-test('bowlDepth:半徑 × 0.22,最少蛋高 × 0.3', () => {
+// 2026-10-02:0.15(碗太大時像盤子)→ 使用者要高一點 0.22 → 碗縮小之後又嫌太高 → 0.16
+test('bowlDepth:半徑 × 0.16,最少蛋高 × 0.3', () => {
   assert.equal(bowlDepth(1), 0.3);
-  assert.ok(Math.abs(bowlDepth(6) - 1.32) < 1e-9);
+  assert.ok(Math.abs(bowlDepth(6) - 0.96) < 1e-9);
   assert.ok(bowlDepth(7) > bowlDepth(6));
 });

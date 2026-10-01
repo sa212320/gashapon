@@ -80,7 +80,7 @@ export const FOCUS_Y = 1.2;
 const FLOOR_Y = -R;
 const RIM_Y = FLOOR_Y + BOWL_DEPTH;
 const WALL_OUT = BOWL_RIM + 0.16;          // 碗唇外緣(使用者要薄一點;唇太寬整個碗看起來都是白的雪)
-const WALL_FOOT = FLOOR_Y - 0.4;           // 碗底(比盤面低一大截:外壁的冰要看得到)
+const WALL_FOOT = FLOOR_Y - 0.25;          // 碗底(比盤面低一截,看得出碗的厚度)
 const LIP = 0.16;                          // 碗唇圓弧的高度
 
 // 碗唇 + 外壁的剖面:唇內緣 → 圓弧唇 → 唇外緣 → 外壁往下往內收 → 碗底
@@ -108,8 +108,10 @@ function wallProfile(grow = 0) {
 const N_LIP = 11;
 function wallLook(j, n) {
   if (j < N_LIP) {
+    // 碗口也是冰(2026-10-02 使用者選 A:原本的雪唇在拿掉滴雪線之後變成一圈突兀的白邊)。
+    // 唇頂是最亮的一條,看得出碗口的厚度
     const t = j / (N_LIP - 1);                // 唇:朝內 0 → 朝外 1
-    return { v: 0.88, shade: 1 - 0.14 * t };
+    return { v: 0.42, shade: 1.12 - 0.2 * Math.abs(t - 0.4) };
   }
   // 外壁只用貼圖的下半段(冰),不放滴雪的波浪線(使用者 2026-10-02);
   // 最底下那條雪跟外框線也不用

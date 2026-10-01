@@ -53,8 +53,8 @@ export function bowlSlope(r) {
   return (2 * BOWL_DEPTH * (r - BOWL_FLAT)) / (w * w);
 }
 
-// 碗實際的深度(場景單位):碗口半徑 × 0.22,最少蛋高(1.0)× 0.3(0.15 看過,使用者要再高一點)。
+// 碗實際的深度(場景單位):碗口半徑 × 0.16,最少蛋高(1.0)× 0.3(0.15 → 0.22 → 0.16,使用者看過實機調的)。
 // 只看蛋高的話,30 顆蛋時碗寬 12 顆蛋、深 0.3 顆,從遠處看是一片盤子(2026-10-02)。
 export function bowlDepth(rimRadius) {
-  return Math.max(0.3, rimRadius * 0.22);
+  return Math.max(0.3, rimRadius * 0.16);
 }
