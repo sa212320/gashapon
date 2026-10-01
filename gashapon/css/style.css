@@ -154,44 +154,6 @@ body {
   animation: shimmer 3.2s linear infinite;
 }
 
-.aura {
-  grid-area: 1 / 1;
-  width: min(42vw, 150px);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  pointer-events: none;
-}
-.aura[data-rarity="N"]   { background: radial-gradient(circle, #fff 0 40%, transparent 70%); }
-.aura[data-rarity="R"]   { background: radial-gradient(circle, #8CF0B4 0 40%, transparent 70%); }
-.aura[data-rarity="SR"]  { background: radial-gradient(circle, #CBA9FF 0 40%, transparent 70%); }
-.aura[data-rarity="SSR"] { background: radial-gradient(circle, #FFE493 0 40%, transparent 70%); }
-.aura[data-rarity="UR"]  { background: var(--rainbow-conic); filter: blur(6px); }
-
-.particles {
-  grid-area: 1 / 1;
-  /* 疊在蛋的上面:升階的雪花是從蛋身上噴出來的,排在後面會被蛋擋住 */
-  position: relative;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-}
-.particle {
-  grid-area: 1 / 1;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-}
-.particle--rainbow { background: var(--rainbow); }
-.particle--snow {
-  width: 26px;
-  height: 26px;
-  border-radius: 0;
-  overflow: visible;
-  /* 白色(N)的雪花在亮背景上看不到,加一圈深色描邊般的影子 */
-  filter: drop-shadow(0 0 1.5px rgba(58, 46, 41, .7));
-}
-
 .prize-card {
   grid-area: 1 / 1;
   display: grid;
