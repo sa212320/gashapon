@@ -32,9 +32,30 @@
 /* 五個模式共用的底色、文字顏色、字體、字重。各模式自己的 body 只留
    layout(display / grid-template-rows / min-height / padding / overflow 那些)。 */
 body {
-  /* 雪地舞台。由前到後:遠景風景畫 → 天空漸層。
-     注意這裡只換「舞台」—— 卡片、按鈕維持暖米色,暖色壓在冷色上對比最強,
-     小孩最容易看出哪個可以點。 */
+  /* 底色:下面那層固定背景還沒畫出來之前,至少是天空色,不是白的 */
+  background: var(--sky-low);
+  color: var(--ink);
+  font-family: ui-rounded, "Hiragino Maru Gothic ProN", "PingFang TC",
+    "Noto Sans TC", system-ui, sans-serif;
+  font-weight: 700;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* 雪地舞台。由前到後:遠景風景畫 → 天空漸層。
+   注意這裡只換「舞台」—— 卡片、按鈕維持暖米色,暖色壓在冷色上對比最強,
+   小孩最容易看出哪個可以點。
+
+   修訂(2026-10-01):原本直接寫在 body 的 background 上、配
+   background-attachment: fixed。使用者在 Safari 上重新整理時,遠景圖有時候
+   整張沒畫出來,只剩天空(圖有下載到,伺服器紀錄是 200)。Safari 對 fixed
+   背景的重繪一直有已知問題,改成一個 position: fixed 的獨立圖層,不再依賴
+   background-attachment。z-index -2 在雪花(-1)之下、body 底色之上。 */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
   background:
     /* 遠景:樹線和小木屋,貼齊底部並依比例寬度撐滿 */
     url("../img/snow-scene.webp"),
@@ -45,12 +66,6 @@ body {
   background-repeat: no-repeat, no-repeat;
   background-position: center bottom, center;
   background-size: 100% auto, cover;
-  background-attachment: fixed;
-  color: var(--ink);
-  font-family: ui-rounded, "Hiragino Maru Gothic ProN", "PingFang TC",
-    "Noto Sans TC", system-ui, sans-serif;
-  font-weight: 700;
-  -webkit-text-size-adjust: 100%;
 }
 
 /* ---------- buttons ---------- */
