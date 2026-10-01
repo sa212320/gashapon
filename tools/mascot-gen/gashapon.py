@@ -126,14 +126,23 @@ def section(name, figs):
 
 
 def review_machine():
-    d = OUT / 'machine'
+    # 每一輪生成都保留在 out/gashapon/machine-rN/,最新一輪在 machine/。全部列出來,舊的也挑得到。
+    out = []
+    dirs = sorted(OUT.glob("machine-r*"), key=lambda d: int(d.name[9:])) + ([OUT / "machine"] if (OUT / "machine").exists() else [])
+    for d in reversed(dirs):
+        out.append(review_machine_dir(d))
+    return '\n'.join(out)
+
+
+def review_machine_dir(d):
+    name = d.name
     figs = []
     for f in sorted(d.glob('s*.png')) if d.exists() else []:
         n = f.stem[1:]
-        js = (f"`pick machine {n} --knob ${{pts[0][0]}},${{pts[0][1]}},"
+        js = (f"`pick {name} {n} --knob ${{pts[0][0]}},${{pts[0][1]}},"
               f"${{Math.round(Math.hypot(pts[1][0]-pts[0][0], pts[1][1]-pts[0][1]))}} --outlet ${{pts[2][0]}},${{pts[2][1]}}`")
-        figs.append(figure('machine', f, 360, ['點把手圓心', '點把手邊緣', '點出蛋口'], js, ring=True))
-    return section('machine', figs)
+        figs.append(figure(name, f, 300, ['點把手圓心', '點把手邊緣', '點出蛋口'], js, ring=True))
+    return section(name, figs)
 
 
 # 之後的 task 會往這個清單加 review_shells、review_frames
@@ -154,16 +163,19 @@ def cmd_pick(args):
         sys.exit(f'沒有 {src}')
     cfg = load_cfg()
     pick = {'n': args.n}
-    if args.name == 'machine':
+    key = args.name
+    if args.name.startswith('machine'):
+        # 機台可以從任何一輪挑(machine-r5 …),紀錄裡存來源資料夾
+        key, pick['dir'] = 'machine', args.name
         if not (args.knob and args.outlet):
             sys.exit('machine 要給 --knob cx,cy,r 跟 --outlet x,y')
         pick['knob'] = [int(v) for v in args.knob.split(',')]
         pick['outlet'] = [int(v) for v in args.outlet.split(',')]
     if args.seams:
         pick['seams'] = [int(v) for v in args.seams.split(',')]
-    cfg.setdefault('picks', {})[args.name] = pick
+    cfg.setdefault('picks', {})[key] = pick
     save_cfg(cfg)
-    print(f'{args.name} ← {pick}')
+    print(f'{key} ← {pick}')
 
 
 def cutout(path):
@@ -179,7 +191,7 @@ def cmd_build_machine(args):
     pick = load_cfg().get('picks', {}).get('machine')
     if not pick:
         sys.exit('還沒 pick:machine')
-    full, bbox = cutout(OUT / 'machine' / f's{pick["n"]}.png')
+    full, bbox = cutout(OUT / pick.get('dir', 'machine') / f's{pick["n"]}.png')
     cx, cy, r = pick['knob']
     knob = cut_disk(full, cx - bbox[0], cy - bbox[1], r)
     IMG.mkdir(parents=True, exist_ok=True)
