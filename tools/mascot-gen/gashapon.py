@@ -405,6 +405,9 @@ def write_preload_manifest():
     for css, base in [('gashapon/css/style.css', 'gashapon/css'), ('shared/css/prize-frame.css', 'shared/css')]:
         for m in re.finditer(r'url\(\s*["\']?([^"\')#]+)["\']?\s*\)', (ROOT / css).read_text()):
             add(base, m.group(1))
+    # 立體扭蛋機的托盤貼圖(網址在 JS 裡,相對於 gashapon3d/js)
+    for m in re.finditer(r"'(\.\./img/[^'?]+\.webp\?v=[0-9a-f]{8})'", (ROOT / 'gashapon3d' / 'js' / 'tray-art.js').read_text()):
+        add('gashapon3d/js', m.group(1))
     path = IMG / 'preload.json'
     path.write_text(json.dumps(sorted(refs), indent=2) + '\n')
     print(f'preload.json: {len(refs)} 張')

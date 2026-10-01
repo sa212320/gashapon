@@ -198,5 +198,30 @@ class WhitePattern(unittest.TestCase):
         self.assertEqual(out[0, 0, 3], 0)                             # 遠處仍透明
 
 
+
+from gashapon_art import crop_square_center, ink_rows, make_seamless
+
+
+class TrayArt(unittest.TestCase):
+    def test_crop_square_center(self):
+        a = np.zeros((100, 120, 3), np.uint8)
+        out = crop_square_center(a, 0.1)
+        self.assertEqual(out.shape[:2], (80, 80))
+
+    def test_ink_rows(self):
+        a = np.full((10, 10, 3), 255, np.uint8)
+        a[2, :] = 40
+        a[7, :] = 40
+        self.assertEqual(ink_rows(a), (2, 7))
+
+    def test_make_seamless_wraps(self):
+        a = np.arange(10, dtype=np.float32)[None, :, None].repeat(2, axis=0).repeat(3, axis=2)
+        out = make_seamless(a.astype(np.uint8), 4)
+        self.assertEqual(out.shape[1], 6)
+        # 接起來的地方:最右一欄是原本第 5 欄,最左一欄要等於原本第 6 欄(緊接在後)
+        self.assertEqual(out[0, -1, 0], 5)
+        self.assertEqual(out[0, 0, 0], 6)
+
+
 if __name__ == '__main__':
     unittest.main()
