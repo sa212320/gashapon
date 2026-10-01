@@ -87,7 +87,9 @@ def cmd_run(args):
     for s in todo:
         s.setdefault('seeds', DEFAULT_SEEDS)
         if args.round == 0:
-            start_img = end_img = idle_on_green()
+            # --keep-key:頭尾用已經挑好的 K_idle,重跑 idle-loop 時不改變關鍵圖,
+            # 其他 17 段(都夾在 K_idle 上)就不用跟著重做
+            start_img = end_img = need_key('idle') if args.keep_key else idle_on_green()
         elif args.round == 1:
             start_img, end_img = need_key('idle'), None
         else:
@@ -214,7 +216,9 @@ def cmd_pick(args):
         s['pick_end'] = args.end
     save_cfg(cfg)
     KEYS.mkdir(parents=True, exist_ok=True)
-    if s['round'] == 0:
+    if s['round'] == 0 and args.keep_key:
+        print('保留現有的 K_idle')
+    elif s['round'] == 0:
         Image.open(files[0]).convert('RGB').save(key_path('idle'))
         print(f'K_idle ← {files[0]}')
     elif s['round'] == 1:
@@ -280,10 +284,10 @@ def need_key_path(pose):
 def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest='cmd', required=True)
-    r = sub.add_parser('run'); r.add_argument('round', type=int); r.add_argument('--only')
+    r = sub.add_parser('run'); r.add_argument('round', type=int); r.add_argument('--only'); r.add_argument('--keep-key', action='store_true')
     sh = sub.add_parser('sheet'); sh.add_argument('round', type=int)
     rv = sub.add_parser('review'); rv.add_argument('round', type=int)
-    pk = sub.add_parser('pick'); pk.add_argument('id'); pk.add_argument('n', type=int); pk.add_argument('--end', type=int)
+    pk = sub.add_parser('pick'); pk.add_argument('id'); pk.add_argument('n', type=int); pk.add_argument('--end', type=int); pk.add_argument('--keep-key', action='store_true')
     # 預設值是 2026-10-01 實測大小後定的:總量約 6.4 MB、揭曉前的前 5 段約 1.6 MB
     b = sub.add_parser('build'); b.add_argument('--w', type=int, default=400); b.add_argument('--h', type=int, default=360); b.add_argument('--fps', type=int, default=12)
     args = ap.parse_args()

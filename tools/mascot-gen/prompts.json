@@ -1,6 +1,6 @@
 {
   "style": "2D flat cartoon animation, cute chibi orange fox with only one fluffy tail sitting and hugging a small white ermine in its arms, thick dark brown outlines, flat colors, solid pure green background, static camera, the fox and the ermine stay in exactly the same place and size, the ermine stays in the fox's arms the whole time",
-  "negative": "色调艳丽,过曝,细节模糊不清,字幕,风格,作品,画作,整体发灰,最差质量,低质量,JPEG压缩残留,丑陋的,残缺的,多余的手指,画得不好的手部,画得不好的脸部,畸形的,毁容的,形态畸形的肢体,手指融合,杂乱的背景,三条腿,镜头移动,背景变化,photorealistic,3d render,camera zoom,the ermine leaves",
+  "negative": "色调艳丽,过曝,细节模糊不清,字幕,风格,作品,画作,整体发灰,最差质量,低质量,JPEG压缩残留,丑陋的,残缺的,多余的手指,画得不好的手部,画得不好的脸部,畸形的,毁容的,形态畸形的肢体,手指融合,杂乱的背景,三条腿,镜头移动,背景变化,photorealistic,3d render,camera zoom,the ermine leaves,talking,speaking,lip sync,lip movement,chattering",
   "src_fps": 16,
   "segments": [
     {
@@ -10,7 +10,7 @@
       "to": "idle",
       "round": 0,
       "length": 49,
-      "prompt": "the fox breathes gently and blinks once slowly, the ermine blinks, calm and cozy, tiny idle motion only",
+      "prompt": "the fox breathes gently and blinks once slowly, the ermine blinks, calm and cozy, tiny idle motion only, mouths stay gently closed the whole time, not talking",
       "seeds": [
         11,
         22,
@@ -85,7 +85,7 @@
       "to": "watch",
       "round": 2,
       "length": 33,
-      "prompt": "the fox and the ermine keep looking up attentively, the ermine blinks with curiosity, the fox's ears twitch slightly, tiny motion only",
+      "prompt": "the fox and the ermine keep looking up attentively, the ermine blinks with curiosity, the fox's ears twitch slightly, tiny motion only, mouths stay gently closed the whole time, not talking",
       "seeds": [
         11,
         22,
@@ -115,7 +115,7 @@
       "to": "aww",
       "round": 2,
       "length": 33,
-      "prompt": "the fox keeps its tail wrapped around the droopy ermine and slowly pats it, the ermine sniffles a little, the fox stays calm and tender",
+      "prompt": "the fox keeps its tail wrapped around the droopy ermine and slowly pats it, the ermine sniffles a little, the fox stays calm and tender, mouths stay gently closed the whole time, not talking",
       "seeds": [
         11,
         22,
@@ -130,7 +130,7 @@
       "to": "empty",
       "round": 2,
       "length": 49,
-      "prompt": "the ermine keeps sleeping peacefully in the fox's arms, breathing slowly, the fox keeps its cheek resting on the ermine's head and looks down at it lovingly with soft open eyes, very small motion",
+      "prompt": "the ermine keeps sleeping peacefully in the fox's arms, breathing slowly, the fox keeps its cheek resting on the ermine's head and looks down at it lovingly with soft open eyes, very small motion, mouths stay gently closed the whole time, not talking",
       "seeds": [
         11,
         22,
@@ -235,7 +235,7 @@
       "to": "idle",
       "round": 2,
       "length": 25,
-      "prompt": "the fox twitches one ear quickly twice, then back to calm",
+      "prompt": "the fox twitches one ear quickly twice, then back to calm, mouths stay gently closed the whole time, not talking",
       "seeds": [
         11,
         22,
@@ -250,7 +250,7 @@
       "to": "idle",
       "round": 2,
       "length": 33,
-      "prompt": "the ermine nuzzles its head against the fox's chest affectionately, the fox looks down at it with a gentle smile, then back to calm",
+      "prompt": "the ermine nuzzles its head against the fox's chest affectionately, the fox looks down at it with a gentle smile, then back to calm, mouths stay gently closed the whole time, not talking",
       "seeds": [
         11,
         22,
@@ -265,7 +265,7 @@
       "to": "idle",
       "round": 2,
       "length": 41,
-      "prompt": "the little ermine slowly nods off, its head dipping sleepily, the fox looks down at it tenderly, then the ermine wakes up with a small start",
+      "prompt": "the little ermine slowly nods off, its head dipping sleepily, the fox looks down at it tenderly, then the ermine wakes up with a small start, mouths stay gently closed the whole time, not talking",
       "seeds": [
         11,
         22,
