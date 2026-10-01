@@ -19,7 +19,7 @@ from PIL import Image
 
 import comfy
 from post import key_border, keep_largest, key_green
-from gashapon_art import anchors_from_pick, cut_disk, content_hash, stamp, clear_green_fringe, to_tint_gray, split_at, split_cells, square_about_seam, crop_margin
+from gashapon_art import anchors_from_pick, cut_disk, content_hash, stamp, clear_green_fringe, to_tint_gray, split_at, split_cells, square_about_seam, crop_margin, panel_bbox, fit_panel
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
@@ -307,10 +307,14 @@ def cmd_frames_i2i(args):
             print(f'i2i {r} s{n} denoise={denoise[r]}', flush=True)
 
 
+# 外框輸出:1000x750(4:3)畫布,面板固定落在這個位置;外圍的冰晶冠、冰晶簇往外凸
+FRAME_CANVAS = (1000, 750)
+FRAME_PANEL = (120, 190, 880, 610)   # x0, y0, x1, y1
+
+
 def cmd_build_frames(args):
-    """彩色整張外框:去背、裁到內容、統一縮成 4:3。另外量中間奶油色面板的位置,
-    印出 5 張裡最保守(面板最小)的內距百分比,給 prize-frame.css 的 padding 用。
-    挑選紀錄可以指定 dir(為了讓遞進清楚,有的等級是用別的等級的候選圖)。"""
+    """彩色整張外框:去背後以中間的奶油色面板對齊(fit_panel),5 個等級的框身與文字區一模一樣,
+    只有外圍裝飾不同。挑選紀錄可以指定 dir(為了讓遞進清楚,有的等級是用別的等級的候選圖)。"""
     picks = load_cfg().get('picks', {})
     missing = [r for r in RARITIES if f'frame-{r}' not in picks]
     if missing:
@@ -318,27 +322,17 @@ def cmd_build_frames(args):
     dest = ROOT / 'shared' / 'img' / 'frames'
     dest.mkdir(parents=True, exist_ok=True)
     css = ROOT / 'shared' / 'css' / 'prize-frame.css'
-    insets = []
     for r in RARITIES:
         p = picks[f'frame-{r}']
-        full, _ = cutout(OUT / p.get('dir', f'frame-{r}') / f's{p["n"]}.png')
-        im = Image.fromarray(full).resize((880, 660), Image.LANCZOS)
-        a = np.asarray(im).astype(int)
-        h, w = a.shape[:2]
-        # 面板:從中心往四個方向走,碰到跟中心顏色差很多的地方就是面板邊
-        c = a[h // 2, w // 2, :3]
-        far = lambda y, x: np.abs(a[y, x, :3] - c).sum() > 60
-        top = next(y for y in range(h // 2, 0, -1) if far(y, w // 2))
-        bottom = next(y for y in range(h // 2, h) if far(y, w // 2))
-        left = next(x for x in range(w // 2, 0, -1) if far(h // 2, x))
-        right = next(x for x in range(w // 2, w) if far(h // 2, x))
-        insets.append((top / h, (w - right) / w, (h - bottom) / h, left / w))
+        rgb = np.asarray(Image.open(OUT / p.get('dir', f'frame-{r}') / f's{p["n"]}.png').convert('RGB'))
+        rgba = keep_largest(clear_green_fringe(key_border(rgb)))
+        box = panel_bbox(rgba)
+        im = Image.fromarray(fit_panel(rgba, box, FRAME_CANVAS, FRAME_PANEL))
         path = dest / f'frame-{r}.webp'
         webp(im, path)
         if css.exists():
             restamp(css, f'../img/frames/frame-{r}.webp', path)
-        print(r, 'panel inset top/right/bottom/left = ' + ' '.join(f'{v:.3f}' for v in insets[-1]))
-    print('max inset', ' '.join(f'{max(i[k] for i in insets):.3f}' for k in range(4)))
+        print(r, 'panel', box)
 
 
 def review_frames():

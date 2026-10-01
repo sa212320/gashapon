@@ -96,3 +96,37 @@ def crop_margin(img, frac):
     h, w = img.shape[:2]
     my, mx = round(h * frac), round(w * frac)
     return img[my:h - my, mx:w - mx]
+
+
+def panel_bbox(rgba, tol=40.0):
+    """外框中間那塊奶油色面板的範圍 (x0, y0, x1, y1):從正中央往外填色,跟中心顏色相差 tol 以內的
+    連通區域取外接矩形。裝飾凸進面板一點(UR 下緣的寶石)不影響,因為面板其他地方還是連得到邊。"""
+    f = rgba[..., :3].astype(np.float32)
+    h, w = f.shape[:2]
+    near = np.sqrt(((f - f[h // 2, w // 2]) ** 2).sum(-1)) <= tol
+    region = np.zeros((h, w), bool)
+    region[h // 2, w // 2] = True
+    while True:
+        grown = region.copy()
+        grown[1:] |= region[:-1]; grown[:-1] |= region[1:]; grown[:, 1:] |= region[:, :-1]; grown[:, :-1] |= region[:, 1:]
+        grown &= near
+        if (grown == region).all():
+            break
+        region = grown
+    ys, xs = np.nonzero(region)
+    return int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1
+
+
+def fit_panel(rgba, box, canvas, target):
+    """把外框縮放、平移到面板剛好落在 target 的位置,放在 canvas (w, h) 大小的透明畫布上。
+    5 個等級的框外圍裝飾大小不同(UR 有冰晶冠),以面板對齊,框身與文字區才會一模一樣。"""
+    from PIL import Image
+    bx0, by0, bx1, by1 = box
+    tx0, ty0, tx1, ty1 = target
+    sx = (tx1 - tx0) / (bx1 - bx0)
+    sy = (ty1 - ty0) / (by1 - by0)
+    h, w = rgba.shape[:2]
+    scaled = Image.fromarray(rgba).resize((max(1, round(w * sx)), max(1, round(h * sy))), Image.LANCZOS)
+    out = Image.new('RGBA', canvas, (0, 0, 0, 0))
+    out.paste(scaled, (round(tx0 - bx0 * sx), round(ty0 - by0 * sy)))
+    return np.asarray(out)

@@ -1,15 +1,16 @@
 /* 揭曉卡片的外框(2026-10-01 第三版):5 張 ComfyUI 生成的彩色冰雪框,一階比一階華麗。
    卡片固定 4:3、整張圖鋪滿,不用九宮格;名字太長就自動縮字(gashapon/js/fit-text.js)。
    框的顏色不分稀有度(稀有度色在扭蛋殼、標籤、光暈上),只靠裝飾區分等級。
-   圖由 tools/mascot-gen/gashapon.py build-frames 產生;內距是 5 張圖裡最小的面板
-   (build-frames 印出的 max inset:上 23.6%、右 10.8%、下 20.5%、左 10.6%,以高度/寬度計)再留一點邊。
+   圖由 tools/mascot-gen/gashapon.py build-frames 產生:5 張都以中間的奶油色面板對齊,面板固定在
+   1000x750 畫布的 (120,190)–(880,610),外圍裝飾往外凸 —— 換等級時框身跟文字區完全一樣。
    扭蛋機在用;立體扭蛋機之後加上 .prize-frame、data-rarity 就能用(issue #6)。 */
 .prize-frame {
   width: min(88vw, 460px);
   aspect-ratio: 4 / 3;
   max-height: 80dvh;
-  /* padding 的百分比是相對寬度:上 23.6% 高 ≈ 17.7% 寬,下 20.5% 高 ≈ 15.4% 寬 */
-  padding: 19% 13% 16.5%;
+  /* 面板:左右各 12% 寬、上 190/750 高、下 140/750 高;padding 的百分比是相對寬度,
+     所以上 = 190/750×0.75 = 19%、下 = 14%,再各往內留 2% */
+  padding: 21% 14% 16%;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   position: relative;
@@ -23,11 +24,11 @@
   filter: drop-shadow(0 10px 0 rgba(87, 66, 57, .2));
 }
 .prize-frame::before { content: none; }
-.prize-frame[data-rarity="N"]   { background-image: url(../img/frames/frame-N.webp?v=848b51b8); }
-.prize-frame[data-rarity="R"]   { background-image: url(../img/frames/frame-R.webp?v=178d9f9d); }
-.prize-frame[data-rarity="SR"]  { background-image: url(../img/frames/frame-SR.webp?v=80d81f0a); }
-.prize-frame[data-rarity="SSR"] { background-image: url(../img/frames/frame-SSR.webp?v=d5fc34f0); }
-.prize-frame[data-rarity="UR"]  { background-image: url(../img/frames/frame-UR.webp?v=5322a120); }
+.prize-frame[data-rarity="N"]   { background-image: url(../img/frames/frame-N.webp?v=4ce88016); }
+.prize-frame[data-rarity="R"]   { background-image: url(../img/frames/frame-R.webp?v=6bd384be); }
+.prize-frame[data-rarity="SR"]  { background-image: url(../img/frames/frame-SR.webp?v=a28d6069); }
+.prize-frame[data-rarity="SSR"] { background-image: url(../img/frames/frame-SSR.webp?v=610568b4); }
+.prize-frame[data-rarity="UR"]  { background-image: url(../img/frames/frame-UR.webp?v=27431251); }
 
 /* 名字那一格:撐滿中間剩下的空間,fitText 量的就是這一格 */
 .prize-frame .prize-card__name-box {

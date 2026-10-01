@@ -130,3 +130,33 @@ from gashapon_art import crop_margin
 class CropMargin(unittest.TestCase):
     def test_crops_each_side(self):
         self.assertEqual(crop_margin(np.zeros((100, 50, 3), np.uint8), 0.1).shape[:2], (80, 40))
+
+
+from gashapon_art import panel_bbox, fit_panel
+
+
+class Panel(unittest.TestCase):
+    def frame(self, w, h, box):
+        a = np.zeros((h, w, 4), np.uint8)
+        a[...] = (150, 200, 240, 255)                      # 冰藍框
+        x0, y0, x1, y1 = box
+        a[y0:y1, x0:x1] = (255, 250, 235, 255)             # 奶油色面板
+        return a
+
+    def test_panel_bbox_finds_cream_panel(self):
+        self.assertEqual(panel_bbox(self.frame(100, 80, (20, 30, 80, 70))), (20, 30, 80, 70))
+
+    def test_panel_bbox_ignores_ornament_poking_in(self):
+        a = self.frame(100, 80, (20, 30, 80, 70))
+        a[68:70, 45:55] = (150, 200, 240, 255)             # 下緣寶石凸進面板一點
+        self.assertEqual(panel_bbox(a), (20, 30, 80, 70))
+
+    def test_fit_panel_puts_every_panel_in_the_same_place(self):
+        target = (100, 150, 700, 500)
+        for box in [(20, 30, 80, 70), (10, 40, 90, 60)]:
+            out = fit_panel(self.frame(100, 80, box), box, (800, 600), target)
+            self.assertEqual(out.shape[:2], (600, 800))
+            # 縮放用 Lanczos,邊緣附近會有幾個色階的振鈴,所以比較時留 8 的容差
+            close = lambda px, rgb: all(abs(int(a) - b) <= 8 for a, b in zip(px[:3], rgb))
+            self.assertTrue(close(out[325, 400], (255, 250, 235)), out[325, 400])   # 面板中心
+            self.assertTrue(close(out[325, 80], (150, 200, 240)), out[325, 80])     # 面板左邊外面是框
