@@ -61,7 +61,13 @@ for (const g of [TOP_GEO, BOTTOM_GEO]) {
 //   · 比較近的蛋,它的邊框畫在比較遠的蛋的填色**之後** → 邊框不會被吃掉
 //   · 比較遠的蛋,它的邊框畫在比較近的蛋的填色**之前** → 該被擋住的還是擋得住
 // 排序在 render() 每一格重做,因為蛋會滾、深度順序一直在變。
-function shell(geo, edgeGeo, color) {
+// 上下兩半中間的接縫線(2026-10-02 使用者要求,同 2D 上半殼的 border-bottom):
+// 赤道上一圈細的深棕環,掛在上半 —— 裂開時跟著上半飛走,就是上半殼的開口邊。
+// 環要做深度測試:背面那半圈被自己的填色擋住,只看得到朝鏡頭的那一條線。
+const SEAM_GEO = new THREE.TorusGeometry(R * 1.005, R * 0.05, 8, 64).rotateX(Math.PI / 2);
+const SEAM_MAT = new THREE.MeshBasicMaterial({ color: INK });
+
+function shell(geo, edgeGeo, color, seam = false) {
   const g = new THREE.Group();
   const fill = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color }));
   const edge = new THREE.Mesh(edgeGeo, new THREE.MeshBasicMaterial({
@@ -73,6 +79,11 @@ function shell(geo, edgeGeo, color) {
   g.add(edge, fill);
   g.userData.edge = edge;
   g.userData.fill = fill;
+  if (seam) {
+    const ring = new THREE.Mesh(SEAM_GEO, SEAM_MAT);
+    g.add(ring);
+    g.userData.seam = ring;
+  }
   return g;
 }
 
@@ -112,7 +123,7 @@ export function createScene(canvas) {
 
   function makeEgg(c, x, y, z) {
     const group = new THREE.Group();
-    const top = shell(TOP_GEO, TOP_EDGE, new THREE.Color(c.color));
+    const top = shell(TOP_GEO, TOP_EDGE, new THREE.Color(c.color), true);
     const bottom = shell(BOTTOM_GEO, BOTTOM_EDGE, 0xFFFFFF);
     group.add(top, bottom);
 
@@ -320,6 +331,7 @@ export function createScene(canvas) {
       for (const part of [e.top, e.bottom]) {
         part.userData.edge.renderOrder = i * 2;
         part.userData.fill.renderOrder = i * 2 + 1;
+        if (part.userData.seam) part.userData.seam.renderOrder = i * 2 + 1;
       }
     });
   }
