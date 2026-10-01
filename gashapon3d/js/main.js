@@ -5,7 +5,7 @@
 // 用殼色表示升階會跟「殼色隨機」直接打架,小孩看一眼就知道哪顆是大獎。
 import { store, seedState } from './store.js';
 import { openCapsule, tableBatch, refillSetup3d, remaining3d, buildPool3d, remainLabel, nextForTable } from './model.js';
-import { createScene } from './scene.js';
+import { createScene, FOCUS_Y } from './scene.js';
 import { loadSkins, applySkin, tickSkins } from './skin.js';
 import { createRevealFx, particleCount } from '../../shared/js/reveal-fx.js';
 import { RARITIES, RARITY_META } from '../../gashapon/js/constants.js';
@@ -53,7 +53,8 @@ let last = performance.now();
 function loop(now) {
   const dt = Math.min(0.033, (now - last) / 1000);
   last = now;
-  if (!playing) scene.step(dt);
+  // 演出中物理照跑:被點開的那顆釘住,其他蛋從它下面讓開(scene.pin)
+  scene.step(dt);
   // 影子每一格都要更新,連演出期間也是 —— 不然被抽中那顆飛起來,影子會留在原地。
   scene.layout();
   tickSkins(now);
@@ -111,6 +112,7 @@ async function play(result, egg) {
   $('turnBtn').disabled = true;
   $('prizeCard').hidden = true;
   try {
+    scene.pin(egg);
     const from = egg.group.position.clone();
     const q0 = egg.group.quaternion.clone();
     let qUp = q0;
@@ -120,7 +122,7 @@ async function play(result, egg) {
         sfx.drop();
         // 飛到桌子中央、鏡頭推近,同時轉正(上半朝上、正面朝鏡頭),後面換上的花紋才是正的
         await tween(600, k => {
-          egg.group.position.set(from.x * (1 - k), k * 0.9, from.z * (1 - k));
+          egg.group.position.set(from.x * (1 - k), k * FOCUS_Y, from.z * (1 - k));
           egg.group.scale.setScalar(1 + k * 0.25);
           scene.focusView(k);
           scene.upright(egg, k, q0);
@@ -274,7 +276,7 @@ function drawForMe() {
 }
 
 $('turnBtn').addEventListener('click', drawForMe);
-$('shakeBtn').addEventListener('click', () => { if (!playing) { scene.shake(1); sfx.shake?.(2); } });
+$('shakeBtn').addEventListener('click', () => { if (!playing) { scene.shake(); sfx.shake?.(2); } });
 $('scene').addEventListener('click', e => {
   // 獎項卡還開著的話,這一下只負責把它收掉,不要順手開下一顆
   if (playing || dismissPrize()) return;

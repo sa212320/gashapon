@@ -7,6 +7,8 @@
 // 同一組幾何同時負責外觀跟「打開」—— 打開就是把兩個半球分開。
 import * as THREE from 'three';
 import { planarUV } from './skin-math.js';
+import { FLOOR_URL, WALL_URL } from './tray-art.js';
+import { trayShake, SHAKE_SECONDS } from './tray-motion.js';
 
 const R = 0.5;             // 蛋的半徑
 const TABLE_BASE = 3.4;    // 桌面幾何的基準半徑(實際大小靠 scale 跟著顆數變)
@@ -67,6 +69,59 @@ for (const g of [TOP_GEO, BOTTOM_GEO]) {
 const SEAM_GEO = new THREE.TorusGeometry(R * 1.005, R * 0.05, 8, 64).rotateX(Math.PI / 2);
 const SEAM_MAT = new THREE.MeshBasicMaterial({ color: INK });
 
+// 冰雪托盤(2026-10-02):盤底是俯視冰面貼圖,外圍一圈有厚度的冰牆(像首頁卡片那樣)。
+// 牆高直接由蛋高算,跟顆數無關 —— 托盤只在水平方向跟著顆數縮放,牆永遠是蛋的同一個比例。
+const EGG_H = R * 2;
+// 被點開的那顆飛到桌子中央上方這個高度(main.js 的 drop 用 FOCUS_Y)
+export const FOCUS_Y = 1.2;
+const WALL_RATIO = 0.3;                    // 牆高 = 蛋高 × 這個比例(要調牆高只改這裡)
+const FLOOR_Y = -R;
+const WALL_TOP = FLOOR_Y + EGG_H * WALL_RATIO;
+const WALL_IN = TABLE_BASE - 0.12;         // 牆內壁(基準半徑)
+const WALL_OUT = TABLE_BASE + 0.4;         // 牆外壁
+const WALL_FOOT = FLOOR_Y - 0.18;          // 外壁往下多一截,看得出托盤的厚度
+const LIP = (WALL_OUT - WALL_IN) * 0.35;   // 上緣圓弧的高度
+
+// 剖面:內壁底 → 內壁頂 → 圓弧上緣 → 外壁頂 → 外壁底
+function wallProfile(grow = 0) {
+  const pts = [new THREE.Vector2(WALL_IN - grow, FLOOR_Y)];
+  pts.push(new THREE.Vector2(WALL_IN - grow, WALL_TOP));
+  const cx = (WALL_IN + WALL_OUT) / 2;
+  const rx = (WALL_OUT - WALL_IN) / 2 + grow;
+  for (let i = 1; i < 10; i++) {
+    const a = Math.PI - (i / 10) * Math.PI;
+    pts.push(new THREE.Vector2(cx + Math.cos(a) * rx, WALL_TOP + Math.sin(a) * (LIP + grow)));
+  }
+  pts.push(new THREE.Vector2(WALL_OUT + grow, WALL_TOP));
+  pts.push(new THREE.Vector2(WALL_OUT + grow, WALL_FOOT - grow));
+  return pts;
+}
+
+// 牆帶貼圖(上雪、中間一條波浪滴雪線、下面冰)依剖面上的位置挑段落貼:
+//   上緣圓弧 → 只用白色雪的那段(鏡頭往下看時看到的大多是上緣,貼到外框線或滴雪線
+//              會排成一圈灰色鍊條,2026-10-02 實機看到)
+//   外壁     → 從滴雪線一路到冰,側面看得到雪往下滴
+//   內壁     → 只用冰
+// LatheGeometry 的頂點是「每一段 × 剖面上每一點」排的,剖面第 j 點的 v 由這張表決定。
+const WALL_V = (() => {
+  const n = wallProfile().length;           // 0 內壁底、1 內壁頂、2…n-3 上緣、n-2 外壁頂、n-1 外壁底
+  return Array.from({ length: n }, (_, j) => {
+    if (j === 0) return 0.30;
+    if (j === 1) return 0.60;
+    if (j === n - 2) return 0.80;
+    if (j === n - 1) return 0.04;
+    return 0.88;
+  });
+})();
+
+function wallGeometry(phiStart, grow = 0) {
+  const pts = wallProfile(grow);
+  const g = new THREE.LatheGeometry(pts, 96, phiStart, Math.PI);
+  const uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setY(i, WALL_V[i % pts.length]);
+  return g;
+}
+
 function shell(geo, edgeGeo, color, seam = false) {
   const g = new THREE.Group();
   const fill = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color }));
@@ -96,15 +151,50 @@ export function createScene(canvas) {
   const root = new THREE.Group();
   scene.add(root);
 
-  // 桌面:一塊淡色圓盤,讓蛋有地方待著、影子有地方落。
-  // 桌面大小跟著顆數走:全部的蛋都要擺得下,標題寫幾顆桌上就有幾顆。
+  // 托盤跟蛋都放在 stage 裡:搖動就是搖 stage,物理在 stage 的座標系裡算
+  // (球感受到的是「−托盤加速度」的慣性力,見 step())。
+  const stage = new THREE.Group();
+  root.add(stage);
+
+  // 托盤大小跟著顆數走:全部的蛋都要擺得下,標題寫幾顆桌上就有幾顆。
   let TABLE = TABLE_BASE;
-  const table = new THREE.Mesh(
-    new THREE.CircleGeometry(TABLE_BASE, 48),
-    new THREE.MeshBasicMaterial({ color: 0xF2E6D4 }));
-  table.rotation.x = -Math.PI / 2;
-  table.position.y = -R;
-  root.add(table);
+  const loader = new THREE.TextureLoader();
+  const floorTex = loader.load(FLOOR_URL);
+  floorTex.colorSpace = THREE.SRGBColorSpace;
+  const wallTex = loader.load(WALL_URL);
+  wallTex.colorSpace = THREE.SRGBColorSpace;
+  wallTex.wrapS = THREE.RepeatWrapping;
+  wallTex.repeat.set(5, 1);    // 每半圈 5 段;太多段的話波浪的深棕線會擠成一圈灰色鍊條
+
+  const tray = new THREE.Group();
+  stage.add(tray);
+  const floor = new THREE.Mesh(
+    new THREE.CircleGeometry(WALL_IN, 64),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, map: floorTex }));
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = FLOOR_Y;
+  floor.renderOrder = -30;
+  tray.add(floor);
+
+  // 牆分前後兩半:後半在所有蛋之前畫、前半在所有蛋之後畫 ——
+  // 蛋的描邊不做深度測試(見 shell() 的說明),前半牆要是先畫,蛋的描邊會穿過牆畫在牆上。
+  // LatheGeometry 的 phi = 0 在 +z(朝鏡頭)那側:前半 = [-π/2, π/2],後半 = [π/2, 3π/2]。
+  function wallHalf(phiStart, order) {
+    const fill = new THREE.Mesh(wallGeometry(phiStart),
+      new THREE.MeshBasicMaterial({ map: wallTex, side: THREE.DoubleSide }));
+    // 描邊用 FrontSide:剖面的點序讓這圈牆的正面朝內,BackSide 會把整圈牆蓋成一片深棕
+    // (跟 dome() 的點序是同一個坑)
+    const edge = new THREE.Mesh(wallGeometry(phiStart, 0.05),
+      new THREE.MeshBasicMaterial({ color: INK, side: THREE.FrontSide }));
+    edge.renderOrder = order;
+    fill.renderOrder = order + 1;
+    tray.add(edge, fill);
+  }
+  wallHalf(Math.PI / 2, -20);
+  wallHalf(-Math.PI / 2, 100000);
+
+  // 牆內壁(實際半徑):蛋的活動範圍、散開的範圍都以它為準
+  const inner = () => WALL_IN * (TABLE / TABLE_BASE);
 
   const raycaster = new THREE.Raycaster();
   let eggs = [];
@@ -113,12 +203,13 @@ export function createScene(canvas) {
     // 影子跟球是分開加進場景的,所以也要分開移除 ——
     // 只移除球的話,每重發一次牌就會在桌上留下一層對不到任何東西的舊影子。
     for (const e of eggs) {
-      root.remove(e.group);
-      root.remove(e.shadow);
+      stage.remove(e.group);
+      stage.remove(e.shadow);
       e.shadow.geometry.dispose();
       e.shadow.material.dispose();
     }
     eggs = [];
+    pinned = null;
   }
 
   function makeEgg(c, x, y, z) {
@@ -127,17 +218,16 @@ export function createScene(canvas) {
     const bottom = shell(BOTTOM_GEO, BOTTOM_EDGE, 0xFFFFFF);
     group.add(top, bottom);
 
-    // 影子是畫出來的(場上沒有光源)。用暖色而不是純黑 —— 純黑在米色桌面上
-    // 會是一團灰,跟站上其他畫面的暖色調對不起來。
+    // 影子是畫出來的(場上沒有光源)。用冷色調的藍灰配冰面 —— 純黑會是一團髒灰。
     const shadow = new THREE.Mesh(
       new THREE.CircleGeometry(R * 0.92, 24),
-      new THREE.MeshBasicMaterial({ color: 0x9C7B52, transparent: true, opacity: 0.2 }));
+      new THREE.MeshBasicMaterial({ color: 0x5A7FA8, transparent: true, opacity: 0.2 }));
     shadow.rotation.x = -Math.PI / 2;
-    root.add(shadow);
+    stage.add(shadow);
 
     group.position.set(x, y, z);
     group.rotation.y = rand(0, Math.PI * 2);
-    root.add(group);
+    stage.add(group);
     const egg = { group, top, bottom, shadow, capsule: c, v: new THREE.Vector3() };
     eggs.push(egg);
     return egg;
@@ -145,9 +235,10 @@ export function createScene(canvas) {
 
   // 抽完的那顆拿下桌(2026-10-02:不再整桌重排,其他蛋留在原位)
   function removeEgg(egg) {
+    if (pinned === egg) pinned = null;
     eggs = eggs.filter(e => e !== egg);
-    root.remove(egg.group);
-    root.remove(egg.shadow);
+    stage.remove(egg.group);
+    stage.remove(egg.shadow);
     egg.shadow.geometry.dispose();
     egg.shadow.material.dispose();
   }
@@ -155,7 +246,7 @@ export function createScene(canvas) {
   // 補一顆:從桌子上方隨機一點掉進來,落地會彈幾下(物理照常算)
   function dropEgg(capsule) {
     const angle = rand(0, Math.PI * 2);
-    const dist = Math.sqrt(rand(0, 1)) * (TABLE - R * 1.6);
+    const dist = Math.sqrt(rand(0, 1)) * (inner() - R * 1.2);
     const e = makeEgg(capsule, Math.cos(angle) * dist, 3.2, Math.sin(angle) * dist);
     e.v.set(rand(-0.6, 0.6), -1, rand(-0.6, 0.6));
     layout();
@@ -168,11 +259,12 @@ export function createScene(canvas) {
     clear();
     // 面積要夠放下所有的蛋(再留一半的空隙),不然它們會擠成一坨互相卡住。
     TABLE = Math.max(2.6, Math.min(7.2, Math.sqrt(capsules.length) * 1.15));
-    table.scale.setScalar(TABLE / TABLE_BASE);
+    // 只縮水平:牆高由蛋高決定,不跟著顆數變(不然 40 顆時牆會比蛋高)
+    tray.scale.set(TABLE / TABLE_BASE, 1, TABLE / TABLE_BASE);
     capsules.forEach((c, i) => {
       // 散在桌上,不要疊在正中央
       const angle = (i / capsules.length) * Math.PI * 2 + rand(-0.35, 0.35);
-      const dist = Math.sqrt(rand(0.05, 1)) * (TABLE - R * 1.6);
+      const dist = Math.sqrt(rand(0.05, 1)) * (inner() - R * 1.2);
       const e = makeEgg(c, Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
       e.v.set(rand(-1.6, 1.6), rand(0, 2.2), rand(-1.6, 1.6));
     });
@@ -185,9 +277,33 @@ export function createScene(canvas) {
   const GRAVITY = -14;
   const FLOOR_BOUNCE = 0.52;  // 落地會彈,但每次都矮一截,最後會停下來
   const REST = 0.35;          // 彈到這個速度以下就當它停在桌上了
+  // 托盤內凹的回中力。太強的話放著不動時所有蛋會擠成中間一團,被點開的那顆飛到中央時
+  // 下半部會被前面的蛋擋住(2026-10-02);太弱的話搖完會排成一圈貼著牆。
+  const CENTER_PULL = 0.22;
+  // 冰面很滑:托盤加速時,貼在盤底的蛋只被帶走一小部分,大部分是「留在原地、被牆撞回來」
+  const GRIP = 0.2;
+  // 被點開的那顆飛到中央時,周圍這個半徑內的蛋會被推開
+  const CLEAR = R * 4.6;
+
+  let shakeT = -1;            // 搖動開始後經過的秒數;< 0 = 沒在搖
+  let pinned = null;          // 演出中的那顆:不參與物理,其他蛋要讓開
 
   function step(dt) {
+    // 托盤的動作。物理在托盤(stage)的座標系裡算:球感受到的是「−托盤加速度」的慣性力,
+    // 牆跟盤底在這個座標系裡是不動的,碰撞照原本的算法。
+    let ax = 0;
+    let ay = 0;
+    if (shakeT >= 0) {
+      shakeT += dt;
+      const m = trayShake(shakeT);
+      stage.position.set(m.x, m.y, 0);
+      ax = m.ax;
+      ay = m.ay;
+      if (shakeT >= SHAKE_SECONDS) shakeT = -1;
+    }
+
     for (const e of eggs) {
+      if (e === pinned) continue;
       // 水平摩擦只在貼著桌面時才有 —— 在空中被「摩擦」減速看起來很怪。
       const onTable = e.group.position.y <= 0.001;
       if (onTable) {
@@ -195,10 +311,24 @@ export function createScene(canvas) {
         e.v.z *= DAMPING;
         // 桌面當成微微內凹的托盤。沒有這一點的話,撞牆反彈會把所有蛋推到外圈,
         // 搖完會排成一個圓環貼著桌緣 —— 那不像一盤蛋,像跑道。
-        e.v.x -= e.group.position.x * 0.55 * dt;
-        e.v.z -= e.group.position.z * 0.55 * dt;
+        e.v.x -= e.group.position.x * CENTER_PULL * dt;
+        e.v.z -= e.group.position.z * CENTER_PULL * dt;
       }
-      e.v.y += GRAVITY * dt;
+      // 慣性力:在空中完全不受托盤影響;貼著盤底時被摩擦帶走 GRIP 那一份
+      e.v.x -= ax * (onTable ? 1 - GRIP : 1) * dt;
+      // 托盤往上加速 = 盤底把蛋往上頂(等效重力變大);往下加速超過重力,蛋就離開盤底
+      e.v.y += (GRAVITY - ay) * dt;
+      if (pinned) {
+        // 讓開:被點開的那顆在桌子中央上方,下面跟前面的蛋往外推
+        const px = e.group.position.x - pinned.group.position.x;
+        const pz = e.group.position.z - pinned.group.position.z;
+        const d = Math.hypot(px, pz) || 1e-4;
+        if (d < CLEAR) {
+          const k = (CLEAR - d) * 14 * dt;
+          e.v.x += (px / d) * k;
+          e.v.z += (pz / d) * k;
+        }
+      }
 
       e.group.position.x += e.v.x * dt;
       e.group.position.y += e.v.y * dt;
@@ -226,7 +356,7 @@ export function createScene(canvas) {
       }
 
       const d = Math.hypot(e.group.position.x, e.group.position.z);
-      const max = TABLE - R * 1.45;  // 留出描邊跟影子的寬度,球才不會半個掛在桌外
+      const max = inner() - R * 1.05;   // 牆內壁再留一顆蛋的半徑
       if (d > max) {
         const nx = e.group.position.x / d;
         const nz = e.group.position.z / d;
@@ -247,6 +377,7 @@ export function createScene(canvas) {
       for (let j = i + 1; j < eggs.length; j++) {
         const a = eggs[i];
         const b = eggs[j];
+        if (a === pinned || b === pinned) continue;
         // 三維的碰撞:蛋會彈起來,所以高度差也要算進去 ——
         // 只算水平距離的話,一顆在空中、一顆在桌上也會被判定成相撞。
         const dx = b.group.position.x - a.group.position.x;
@@ -281,15 +412,15 @@ export function createScene(canvas) {
     layout();
   }
 
-  // 搖動:一次給每顆蛋一個**大**的三軸隨機速度,然後讓重力跟阻尼收。
-  // 向上那一下是重點 —— 蛋會跳起來、落下、再彈幾下,那才像在搖一盒扭蛋。
-  // (之前是每格加一點點小力、0.4 秒就衰減完,而且只有水平,幾乎看不出來。)
-  function shake(power = 1) {
-    for (const e of eggs) {
-      const angle = rand(0, Math.PI * 2);
-      const speed = rand(2.6, 6.2) * power;
-      e.v.set(Math.cos(angle) * speed, rand(3.4, 7.2) * power, Math.sin(angle) * speed);
-    }
+  // 搖動 = 真的搖托盤(2026-10-02 使用者:「我以為是真的搖動托盤,然後算出上面球要怎麼動」)。
+  // 托盤左右來回、每甩一下往上頂一下(tray-motion.js),球怎麼動全部由 step() 的物理算。
+  function shake() {
+    shakeT = 0;
+  }
+
+  // 演出中的那顆:釘住不參與物理,其他蛋從它下面讓開
+  function pin(egg) {
+    pinned = egg;
   }
 
   // 影子每一格都要跟著走 —— 包括被選中、正在飛起來的那一顆。
@@ -357,7 +488,7 @@ export function createScene(canvas) {
   function look(dist, height, targetY = 0) {
     lastView = [dist, height, targetY];
     const base = Math.hypot(dist, height) || 1;
-    const need = TABLE * 1.1;    // 桌緣 + 描邊 + 影子
+    const need = WALL_OUT * (TABLE / TABLE_BASE) * 1.08;   // 牆外緣 + 描邊
     const tall = 1.1;            // 蛋大概這麼高
     const vHalf = (camera.fov * Math.PI) / 360;
     const hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
@@ -378,8 +509,20 @@ export function createScene(canvas) {
   // 點開一顆時推近。k: 0(整桌)→ 1(看那一顆)。
   // 推近幅度刻意留得很保守 —— 推太近的話那顆會脹滿畫面、旁邊沒被選到的蛋
   // 也會擠爆邊緣,看起來像壞掉。
+  // 2026-10-02:原本只是把整桌的取景縮一點點,蛋多時桌子很大、鏡頭很遠,飛到中央的那顆
+  // 在畫面上還是一小顆、還被前面的蛋擋住。改成從整桌取景平滑移到「對著那顆蛋的近景」:
+  // 近景的距離固定(跟桌子大小無關),窄螢幕再依長寬比往後退,蛋加粒子才放得下。
+  const HOME = new THREE.Vector3();
+  const CLOSE = new THREE.Vector3();
   function focusView(k) {
-    look(TABLE * 1.62 - k * TABLE * 0.34, TABLE * 1.82 - k * TABLE * 0.62, k * 0.75);
+    look(TABLE * 1.62, TABLE * 1.82);
+    HOME.copy(camera.position);
+    const vHalf = (camera.fov * Math.PI) / 360;
+    const hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
+    const fit = Math.max(1, Math.tan(vHalf) / Math.tan(hHalf) * 0.8);   // 窄螢幕退一點
+    CLOSE.set(0, FOCUS_Y + 2.4 * fit, 3.9 * fit);
+    camera.position.lerpVectors(HOME, CLOSE, k);
+    camera.lookAt(0, FOCUS_Y * k, 0);
   }
 
   const AIM = new THREE.Object3D();
@@ -418,6 +561,7 @@ export function createScene(canvas) {
     dropEgg,
     step,
     shake,
+    pin,
     layout,
     homeView,
     focusView,
