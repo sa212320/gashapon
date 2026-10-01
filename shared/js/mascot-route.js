@@ -27,6 +27,8 @@ export function validate(manifest) {
   if (!Array.isArray(segs)) throw new Error('segments.json 不合法:缺 segments 陣列');
   const errs = [];
   const seen = new Set();
+  const positive = (v) => typeof v === 'number' && v > 0;
+  if (!positive(manifest.frame?.w) || !positive(manifest.frame?.h)) errs.push('frame.w / frame.h 要是正數');
 
   for (const s of segs) {
     if (seen.has(s.id)) errs.push(`${s.id}: id 重複`);
@@ -38,6 +40,8 @@ export function validate(manifest) {
     if (s.kind === 'fidget' && s.from !== 'idle') errs.push(`${s.id}: fidget 只能掛在 idle`);
     if (s.kind === 'transition' && !isRequired(s.from, s.to)) errs.push(`${s.id}: 不在模型的 10 條過渡邊裡`);
     if (s.frames != null && s.frames < 2) errs.push(`${s.id}: frames 至少要 2`);
+    // fps=0 會讓逐格時鐘變成 setTimeout(tick, Infinity),瀏覽器當成約 0ms,空轉吃滿 CPU
+    if (s.fps != null && !positive(s.fps)) errs.push(`${s.id}: fps 要是正數`);
   }
 
   const fpsSet = new Set(segs.map(s => s.fps).filter(v => v != null));

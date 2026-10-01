@@ -115,3 +115,23 @@ test('loopOf / fidgetsOf', () => {
   assert.equal(loopOf(m, 'watch').id, 'watch-loop');
   assert.deepEqual(fidgetsOf(m).map(s => s.id), ['idle-ear', 'idle-doze']);
 });
+
+// 審查發現:validate() 沒檢查 frame 與 fps 的值。少了 frame,mascot.js 的
+// start() 會在 .then() 裡丟 TypeError(沒人接);fps=0 時 setTimeout(tick, Infinity)
+// 在瀏覽器裡約等於 0ms,逐格時鐘會空轉吃滿 CPU。
+test('frame 缺漏或寬高不是正數 → 丟錯', () => {
+  for (const frame of [undefined, {}, { w: 0, h: 43 }, { w: 48, h: -1 }, { w: '48', h: 43 }]) {
+    const m = makeManifest();
+    m.frame = frame;
+    assert.throws(() => validate(m), /frame/, JSON.stringify(frame));
+  }
+});
+
+test('fps 不是正數 → 丟錯', () => {
+  for (const fps of [0, -12, '12']) {
+    const m = makeManifest();
+    for (const s of m.segments) s.fps = fps;
+    assert.throws(() => validate(m), /fps/, String(fps));
+  }
+});
+

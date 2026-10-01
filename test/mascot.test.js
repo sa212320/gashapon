@@ -245,3 +245,24 @@ test('回傳的 API 只剩 setPose / getState / stop / el(不再有 flyTo / home
   const m = mount();
   assert.deepEqual(Object.keys(m).filter(k => k !== 'timers').sort(), ['el', 'getState', 'setPose', 'stop']);
 });
+
+test('start() 本身出錯也只警告,不留下沒人接的 rejection', async () => {
+  const warns = [];
+  const origWarn = console.warn;
+  console.warn = (...a) => warns.push(a);
+  const unhandled = [];
+  const onUnhandled = (e) => unhandled.push(e);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    // loadImage 同步丟錯:createSheets() 在 start() 裡呼叫它,模擬 start() 中途出事
+    const boom = () => { throw new Error('boom'); };
+    mountMascots({ doc: fakeDoc(), manifest: null, loadManifest: () => Promise.resolve(makeManifest()), loadImage: boom, timers: fakeTimers() });
+    await settle();
+    await settle();
+    assert.equal(unhandled.length, 0, String(unhandled[0]));
+  } finally {
+    console.warn = origWarn;
+    process.off('unhandledRejection', onUnhandled);
+  }
+});
+

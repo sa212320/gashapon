@@ -117,8 +117,10 @@ export function mountMascots({
   if (manifest) {
     start(manifest);
   } else {
-    loadManifest().then(start, (err) => {
-      console.warn('[mascot] 抓不到 segments.json,吉祥物不顯示', err);
+    // .catch 放在 .then(start) 後面:start() 自己丟錯也要接住,只警告,
+    // 不能變成沒人接的 rejection(吉祥物是裝飾,不能讓頁面出現錯誤)
+    loadManifest().then(start).catch((err) => {
+      console.warn('[mascot] 吉祥物載入失敗,不顯示', err);
     });
   }
 
