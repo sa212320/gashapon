@@ -441,3 +441,46 @@ test('量角落位置時元素已經套上 .mascots —— flyTo 的位移才會
   assert.equal(m.el.style.getPropertyValue('--fly-y'), '165px');
 });
 
+// 手機上揭曉錨點在卡片右上角,卡片又幾乎貼齊螢幕右緣 —— 照錨點飛,吉祥物
+// 有一半在螢幕外。落點要夾在畫面內(留 8px 邊),而且要算進揭曉時的放大
+// 倍率(--reveal-scale,以腳為支點)。
+function withViewport(w, h, scale, fn) {
+  const saved = { iw: globalThis.innerWidth, ih: globalThis.innerHeight, gcs: globalThis.getComputedStyle };
+  globalThis.innerWidth = w;
+  globalThis.innerHeight = h;
+  globalThis.getComputedStyle = () => ({ getPropertyValue: (n) => (n === '--reveal-scale' ? String(scale) : '') });
+  try { fn(); } finally {
+    globalThis.innerWidth = saved.iw;
+    globalThis.innerHeight = saved.ih;
+    globalThis.getComputedStyle = saved.gcs;
+  }
+}
+
+test('錨點太靠右:落點往左夾回畫面內(含放大倍率)', () => {
+  withViewport(400, 800, 1.5, () => {
+    const m = mount();
+    m.flyTo(anchorAt(390, 300));
+    // 寬 100 放大 1.5 = 150;中心最多到 400 - 8 - 75 = 317;角落中心 x = 50
+    assert.equal(m.el.style.getPropertyValue('--fly-x'), '267px');
+  });
+});
+
+test('錨點太靠上:落點往下夾,放大後的頭頂不出畫面', () => {
+  withViewport(400, 800, 1.5, () => {
+    const m = mount();
+    m.flyTo(anchorAt(200, 0));
+    // 高 80 放大 1.5 = 120,以腳為支點:腳(未放大的底邊)至少要在 8 + 120 = 128
+    // 未放大的中心 y = 腳 - 40 = 88;角落中心 y = 40
+    assert.equal(m.el.style.getPropertyValue('--fly-y'), '48px');
+  });
+});
+
+test('錨點在畫面中間:不夾,照原本的位移', () => {
+  withViewport(1280, 800, 1.35, () => {
+    const m = mount();
+    m.flyTo(anchorAt(600, 400));
+    assert.equal(m.el.style.getPropertyValue('--fly-x'), '555px');
+    assert.equal(m.el.style.getPropertyValue('--fly-y'), '365px');
+  });
+});
+

@@ -28,7 +28,11 @@
   position: fixed;
   left: 16px;
   bottom: 16px;
-  width: clamp(96px, 15vh, 180px);
+  /* 2026-10-01 使用者看了覺得太小,放大一級(原本 clamp(96px, 15vh, 180px)、
+     揭曉 1.1 倍)。手機在下面的 media query 維持原尺寸,不然會蓋到音效按鈕。 */
+  width: clamp(140px, 28vh, 300px);
+  /* JS 的 flyTo() 會讀這個值,把揭曉落點夾在畫面內 */
+  --reveal-scale: 1.35;
   aspect-ratio: var(--mascot-aspect, 10 / 9);
   pointer-events: none;   /* 這層永遠不可點,飛行途中也是 */
   z-index: 50;            /* 蓋在揭曉面板之上;設定面板是 <dialog>,在 top layer,蓋不到也不需要蓋 */
@@ -51,13 +55,20 @@
 
 /* 飛到揭曉區時放大一點,因為那是主角時刻。 */
 .mascots--at-reveal {
-  transform: translate3d(var(--fly-x), var(--fly-y), 0) scale(1.1);
+  transform: translate3d(var(--fly-x), var(--fly-y), 0) scale(var(--reveal-scale));
 }
 
 .mascots__canvas {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+@media (max-width: 600px) {
+  .mascots:not(.mascots--home) {
+    width: clamp(96px, 15vh, 180px);
+    --reveal-scale: 1.1;
+  }
 }
 
 /* 錨點只是座標,不是容器。它不能佔空間,也不能被看到。 */

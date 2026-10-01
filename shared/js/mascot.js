@@ -39,6 +39,7 @@ const MANIFEST_URL = new URL('../img/mascot/segments.json', import.meta.url).hre
 
 const FLY_TILT_DEG = 5;
 const FLY_TILT_LEVEL_MS = 260;
+const VIEW_MARGIN = 8;
 
 async function defaultLoadManifest() {
   // no-cache:每次都向伺服器確認一次。圖的網址帶內容雜湊(見 tools/mascot-gen/gen.py
@@ -184,6 +185,25 @@ export function mountMascots({
     lastFlyY = ny;
   }
 
+  // 揭曉落點夾在畫面內(留 VIEW_MARGIN)。手機上錨點在卡片右上角、卡片又
+  // 幾乎貼齊螢幕右緣,照錨點飛會有一半在螢幕外。揭曉時會放大 --reveal-scale
+  // 倍、以腳為支點,所以寬度看放大後的,高度往上長。量不到畫面大小(測試
+  // 環境)就不夾。
+  function clampToViewport(cx, cy, box) {
+    const vw = globalThis.innerWidth;
+    const vh = globalThis.innerHeight;
+    if (!vw || !vh) return [cx, cy];
+    const s = parseFloat(globalThis.getComputedStyle?.(el)?.getPropertyValue('--reveal-scale')) || 1;
+    const halfW = (box.width * s) / 2;
+    const x = Math.min(Math.max(cx, VIEW_MARGIN + halfW), vw - VIEW_MARGIN - halfW);
+    // 未放大時的底邊(腳)= cy + h/2;放大後頭頂 = 腳 - h*s
+    const feet = Math.min(
+      Math.max(cy + box.height / 2, VIEW_MARGIN + box.height * s),
+      vh - VIEW_MARGIN,
+    );
+    return [x, feet - box.height / 2];
+  }
+
   function applyPose(next) {
     if (!POSES.includes(next)) return;   // 這一關順便擋掉 'doze'
     wanted = next;
@@ -230,10 +250,12 @@ export function mountMascots({
       const homeCenterY = home.top + home.height / 2;
       // 位移用 transform,不改 left/bottom —— transform 跑在合成器上,
       // 而且不會觸發整頁重排。moveTo() 順便算飛行途中要往哪個方向傾斜。
-      moveTo(
-        rect.left + rect.width / 2 - homeCenterX,
-        rect.top + rect.height / 2 - homeCenterY,
+      const [cx, cy] = clampToViewport(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+        home,
       );
+      moveTo(cx - homeCenterX, cy - homeCenterY);
       placement = 'reveal';
       paint();
     },
