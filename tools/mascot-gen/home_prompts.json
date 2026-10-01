@@ -8,5 +8,9 @@
     "ghostleg": "a ladder lottery drawn on a sheet of paper: several colorful vertical lines connected by short horizontal rungs, small wrapped gift boxes with ribbons at the bottom of the lines, snowy background",
     "smash": "a round frozen ice rink seen from above at an angle, colorful round curling stones sliding on the shiny ice, snowy pine trees around the rink"
   },
-  "sign": "a single wide wooden signboard plank, completely blank with nothing written on it, fluffy snow piled on its top edge, small pine branches and red berries on both ends, centered, on a solid pure green background"
+  "sign": "a single wide wooden signboard plank, completely blank with nothing written on it, fluffy white snow piled on its top edge, one small sprig of holly leaves with red berries on each end, the signboard alone with nothing else around it, no shadow, isolated on a solid flat bright pure green #00FF00 background",
+  "sign_style": "flat 2D cartoon illustration, cute chibi style, flat colors, thick dark brown outlines",
+  "picks": {
+    "sign": 2
+  }
 }

@@ -7,7 +7,8 @@
   $PY tools/mascot-gen/home.py sign             # 標題木牌(綠底,3 個 seed)
   $PY tools/mascot-gen/home.py review           # 產生比較頁 tools/mascot-gen/review/home.html
   $PY tools/mascot-gen/home.py pick ichiban 2   # 記錄挑選;拼圖的話 pick sheet 2
-  $PY tools/mascot-gen/home.py build            # 輸出 img/home/*.webp
+  $PY tools/mascot-gen/home.py build-sign       # 輸出 img/home/sign.webp
+  $PY tools/mascot-gen/home.py build-cards      # 輸出 img/home/<模式>.webp(卡片插畫延到各模式的 issue)
 """
 import argparse
 import json
@@ -19,7 +20,7 @@ import numpy as np
 from PIL import Image
 
 import comfy
-from post import key_green
+from post import key_border, keep_largest
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
@@ -68,7 +69,8 @@ def cmd_cards(args):
 
 def cmd_sign(args):
     cfg = load_cfg()
-    generate(f'{cfg["style"]}, {cfg["sign"]}', cfg['negative'], SIGN_W, SIGN_H, 'sign')
+    # 木牌不用卡片的畫風描述:裡面的「雪地、粉彩」會讓模型把綠底畫成灰綠
+    generate(f'{cfg["sign_style"]}, {cfg["sign"]}', cfg['negative'], SIGN_W, SIGN_H, 'sign')
 
 
 REVIEW = """<!doctype html>
@@ -133,18 +135,28 @@ def card_images(cfg):
     return {m: Image.open(OUT / m / f's{picks[m]}.png').convert('RGB') for m in MODES}
 
 
-def cmd_build(args):
+def cmd_build_cards(args):
+    DEST.mkdir(parents=True, exist_ok=True)
+    for m, im in card_images(load_cfg()).items():
+        webp(im.resize((640, 480), Image.LANCZOS), DEST / f'{m}.webp')
+    report()
+
+
+def cmd_build_sign(args):
     cfg = load_cfg()
     if 'sign' not in cfg.get('picks', {}):
         sys.exit('還沒 pick:sign')
     DEST.mkdir(parents=True, exist_ok=True)
-    for m, im in card_images(cfg).items():
-        webp(im.resize((640, 480), Image.LANCZOS), DEST / f'{m}.webp')
     sign = Image.open(OUT / 'sign' / f's{cfg["picks"]["sign"]}.png').convert('RGB')
-    rgba = Image.fromarray(key_green(np.asarray(sign)))
+    # z_image 不保證畫出純綠底,所以從邊緣往內填色去背,再清掉散落的小點
+    rgba = Image.fromarray(keep_largest(key_border(np.asarray(sign))))
     rgba = rgba.crop(rgba.getbbox())          # 裁掉去背後四周的透明邊
     rgba.thumbnail((800, 400), Image.LANCZOS)
     webp(rgba, DEST / 'sign.webp')
+    report()
+
+
+def report():
     total = sum(p.stat().st_size for p in DEST.glob('*.webp'))
     print(f'img/home 共 {total / 1024:.0f} KB')
 
@@ -157,9 +169,10 @@ def main():
     sub.add_parser('sign')
     sub.add_parser('review')
     p = sub.add_parser('pick'); p.add_argument('name', choices=['sheet', *MODES, 'sign']); p.add_argument('n', type=int)
-    sub.add_parser('build')
+    sub.add_parser('build-cards')
+    sub.add_parser('build-sign')
     args = ap.parse_args()
-    {'sheet': cmd_sheet, 'cards': cmd_cards, 'sign': cmd_sign, 'review': cmd_review, 'pick': cmd_pick, 'build': cmd_build}[args.cmd](args)
+    {'sheet': cmd_sheet, 'cards': cmd_cards, 'sign': cmd_sign, 'review': cmd_review, 'pick': cmd_pick, 'build-cards': cmd_build_cards, 'build-sign': cmd_build_sign}[args.cmd](args)
 
 
 if __name__ == '__main__':

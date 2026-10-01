@@ -58,3 +58,51 @@ def select_frames(frames, end):
     if not 2 <= end < len(frames):
         raise ValueError(f'結束格 {end} 超出範圍 2..{len(frames) - 1}')
     return list(frames[:end + 1])
+
+
+def key_border(rgb, tol=40.0):
+    """從圖片邊緣往內填色去背:跟四個角落平均色相差 tol 以內、而且跟邊緣連通的
+    像素變透明。給不保證畫出純綠背景的模型用(z_image 會把綠底畫成灰綠、帶陰影)。
+    物件要有深色外框把背景隔開,外框內跟背景同色的地方才不會被吃掉。"""
+    f = rgb.astype(np.float32)
+    h, w, _ = f.shape
+    corners = np.array([f[0, 0], f[0, -1], f[-1, 0], f[-1, -1]]).mean(axis=0)
+    near = np.sqrt(((f - corners) ** 2).sum(axis=-1)) <= tol
+    bg = np.zeros((h, w), bool)
+    bg[0, :] = near[0, :]; bg[-1, :] = near[-1, :]; bg[:, 0] = near[:, 0]; bg[:, -1] = near[:, -1]
+    while True:
+        grown = bg.copy()
+        grown[1:] |= bg[:-1]; grown[:-1] |= bg[1:]; grown[:, 1:] |= bg[:, :-1]; grown[:, :-1] |= bg[:, 1:]
+        grown &= near
+        if (grown == bg).all():
+            break
+        bg = grown
+    alpha = np.where(bg, 0, 255).astype(np.uint8)
+    return np.dstack([rgb, alpha])
+
+
+def keep_largest(rgba):
+    """只留下面積最大的不透明連通塊(主體),去背後四周散落的小點、小葉子都清掉。"""
+    opaque = rgba[..., 3] > 0
+    h, w = opaque.shape
+    label = np.zeros((h, w), np.int32)
+    sizes = [0]
+    for y, x in zip(*np.nonzero(opaque)):
+        if label[y, x]:
+            continue
+        n = len(sizes)
+        stack = [(y, x)]
+        label[y, x] = n
+        count = 0
+        while stack:
+            cy, cx = stack.pop()
+            count += 1
+            for ny, nx in ((cy + 1, cx), (cy - 1, cx), (cy, cx + 1), (cy, cx - 1)):
+                if 0 <= ny < h and 0 <= nx < w and opaque[ny, nx] and not label[ny, nx]:
+                    label[ny, nx] = n
+                    stack.append((ny, nx))
+        sizes.append(count)
+    out = rgba.copy()
+    if len(sizes) > 1:
+        out[label != int(np.argmax(sizes))] = 0
+    return out

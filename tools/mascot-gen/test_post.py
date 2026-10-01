@@ -3,7 +3,7 @@ import unittest
 
 import numpy as np
 
-from post import key_green, blend_seam, resample, make_sheet, select_frames
+from post import key_green, blend_seam, resample, make_sheet, select_frames, key_border, keep_largest
 
 
 def px(rgb):
@@ -86,6 +86,48 @@ class SelectFrames(unittest.TestCase):
             select_frames(list(range(33)), 33)
         with self.assertRaises(ValueError):
             select_frames(list(range(33)), 1)
+
+
+class KeyBorder(unittest.TestCase):
+    """z_image 不一定聽話畫純綠背景(會畫成灰綠、還帶陰影),所以改成:從圖片
+    邊緣往內填色,跟角落顏色相近、而且跟邊緣連通的像素才變透明。深色外框擋住
+    填色,物件內部就算跟背景同色也不會被吃掉。"""
+
+    def setUp(self):
+        # 20x20 灰綠背景,中間 10x10 的物件:2px 深棕外框,內部故意跟背景同色
+        self.bg = (120, 140, 110)
+        a = np.full((20, 20, 3), self.bg, np.uint8)
+        a[5:15, 5:15] = (80, 50, 40)
+        a[7:13, 7:13] = self.bg
+        self.img = a
+
+    def test_background_becomes_transparent(self):
+        out = key_border(self.img)
+        self.assertEqual(out[0, 0, 3], 0)
+        self.assertEqual(out[19, 10, 3], 0)
+
+    def test_outline_and_enclosed_interior_stay_opaque(self):
+        out = key_border(self.img)
+        self.assertEqual(out[5, 5, 3], 255)
+        self.assertEqual(out[10, 10, 3], 255, '外框裡面跟背景同色也要保留')
+
+    def test_slightly_different_shadow_is_removed(self):
+        a = self.img.copy()
+        a[16:19, 4:16] = (105, 125, 95)          # 物件下方稍暗的陰影
+        out = key_border(a)
+        self.assertEqual(out[17, 10, 3], 0)
+
+
+class KeepLargest(unittest.TestCase):
+    def test_isolated_specks_removed_main_object_kept(self):
+        a = np.zeros((20, 20, 4), np.uint8)
+        a[5:15, 5:15] = (200, 150, 100, 255)    # 主體
+        a[1, 1] = (90, 160, 90, 255)            # 散落的小點
+        a[18:20, 17:20] = (90, 160, 90, 255)    # 另一小塊
+        out = keep_largest(a)
+        self.assertEqual(out[10, 10, 3], 255)
+        self.assertEqual(out[1, 1, 3], 0)
+        self.assertEqual(out[19, 18, 3], 0)
 
 
 if __name__ == '__main__':
