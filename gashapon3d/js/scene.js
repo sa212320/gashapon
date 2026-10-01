@@ -114,11 +114,53 @@ const WALL_V = (() => {
   });
 })();
 
+// 畫出來的明暗(2026-10-02:沒有光源時托盤看起來是平的一片,使用者「我以為會更像碗」)。
+// 不打光、維持平塗,跟扭蛋殼的月牙暗面同一招:用頂點色把貼圖壓暗。
+//   剖面:內壁越往下越暗(牆擋住的感覺)、上緣朝內那側最亮、朝外那側跟外壁暗一階
+//   左右:光從左上來,右半邊整圈再暗一點(同 2D 扭蛋殼右側的暗面)
+const WALL_SHADE = (() => {
+  const n = wallProfile().length;
+  return Array.from({ length: n }, (_, j) => {
+    if (j === 0) return 0.72;                 // 內壁底
+    if (j === 1) return 0.84;                 // 內壁頂
+    if (j === n - 1) return 0.70;             // 外壁底
+    if (j === n - 2) return 0.80;             // 外壁頂
+    const t = (j - 2) / (n - 5);              // 上緣:朝內 0 → 朝外 1
+    return 1 - 0.14 * t;
+  });
+})();
+
 function wallGeometry(phiStart, grow = 0) {
   const pts = wallProfile(grow);
   const g = new THREE.LatheGeometry(pts, 96, phiStart, Math.PI);
   const uv = g.attributes.uv;
-  for (let i = 0; i < uv.count; i++) uv.setY(i, WALL_V[i % pts.length]);
+  const pos = g.attributes.position;
+  const col = new Float32Array(uv.count * 3);
+  for (let i = 0; i < uv.count; i++) {
+    uv.setY(i, WALL_V[i % pts.length]);
+    const side = Math.max(0, pos.getX(i) / WALL_OUT);   // 右半邊 0 → 1
+    const k = WALL_SHADE[i % pts.length] * (1 - 0.1 * side);
+    col[i * 3] = k * 0.96;
+    col[i * 3 + 1] = k * 0.98;
+    col[i * 3 + 2] = k;                               // 暗面偏冷,不要變成髒灰
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return g;
+}
+
+// 盤底:中央最亮,往牆邊漸暗 —— 看起來是凹下去的
+function floorGeometry() {
+  const g = new THREE.RingGeometry(0, WALL_IN, 64, 6);
+  const pos = g.attributes.position;
+  const col = new Float32Array(pos.count * 3);
+  for (let i = 0; i < pos.count; i++) {
+    const r = Math.hypot(pos.getX(i), pos.getY(i)) / WALL_IN;
+    const k = 1 - 0.22 * r * r;
+    col[i * 3] = k * 0.94;
+    col[i * 3 + 1] = k * 0.97;
+    col[i * 3 + 2] = k;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
   return g;
 }
 
@@ -168,9 +210,17 @@ export function createScene(canvas) {
 
   const tray = new THREE.Group();
   stage.add(tray);
-  const floor = new THREE.Mesh(
-    new THREE.CircleGeometry(WALL_IN, 64),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, map: floorTex }));
+  // 托盤落在雪地上的影子:不然整個托盤像浮在半空
+  const groundShadow = new THREE.Mesh(
+    new THREE.CircleGeometry(WALL_OUT * 1.1, 64),
+    new THREE.MeshBasicMaterial({ color: 0x5A7FA8, transparent: true, opacity: 0.22, depthWrite: false }));
+  groundShadow.rotation.x = -Math.PI / 2;
+  groundShadow.position.set(0.25, WALL_FOOT - 0.02, 0.35);
+  groundShadow.renderOrder = -40;
+  tray.add(groundShadow);
+
+  const floor = new THREE.Mesh(floorGeometry(),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, map: floorTex, vertexColors: true }));
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = FLOOR_Y;
   floor.renderOrder = -30;
@@ -181,7 +231,7 @@ export function createScene(canvas) {
   // LatheGeometry 的 phi = 0 在 +z(朝鏡頭)那側:前半 = [-π/2, π/2],後半 = [π/2, 3π/2]。
   function wallHalf(phiStart, order) {
     const fill = new THREE.Mesh(wallGeometry(phiStart),
-      new THREE.MeshBasicMaterial({ map: wallTex, side: THREE.DoubleSide }));
+      new THREE.MeshBasicMaterial({ map: wallTex, side: THREE.DoubleSide, vertexColors: true }));
     // 描邊用 FrontSide:剖面的點序讓這圈牆的正面朝內,BackSide 會把整圈牆蓋成一片深棕
     // (跟 dome() 的點序是同一個坑)
     const edge = new THREE.Mesh(wallGeometry(phiStart, 0.05),
