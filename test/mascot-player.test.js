@@ -1,10 +1,14 @@
 // 逐格播放器。模型裡最容易做錯的三件事全在這裡釘死:
 // (1) 換一次姿勢可能是好幾段 (2) pending 只有一格 (3) 循環可隨時離開、
 // 過渡段不可打斷。
+//
+// 修訂(2026-10-01):離開循環原本是「新片段疊在舊循環上 4 格淡入」,實際
+// 畫面上尾巴擺動幅度大,兩層疊在一起會出現錯位的殘影。改成「往最近的
+// 關鍵圖快轉(每格跳 SEEK_STEP 格),到了再接下一段」—— 任何時刻都只畫一層。
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createPlayer, CROSSFADE_FRAMES, FALLBACK_FRAMES } from '../shared/js/mascot-player.js';
+import { createPlayer, SEEK_STEP, FALLBACK_FRAMES } from '../shared/js/mascot-player.js';
 import { makeManifest } from './mascot-route.test.js';
 
 // 過渡 4 格、循環 6 格、小動作 3 格,fps 16。
@@ -40,43 +44,66 @@ test('循環繞回從第 1 格開始(最後一格 = 第 0 格,連播會頓一格
   assert.equal(top(p).index, 1);
 });
 
-test('循環途中 request → 當格就離開:新片段第 0 格疊在舊循環上淡入', () => {
+test('SEEK_STEP 是 3', () => {
+  assert.equal(SEEK_STEP, 3);
+});
+
+test('循環途中 request → 往最近的關鍵圖快轉,到了下一格接上新片段', () => {
   const p = createPlayer({ manifest: M });
-  steps(p, 2);                 // idle-loop 第 2 格
+  steps(p, 2);                 // idle-loop 第 2 格:往回 2、往前 3 → 往回
   p.request('watch');
   p.step();
-  const [under, over] = p.view().layers;
-  assert.deepEqual(under, { kind: 'seg', id: 'idle-loop', index: 3, alpha: 1 });
-  assert.deepEqual(over, { kind: 'seg', id: 'idle-watch', index: 0, alpha: 1 / CROSSFADE_FRAMES });
-});
-
-test('交叉淡入 4 格後只剩新片段', () => {
-  // 過渡段要比淡入長,不然淡入還沒結束過渡就播完了
-  const p = createPlayer({ manifest: makeManifest({ frames: { transition: 8 } }) });
-  p.request('watch');
-  p.step();                                   // 淡入第 1/4
-  steps(p, CROSSFADE_FRAMES - 1);             // 2/4, 3/4, 4/4
-  assert.equal(p.view().layers.length, 2);
-  assert.equal(top(p).alpha, 1);
+  assert.deepEqual(p.view().layers, [{ kind: 'seg', id: 'idle-loop', index: 0, alpha: 1 }]);
   p.step();
-  assert.equal(p.view().layers.length, 1);
-  assert.equal(top(p).id, 'idle-watch');
+  assert.deepEqual(p.view().layers, [{ kind: 'seg', id: 'idle-watch', index: 1, alpha: 1 }]);
 });
 
-test('交叉淡入時底下的舊循環也在往前走,而且會繞回第 1 格', () => {
+test('離終點比較近就往前快轉(最後一格也是關鍵圖)', () => {
   const p = createPlayer({ manifest: M });
   p.setFidgetAllowed(false);
-  steps(p, 4);                 // idle-loop 第 4 格
+  steps(p, 4);                 // 第 4 格:往回 4、往前 1
   p.request('watch');
-  p.step();                    // 底下 5
-  p.step();                    // 底下繞回 1
-  assert.deepEqual(p.view().layers[0], { kind: 'seg', id: 'idle-loop', index: 1, alpha: 1 });
+  p.step();
+  assert.deepEqual(top(p), { kind: 'seg', id: 'idle-loop', index: 5, alpha: 1 });
+  p.step();
+  assert.deepEqual(top(p), { kind: 'seg', id: 'idle-watch', index: 1, alpha: 1 });
+});
+
+test('快轉每格跳 SEEK_STEP 格,而且全程只有一層(不會有殘影)', () => {
+  const p = createPlayer({ manifest: makeManifest({ frames: { loop: 12 } }) });
+  p.setFidgetAllowed(false);
+  steps(p, 5);                 // 第 5 格:往回 5、往前 6
+  p.request('watch');
+  p.step();
+  assert.deepEqual(p.view().layers, [{ kind: 'seg', id: 'idle-loop', index: 2, alpha: 1 }]);
+  p.step();
+  assert.deepEqual(p.view().layers, [{ kind: 'seg', id: 'idle-loop', index: 0, alpha: 1 }]);
+  p.step();
+  assert.deepEqual(p.view().layers, [{ kind: 'seg', id: 'idle-watch', index: 1, alpha: 1 }]);
+});
+
+test('已經停在關鍵圖上(第 0 格)就不用等,當格接上新片段', () => {
+  const p = createPlayer({ manifest: M });
+  p.request('watch');
+  p.step();
+  assert.deepEqual(top(p), { kind: 'seg', id: 'idle-watch', index: 1, alpha: 1 });
+});
+
+test('快轉途中又 request:到關鍵圖時只看最後一個', () => {
+  const p = createPlayer({ manifest: makeManifest({ frames: { loop: 12 } }) });
+  p.setFidgetAllowed(false);
+  steps(p, 5);
+  p.request('watch');
+  p.step();                    // 2
+  p.request('aww');
+  p.step();                    // 0
+  p.step();
+  assert.equal(top(p).id, 'idle-aww');
 });
 
 test('過渡段途中 request 不會打斷,播到最後一格才轉向', () => {
   const p = createPlayer({ manifest: M });
   p.request('watch');
-  p.step();                    // idle-watch 0
   p.step();                    // idle-watch 1
   p.request('cheer');
   p.step();                    // idle-watch 2
@@ -100,22 +127,24 @@ test('pending 只有一格:連續三次 request 只有最後一次生效', () =>
 test('過渡段途中連續 request,轉向時只看最後一個', () => {
   const p = createPlayer({ manifest: M });
   p.request('watch');
-  p.step();                    // idle-watch 0
+  p.step();                    // idle-watch 1
   p.request('cheer');
   p.request('empty');
-  steps(p, 4);                 // 播完 idle-watch,轉向
+  steps(p, 3);                 // 2, 3, 轉向
   assert.equal(top(p).id, 'watch-idle', 'watch→empty 沒有直連,要先回 idle');
 });
 
 test('多段路徑:cheer → empty 走 cheer-idle 再 idle-empty,最後進 empty-loop', () => {
   const p = createPlayer({ manifest: M });
   p.request('cheer');
-  steps(p, 1 + 4);             // idle-cheer 播完,進 cheer-loop
+  steps(p, 4);                 // idle-cheer 1,2,3,進 cheer-loop 1
   assert.equal(top(p).id, 'cheer-loop');
   p.request('empty');
-  p.step();                    // cheer-idle 0
+  p.step();                    // 快轉回 cheer-loop 0
+  assert.deepEqual(top(p), { kind: 'seg', id: 'cheer-loop', index: 0, alpha: 1 });
+  p.step();                    // cheer-idle 1
   assert.equal(top(p).id, 'cheer-idle');
-  steps(p, 3);                 // cheer-idle 1, 2, 3(最後一格)
+  steps(p, 2);                 // cheer-idle 2, 3(最後一格)
   assert.equal(top(p).id, 'cheer-idle');
   p.step();                    // idle-empty 從第 1 格
   assert.deepEqual(top(p), { kind: 'seg', id: 'idle-empty', index: 1, alpha: 1 });
@@ -127,11 +156,11 @@ test('多段路徑:cheer → empty 走 cheer-idle 再 idle-empty,最後進 empty
 test('多段路徑中途換目標:在目前過渡段結束時改走新路徑,舊的剩餘路徑丟掉', () => {
   const p = createPlayer({ manifest: M });
   p.request('cheer');
-  steps(p, 5);                 // 在 cheer-loop
+  steps(p, 4);                 // 在 cheer-loop
   p.request('empty');
-  p.step();                    // cheer-idle 0,剩餘路徑 [idle-empty]
+  steps(p, 2);                 // 快轉、cheer-idle 1;剩餘路徑 [idle-empty]
   p.request('watch');
-  steps(p, 3);                 // cheer-idle 播到最後一格
+  steps(p, 2);                 // cheer-idle 播到最後一格
   assert.equal(top(p).id, 'cheer-idle');
   p.step();
   assert.equal(top(p).id, 'idle-watch', '改走 idle→watch,不是原本剩下的 idle-empty');
@@ -143,8 +172,10 @@ test('target():pending ?? 路徑終點 ?? at', () => {
   assert.equal(p.target(), 'idle');
   p.request('cheer');
   assert.equal(p.target(), 'cheer', 'pending');
-  steps(p, 5);
+  steps(p, 4);
   p.request('empty');
+  p.step();                    // 快轉中,pending 還沒消化
+  assert.equal(p.target(), 'empty', '快轉中看 pending');
   p.step();                    // cheer-idle 播放中,pending 已消化成路徑
   assert.equal(p.target(), 'empty', '路徑終點');
 });
@@ -184,24 +215,21 @@ test('多段路徑的第二段沒載入 → 在第一段結束時走保底', () 
   const loaded = new Set(['idle-loop', 'idle-cheer', 'cheer-loop', 'cheer-idle']);
   const p = createPlayer({ manifest: M, isLoaded: id => loaded.has(id) });
   p.request('cheer');
-  steps(p, 5);
+  steps(p, 4);
   p.request('empty');
-  p.step();                    // cheer-idle 0
-  steps(p, 4);                 // cheer-idle 1, 2, 3,然後 idle-empty 沒載入 → 保底
+  steps(p, 5);                 // 快轉、cheer-idle 1,2,3,然後 idle-empty 沒載入 → 保底
   assert.deepEqual(top(p), { kind: 'key', pose: 'empty', alpha: 1 / FALLBACK_FRAMES });
   assert.equal(p.at(), 'empty');
 });
 
-test('停在保底關鍵圖時 request,從關鍵圖出發走新路徑', () => {
+test('停在保底關鍵圖時 request,從關鍵圖出發走新路徑(第 0 格,不疊層)', () => {
   const loaded = new Set(['idle-loop', 'watch-cheer']);
   const p = createPlayer({ manifest: M, isLoaded: id => loaded.has(id) });
   p.request('watch');
   steps(p, 1 + FALLBACK_FRAMES);      // 停在 watch 關鍵圖
   p.request('cheer');
   p.step();
-  const [under, over] = p.view().layers;
-  assert.deepEqual(under, { kind: 'key', pose: 'watch', alpha: 1 });
-  assert.equal(over.id, 'watch-cheer');
+  assert.deepEqual(p.view().layers, [{ kind: 'seg', id: 'watch-cheer', index: 0, alpha: 1 }]);
 });
 
 /* ---------- 小動作 ---------- */
@@ -236,14 +264,14 @@ test('不在 idle 時不插播', () => {
   }
 });
 
-test('小動作途中 request → 當格離開(小動作跟循環一樣可打斷)', () => {
+test('小動作途中 request → 一樣快轉回關鍵圖再離開', () => {
   const p = createPlayer({ manifest: M, rng: () => 0 });
-  steps(p, 66);                // 進入 idle-ear 第 1 格
+  steps(p, 66);                // 進入 idle-ear 第 1 格(共 3 格)
   p.request('watch');
   p.step();
-  const [under, over] = p.view().layers;
-  assert.equal(under.id, 'idle-ear');
-  assert.equal(over.id, 'idle-watch');
+  assert.deepEqual(p.view().layers, [{ kind: 'seg', id: 'idle-ear', index: 0, alpha: 1 }]);
+  p.step();
+  assert.equal(top(p).id, 'idle-watch');
 });
 
 test('小動作只從已載入的挑;一段都沒載入就不插播', () => {
