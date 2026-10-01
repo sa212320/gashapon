@@ -1,11 +1,6 @@
 /* 立體扭蛋機自己的樣式。版面、按鈕、對話框那一套都吃 shared/css/tokens.css。 */
 
-body { display: flex; flex-direction: column; min-height: 100svh; }
-
-/* home-link 是絕對定位的,topbar 不給 relative 的話它會跑到頁面中間去 */
-.topbar { position: relative; padding: 14px 16px 6px; text-align: center; }
-.setup-name { margin: 0; font-size: 22px; }
-.remaining { margin: 2px 0 0; font-size: 14px; opacity: .72; }
+body { display: grid; grid-template-rows: 1fr auto; min-height: 100dvh; overflow: hidden; }
 
 .stage { position: relative; flex: 1; min-height: 0; }
 
@@ -21,46 +16,45 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
   gap: 10px;
   text-align: center;
 }
-.empty-state__icon { font-size: 54px; }
-.empty-state__text { margin: 0; font-size: 20px; font-weight: 800; }
+.empty-state__text { margin: 0; font-size: 24px; font-weight: 800; }
+/* 空托盤還看得到,文字疊在上面;只有按鈕吃點擊 */
+.empty-state { pointer-events: none; }
+.empty-state .btn { pointer-events: auto; }
 
-/* 獎項卡蓋在畫面上。文字放 DOM 而不是畫進貼圖 —— 中文小字貼圖會糊,
-   而且獎項名要能被螢幕閱讀器讀到。 */
-.prize-card {
+/* 揭曉層蓋滿整個畫面,但平常完全不擋點擊 —— 桌上的蛋要能直接點 */
+.reveal-layer { position: fixed; inset: 0; display: grid; place-items: center; z-index: 20; pointer-events: none; }
+/* 3D 的蛋畫在 canvas 裡,DOM 暗幕一蓋連蛋也變暗,所以暗幕等到 show 才淡入、墊在卡片下 */
+.reveal-layer__dim {
   position: absolute;
+  inset: 0;
+  background: rgba(58, 46, 41, .55);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  transition: opacity .3s;
+}
+.reveal-layer__dim.is-on { opacity: 1; }
+/* 疊在同一格:特效層、暗幕不能各佔一列把卡片擠到下半部 */
+.reveal-layer > * { grid-area: 1 / 1; }
+.reveal-layer .prize-card { position: relative; }
+/* 文字放 DOM 而不是畫進貼圖 —— 中文小字貼圖會糊,而且獎項名要能被螢幕閱讀器讀到 */
+.prize-frame .skip-hint {
+  position: absolute;
+  top: calc(100% + 14px);
   left: 50%;
-  bottom: 8%;
   translate: -50% 0;
-  display: grid;
-  justify-items: center;
-  gap: 6px;
-  width: min(88vw, 340px);
-  padding: 16px 18px;
-  box-sizing: border-box;
-  border: var(--stroke) solid var(--ink);
-  border-radius: var(--radius);
-  background: var(--cream);
-  box-shadow: 0 6px 0 rgba(87, 66, 57, .22);
-}
-.prize-card__badge {
-  padding: 3px 14px;
-  border-radius: 999px;
-  background: var(--tier-color, var(--cream-deep));
-  font-size: 15px;
-  font-weight: 800;
-}
-.prize-card__name {
   margin: 0;
-  font-size: clamp(22px, 7vw, 32px);
-  font-weight: 900;
-  text-align: center;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: rgba(58, 46, 41, .5);
+  color: #fff;
+  font-size: 14px;
 }
-.prize-card .skip-hint { position: static; margin: 4px 0 0; background: none; color: inherit; opacity: .6; font-size: 13px; }
 
 .pick-hint {
   position: absolute;
-  top: 8px;
+  /* 標題列拿掉了,提示要避開左上、右上角的圖示 */
+  top: max(64px, calc(env(safe-area-inset-top) + 56px));
   left: 50%;
   translate: -50% 0;
   margin: 0;
@@ -71,13 +65,21 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
 }
 
 .toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
+  /* 「剩 X 顆」在整排按鈕的上方正中間 */
+  display: grid;
+  justify-items: center;
+  gap: 8px;
   padding: 10px 16px max(14px, env(safe-area-inset-bottom));
 }
-.btn--go { font-size: 21px; padding-inline: 38px; }
+.toolbar__buttons { display: flex; align-items: center; justify-content: center; gap: 14px; }
+/* 三個東西排一列,窄螢幕(390)也不能折成直排字 */
+.toolbar .btn, .toolbar .remain-tag { white-space: nowrap; flex: none; }
+@media (max-width: 420px) {
+  .toolbar { padding-inline: 10px; }
+  .toolbar__buttons { gap: 10px; }
+  .toolbar .btn { padding-inline: 18px; }
+  .toolbar .btn--draw { font-size: 24px; min-height: 60px; padding: 12px 34px; }
+}
 
 .prize-list, .edit-list { margin: 0 0 10px; padding: 0; list-style: none; display: grid; gap: 8px; }
 .prize-list li { display: flex; gap: 10px; padding: 7px 10px; border-radius: 12px; background: var(--cream-deep); font-weight: 700; }
@@ -88,11 +90,6 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
 .edit-row__rarity { width: 76px; }
 .panel__hint { margin: 0 0 8px; font-size: 14px; opacity: .75; }
 
-/* UR 的 color 在 constants.js 裡是哨兵值 'rainbow',不是顏色 —— 彩虹由這裡畫。 */
-.prize-card--ur .prize-card__badge {
-  background: linear-gradient(90deg, #FF6F91, #FFD479, #9BE7C4, #8CC9FF, #C4A2FF);
-  color: #3E2F28;
-}
 
 /* three.js 有 168 KB,手機上會有一段看不到東西的空窗。
    空白會讓人以為壞掉,所以先講一句話,場景畫出第一格才收掉。 */

@@ -145,3 +145,47 @@ test('openCapsule 的演出沒有「轉把手」那一步 —— 這台是用點
   assert.equal(steps.filter(s => s.type === 'turn').length, 0);
   assert.equal(steps[0].type, 'drop');
 });
+
+import { remainLabel } from '../gashapon3d/js/model.js';
+
+test('remainLabel:顯示「剩 X 顆」', () => {
+  const setup = createSetup3d({ prizes: [createPrize({ name: '甲', count: 3 })], rng: seeded(2) });
+  setup.pool[0] = { ...setup.pool[0], drawn: true };
+  assert.deepEqual(remainLabel(setup), { text: '剩 2 顆', hidden: false });
+});
+
+test('remainLabel:抽到不拿走 → 不顯示(數字永遠不變,顯示了反而誤導)', () => {
+  const setup = createSetup3d({ prizes: [createPrize({ name: '甲', count: 3 })], removeOnDraw: false, rng: seeded(3) });
+  assert.equal(remainLabel(setup).hidden, true);
+});
+
+test('remainLabel:沒有獎項 → 提示去設定,而且要看得到', () => {
+  assert.deepEqual(remainLabel(createSetup3d({ prizes: [] })), { text: '還沒有獎項', hidden: false });
+});
+
+import { nextForTable } from '../gashapon3d/js/model.js';
+
+// 抽完一顆不重排整桌(2026-10-02 使用者回報「抽完盤面會刷新」):被抽的那顆拿掉,
+// 再從「還沒上桌」的蛋裡隨機補一顆掉進來 —— 超過 40 顆時排在後面的蛋才有機會上桌。
+test('nextForTable:只從還沒上桌、還沒被抽走的蛋裡挑', () => {
+  const setup = createSetup3d({ prizes: [createPrize({ name: '甲', count: 4 })], rng: seeded(4) });
+  const [a, b, c, d] = setup.pool;
+  const pool = [{ ...a, drawn: true }, b, c, d];
+  const onTable = new Set([b, c]);
+  assert.equal(nextForTable({ ...setup, pool }, onTable, () => 0), d);
+});
+
+test('nextForTable:全部都在桌上了 → null(不補)', () => {
+  const setup = createSetup3d({ prizes: [createPrize({ name: '甲', count: 2 })], rng: seeded(5) });
+  assert.equal(nextForTable(setup, new Set(setup.pool)), null);
+});
+
+test('nextForTable:抽到不拿走時,剛拿掉的那顆也可能再掉進來', () => {
+  const setup = createSetup3d({ prizes: [createPrize({ name: '甲', count: 1 })], removeOnDraw: false, rng: seeded(6) });
+  assert.equal(nextForTable(setup, new Set()), setup.pool[0]);
+});
+
+test('nextForTable:均勻挑 —— rng 決定挑哪一顆', () => {
+  const setup = createSetup3d({ prizes: [createPrize({ name: '甲', count: 3 })], rng: seeded(7) });
+  assert.equal(nextForTable(setup, new Set(), () => 0.99), setup.pool[2]);
+});

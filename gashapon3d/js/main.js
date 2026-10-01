@@ -4,10 +4,12 @@
 // 2D 是換蛋殼顏色表示升階,3D 的蛋殼是隨機色,所以升階改用**光暈**表示。
 // 用殼色表示升階會跟「殼色隨機」直接打架,小孩看一眼就知道哪顆是大獎。
 import { store, seedState } from './store.js';
-import { openCapsule, tableBatch, refillSetup3d, remaining3d, buildPool3d } from './model.js';
+import { openCapsule, tableBatch, refillSetup3d, remaining3d, buildPool3d, remainLabel, nextForTable } from './model.js';
 import { createScene } from './scene.js';
 import { RARITIES, RARITY_META } from '../../gashapon/js/constants.js';
 import { createPrize } from '../../gashapon/js/state.js';
+import { cssUrl, waitForImage } from '../../gashapon/js/image-ready.js';
+import { fitText } from '../../gashapon/js/fit-text.js';
 import { getActive, replaceSetup, addSetup, removeSetup, entriesChanged, needsRebuild } from '../../shared/js/roster.js';
 import { createDialogShell } from '../../shared/js/dialog.js';
 import { createAsk } from '../../shared/js/ask.js';
@@ -17,18 +19,6 @@ import { requestPersistence } from '../../shared/js/storage.js';
 import { mountMascots } from '../../shared/js/mascot.js';
 
 const $ = id => document.getElementById(id);
-
-// RARITY_META.UR.color 是字串 'rainbow' —— 那是 2D 那台給 CSS 畫漸層用的哨兵值,
-// 不是顏色。直接丟給 THREE.Color.set() 會丟例外,而且例外發生在 rAF 的 callback 裡,
-// 演出的 promise 就永遠不會 resolve,整段停住、console 還不一定看得到。
-// 3D 這邊把 UR 換成會轉色相的實際顏色,彩虹感由動畫做。
-function auraColor(rarity, k = 0) {
-  const raw = RARITY_META[rarity]?.color ?? '#FFFFFF';
-  if (raw !== 'rainbow') return raw;
-  // 逗號不能省:three.js 的 Color.set() 只認舊式的 hsl(h,s%,l%),
-  // 現代 CSS 的空格語法 hsl(h s% l%) 它會丟 "Unknown color"。
-  return `hsl(${Math.round((k * 360 + performance.now() / 6) % 360)},90%,62%)`;
-}
 
 let state = store.load();
 let prefs = loadPrefs();
@@ -62,12 +52,11 @@ function loop(now) {
 
 function render() {
   const setup = getActive(state);
-  $('setupName').textContent = setup.name || '立體扭蛋機';
   const left = remaining3d(setup);
-  $('remaining').textContent = setup.removeOnDraw
-    ? `還剩 ${left} 顆 / 共 ${setup.pool.length} 顆`
-    : `共 ${setup.pool.length} 顆(抽到的不會拿走)`;
-  const empty = setup.removeOnDraw && left === 0;
+  const tag = remainLabel(setup);
+  $('remainTag').textContent = tag.text;
+  $('remainTag').hidden = tag.hidden;
+  const empty = setup.removeOnDraw && left === 0 && setup.pool.length > 0;
   $('emptyState').hidden = !empty;
   if (empty) {
     // 卡片還開著就不搶著切 empty —— 這個 render() 在每次演出結束後也會
@@ -86,12 +75,13 @@ function render() {
     mascots.setPose('idle');
   }
   $('pickHint').hidden = empty || playing;
-  $('turnBtn').disabled = empty || playing;
-  $('soundIcon').textContent = prefs.soundOn ? '🔊' : '🔇';
-  if (!playing) dealTable();
+  $('turnBtn').disabled = empty || playing || setup.pool.length === 0;
+  $('soundIcon').setAttribute('href', `../shared/img/icons.svg#${prefs.soundOn ? 'sound-on' : 'sound-off'}`);
 }
 
-// 每次抽完重新抽樣一批擺上桌 —— 固定擺前面幾顆的話,排在後面的蛋永遠不會被挑到。
+// 整桌重新擺(只在換機台、裝滿重來、獎項改了的時候)。抽完一顆不重排 ——
+// 2026-10-02 使用者回報「抽完盤面會刷新」;按音效鍵也曾因為 render() 而整桌重排。
+// 超過 40 顆時排在後面的蛋靠 settleAfterDraw() 每次補一顆上桌,不會永遠挑不到。
 function dealTable() {
   scene.setEggs(tableBatch(getActive(state)));
   scene.homeView();
@@ -107,7 +97,6 @@ async function play(result, egg) {
   playing = true;
   $('turnBtn').disabled = true;
   $('prizeCard').hidden = true;
-  scene.setAura?.('#ffffff', 0);
   try {
     const from = egg.group.position.clone();
 
@@ -149,17 +138,29 @@ async function play(result, egg) {
           egg.group.rotation.y += 0.04;
         });
       } else if (step.type === 'show') {
-        const meta = RARITY_META[step.rarity] ?? RARITY_META.N;
-        // UR 的 color 是哨兵值 'rainbow',不是顏色 —— CSS 這邊交給 class 畫。
-        $('prizeCard').classList.toggle('prize-card--ur', meta.color === 'rainbow');
-        $('prizeCard').style.setProperty('--tier-color', meta.color === 'rainbow' ? meta.edge : meta.color);
-        $('prizeBadge').textContent = meta.label;
+        const card = $('prizeCard');
+        card.dataset.rarity = step.rarity;
+        $('prizeBadge').dataset.rarity = step.rarity;
+        // 標籤顯示稀有度代號(N / R / SR / SSR / UR),跟扭蛋機頁一致
+        $('prizeBadge').textContent = step.rarity;
         $('prizeName').textContent = step.prize?.name ?? '';
-        $('prizeCard').hidden = false;
+        // 等外框圖解碼完才出現(最多 2 秒);等不到先用奶油色保底卡,圖到了再換上
+        const frameUrl = cssUrl(getComputedStyle(card).backgroundImage);
+        const ready = await waitForImage(frameUrl);
+        card.classList.toggle('is-frame-loading', !ready);
+        if (!ready) {
+          waitForImage(frameUrl, { timeout: 60000 }).then(ok => {
+            if (ok && card.dataset.rarity === step.rarity) card.classList.remove('is-frame-loading');
+          });
+        }
+        $('dim').classList.add('is-on');
+        card.hidden = false;
+        // 卡片是固定大小的外框圖,名字太長就縮字(要在卡片顯示之後量)
+        fitText($('prizeName'), $('prizeName').parentElement, { max: 44, min: 18 });
         if (BIG.has(step.rarity)) {
           mascots.setPose('cheer');
         }
-        await tween(400, () => {});
+        await tween(320, () => {});
       }
     }
   } catch (err) {
@@ -168,8 +169,25 @@ async function play(result, egg) {
     // 演出中途丟例外的話,playing 會永遠卡在 true、按鈕永遠是灰的,
     // 而且因為例外通常發生在 rAF 裡,console 不一定看得到 —— 這裡是最後一道防線。
     playing = false;
+    settleAfterDraw(egg);
     render();
   }
+}
+
+// 抽完:那顆拿下桌、鏡頭退回整桌。補一顆的動作等卡片關掉才做(小孩才看得到它掉進來);
+// 演出中途出錯、卡片根本沒出現的話,就立刻補。
+let pendingDrop = false;
+function settleAfterDraw(egg) {
+  scene.removeEgg(egg);
+  scene.homeView();
+  pendingDrop = true;
+  if ($('prizeCard').hidden) dropNext();
+}
+function dropNext() {
+  if (!pendingDrop) return;
+  pendingDrop = false;
+  const next = nextForTable(getActive(state), new Set(scene.eggs.map(e => e.capsule)));
+  if (next) scene.dropEgg(next);
 }
 
 function tween(ms, fn) {
@@ -236,6 +254,8 @@ $('scene').addEventListener('click', e => {
 function dismissPrize() {
   if ($('prizeCard').hidden) return false;
   $('prizeCard').hidden = true;
+  $('dim').classList.remove('is-on');
+  dropNext();
   // 關卡片的當下才是「是不是空了」該由誰接手的正確時機點。
   const setup = getActive(state);
   if (setup.removeOnDraw && remaining3d(setup) === 0) {
@@ -256,7 +276,7 @@ function dismissPrize() {
 // 事後用旗標補洞。
 document.addEventListener('click', e => {
   // 工具列與對話框的按鈕不算「點外面」,不然按設定會被吃掉一次點擊
-  if (e.target.closest('.toolbar, dialog')) return;
+  if (e.target.closest('.toolbar, .corner-tools, .home-link, dialog')) return;
   // 抽掉最後一顆時 prizeCard 跟 emptyState 會同時顯示。這裡照樣把卡片
   // 關掉(不對空狀態的按鈕特殊放行的話,連卡片都關不掉),但不
   // stopPropagation() —— 讓點擊繼續往下傳到「一鍵裝滿」,不然小孩第一下
@@ -266,6 +286,7 @@ document.addEventListener('click', e => {
 $('refillBtn').addEventListener('click', () => {
   state = replaceSetup(state, refillSetup3d(getActive(state)));
   persist(state);
+  dealTable();
   render();
 });
 
@@ -375,15 +396,17 @@ const settings = createDialogShell({
     snapshot,
     isDirty,
     renderPanels() { renderList(); renderEdit(); renderOther(); },
-    switchSetup(id) { state = { ...state, activeSetupId: id }; persist(state); render(); },
+    switchSetup(id) { state = { ...state, activeSetupId: id }; persist(state); dealTable(); render(); },
     addSetup() {
       state = addSetup(state, { ...seedState().setups[0], name: '新的機台' });
       persist(state);
+      dealTable();
       render();
     },
     deleteSetup(id) {
       state = removeSetup(state, id, () => seedState().setups[0]);
       persist(state);
+      dealTable();
       render();
     },
     async applyDraft() {
@@ -405,6 +428,8 @@ const settings = createDialogShell({
         pool: rebuild ? buildPool3d(prizes) : s.pool,
       });
       persist(state);
+      // 只改名字或開關的話,桌上的蛋不動(池子還是同一批物件)
+      if (rebuild) dealTable();
       render();
       return true;
     },
@@ -422,6 +447,7 @@ $('listRefillBtn').addEventListener('click', async () => {
   if (!await ask('要把扭蛋機裝滿重來嗎?')) return;
   state = replaceSetup(state, refillSetup3d(getActive(state)));
   persist(state);
+  dealTable();
   render();
   renderList();
 });
@@ -437,10 +463,28 @@ $('soundBtn').addEventListener('click', () => {
 document.addEventListener('click', () => unlock(), { once: true });
 addEventListener('resize', () => scene.resize());
 
+// 揭曉卡片的外框先下載好,第一次揭曉時才不會畫出半張框(同扭蛋機頁的 mountPreloadRack)。
+// 不自己組網址:放一排看不到的 .prize-frame[data-rarity],瀏覽器照 CSS 的網址(含 ?v=)下載,
+// 跟正式卡片同一份快取。
+function warmFrames() {
+  const rack = document.createElement('div');
+  rack.className = 'preload-rack';
+  rack.setAttribute('aria-hidden', 'true');
+  for (const r of RARITIES) {
+    const f = document.createElement('div');
+    f.className = 'prize-card prize-frame';
+    f.dataset.rarity = r;
+    rack.appendChild(f);
+  }
+  document.body.appendChild(rack);
+}
+warmFrames();
+
 scene.resize();
 // 場景的第一格畫出來了,才把「載入中」收掉。
 const loadingEl = $('loading');
 if (loadingEl) loadingEl.hidden = true;
 
+dealTable();
 render();
 requestAnimationFrame(loop);

@@ -316,3 +316,23 @@ body::before {
   font-size: 15px;
   font-variant-numeric: tabular-nums;
 }
+
+/* 主要的抽獎鈕(扭蛋機「轉!」、立體扭蛋機「抽獎」共用):陽光黃、大字、每隔一下輕輕晃一次 */
+.btn--draw {
+  font-size: 30px;
+  letter-spacing: .06em;
+  padding: 16px 56px;
+  min-height: 72px;
+  background: var(--sun);
+  animation: nudge 2.8s ease-in-out infinite;
+}
+.btn--draw:disabled { animation: none; }
+@media (max-height: 560px) {
+.btn--draw { font-size: 22px; min-height: 56px; padding: 12px 36px; }
+}
+
+@keyframes nudge {
+  0%, 88%, 100% { transform: scale(1); }
+  92%           { transform: scale(1.06) rotate(-2deg); }
+  96%           { transform: scale(1.06) rotate(2deg); }
+}

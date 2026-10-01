@@ -32,6 +32,13 @@ export function remaining3d(setup) {
   return setup.pool.filter(c => !c.drawn).length;
 }
 
+// 工具列上的「剩 X 顆」膠囊。文字規則跟扭蛋機頁(gashapon/js/ui-machine.js)一致。
+export function remainLabel(setup) {
+  if (setup.pool.length === 0) return { text: '還沒有獎項', hidden: false };
+  // 抽到不拿走的話,「剩幾顆」永遠不變,顯示了反而誤導
+  return { text: `剩 ${remaining3d(setup)} 顆`, hidden: !setup.removeOnDraw };
+}
+
 // 均勻挑一顆沒被抽走的蛋 —— 機率天然等於 count / total,稀有度從不進入計算。
 export function draw3d(setup, rng = Math.random) {
   const candidates = setup.removeOnDraw ? setup.pool.filter(c => !c.drawn) : setup.pool;
@@ -83,4 +90,13 @@ export function openCapsule(setup, capsule) {
     pool,
     revealSteps: buildRevealSteps(prize?.rarity ?? 'N', prize ?? null, { turn: false }),
   };
+}
+
+// 抽完一顆之後補哪一顆上桌(2026-10-02:抽完不再整桌重排,只拿掉被抽的那顆、再補一顆)。
+// 從「還沒上桌」的蛋裡均勻挑;抽到就拿走的話,已經被抽走的不算。全部都在桌上就不補。
+// onTable 是桌上那幾顆的 capsule 物件 —— 沒被抽到的蛋在 pool 裡始終是同一個物件。
+export function nextForTable(setup, onTable, rng = Math.random) {
+  const candidates = setup.pool.filter(c => !(setup.removeOnDraw && c.drawn) && !onTable.has(c));
+  if (candidates.length === 0) return null;
+  return candidates[Math.floor(rng() * candidates.length)];
 }

@@ -249,15 +249,6 @@ body {
 
 .draw-group { display: grid; justify-items: center; gap: 6px; }
 
-.btn--draw {
-  font-size: 30px;
-  letter-spacing: .06em;
-  padding: 16px 56px;
-  min-height: 72px;
-  background: var(--sun);
-  animation: nudge 2.8s ease-in-out infinite;
-}
-.btn--draw:disabled { animation: none; }
 
 /* ---------- dialog (machine-specific bits) ---------- */
 .prize-list, .edit-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
@@ -352,7 +343,4 @@ body {
   cursor: pointer;
 }
 
-@media (max-height: 560px) {
-.btn--draw { font-size: 22px; min-height: 56px; padding: 12px 36px; }
-}
 

@@ -8,6 +8,8 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🔮</text></svg>">
 <link rel="stylesheet" href="../shared/css/tokens.css">
 <link rel="stylesheet" href="css/gashapon3d.css">
+<link rel="stylesheet" href="../shared/css/prize-frame.css">
+<link rel="stylesheet" href="../shared/css/reveal-fx.css">
 <link rel="stylesheet" href="../shared/css/mascot.css">
 <script type="importmap">
 {"imports":{"three":"../vendor/three.module.min.js"}}
@@ -21,11 +23,21 @@
 </head>
 <body>
 
-<header class="topbar">
-  <a class="home-link" href="../" aria-label="回首頁">←</a>
-  <h1 class="setup-name" id="setupName">立體扭蛋機</h1>
-  <p class="remaining" id="remaining"></p>
-</header>
+<a class="home-link home-link--corner" href="../" aria-label="回首頁"><svg class="icon" aria-hidden="true"><use href="../shared/img/icons.svg#home"/></svg></a>
+<div class="corner-tools">
+  <button class="icon-btn" id="soundBtn" type="button" aria-label="音效開關"><svg class="icon" aria-hidden="true"><use id="soundIcon" href="../shared/img/icons.svg#sound-on"/></svg></button>
+  <button class="icon-btn" id="settingsBtn" type="button" aria-label="設定"><svg class="icon" aria-hidden="true"><use href="../shared/img/icons.svg#settings"/></svg></button>
+</div>
+
+<!-- 雪花粒子的形狀(shared/js/reveal-fx.js 的 spawnParticles 用 <use href="#snowflake"> 引用) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="snowflake" viewBox="-12 -12 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
+      <path d="M0-10V10M-8.7-5 8.7 5M-8.7 5 8.7-5"/>
+      <path d="M-3-7.5 0-4.5 3-7.5M-3 7.5 0 4.5 3 7.5M-7.9-1.2-4.4-2.4-5.1-6M7.9 1.2 4.4 2.4 5.1 6M-7.9 1.2-4.4 2.4-5.1 6M7.9-1.2 4.4-2.4 5.1-6"/>
+    </g>
+  </symbol>
+</svg>
 
 <main class="stage">
   <canvas class="scene" id="scene"></canvas>
@@ -33,23 +45,30 @@
   <p class="pick-hint" id="pickHint">點一顆蛋打開</p>
 
   <div class="empty-state" id="emptyState" hidden>
-    <div class="empty-state__icon">🫙</div>
     <p class="empty-state__text">扭蛋機空了!</p>
-    <button class="btn btn--primary" id="refillBtn" type="button">一鍵裝滿</button>
-  </div>
-
-  <div class="prize-card" id="prizeCard" hidden>
-    <span class="prize-card__badge" id="prizeBadge"></span>
-    <p class="prize-card__name" id="prizeName"></p>
-    <p class="skip-hint">點一下繼續</p>
+    <button class="btn btn--primary" id="refillBtn" type="button">再裝滿一次</button>
   </div>
 </main>
 
+<div class="reveal-layer">
+  <div class="reveal-layer__dim" id="dim"></div>
+  <div class="fx" id="fx" aria-hidden="true">
+    <div class="aura" id="aura" hidden></div>
+    <div class="particles" id="particles"></div>
+  </div>
+  <div class="prize-card prize-frame" id="prizeCard" data-rarity="N" hidden>
+    <span class="prize-card__badge" id="prizeBadge"></span>
+    <div class="prize-card__name-box"><p class="prize-card__name" id="prizeName"></p></div>
+    <p class="skip-hint">點一下繼續</p>
+  </div>
+</div>
+
 <footer class="toolbar">
-  <button class="icon-btn" id="soundBtn" type="button" aria-label="音效開關"><span id="soundIcon">🔊</span></button>
-  <button class="btn btn--ghost" id="shakeBtn" type="button">搖動</button>
-  <button class="btn btn--primary btn--go" id="turnBtn" type="button">抽獎</button>
-  <button class="icon-btn" id="settingsBtn" type="button" aria-label="設定">⚙️</button>
+  <p class="remain-tag" id="remainTag"></p>
+  <div class="toolbar__buttons">
+    <button class="btn btn--ghost" id="shakeBtn" type="button">搖動</button>
+    <button class="btn btn--draw" id="turnBtn" type="button">抽獎</button>
+  </div>
 </footer>
 
 <dialog class="dialog" id="settingsDialog">

@@ -3,8 +3,3 @@
   50%      { transform: translateY(-6px); }
 }
 
-@keyframes nudge {
-  0%, 88%, 100% { transform: scale(1); }
-  92%           { transform: scale(1.06) rotate(-2deg); }
-  96%           { transform: scale(1.06) rotate(2deg); }
-}

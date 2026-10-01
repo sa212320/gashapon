@@ -103,6 +103,47 @@ export function createScene(canvas) {
     eggs = [];
   }
 
+  function makeEgg(c, x, y, z) {
+    const group = new THREE.Group();
+    const top = shell(TOP_GEO, TOP_EDGE, new THREE.Color(c.color));
+    const bottom = shell(BOTTOM_GEO, BOTTOM_EDGE, 0xFFFFFF);
+    group.add(top, bottom);
+
+    // 影子是畫出來的(場上沒有光源)。用暖色而不是純黑 —— 純黑在米色桌面上
+    // 會是一團灰,跟站上其他畫面的暖色調對不起來。
+    const shadow = new THREE.Mesh(
+      new THREE.CircleGeometry(R * 0.92, 24),
+      new THREE.MeshBasicMaterial({ color: 0x9C7B52, transparent: true, opacity: 0.2 }));
+    shadow.rotation.x = -Math.PI / 2;
+    root.add(shadow);
+
+    group.position.set(x, y, z);
+    group.rotation.y = rand(0, Math.PI * 2);
+    root.add(group);
+    const egg = { group, top, bottom, shadow, capsule: c, v: new THREE.Vector3() };
+    eggs.push(egg);
+    return egg;
+  }
+
+  // 抽完的那顆拿下桌(2026-10-02:不再整桌重排,其他蛋留在原位)
+  function removeEgg(egg) {
+    eggs = eggs.filter(e => e !== egg);
+    root.remove(egg.group);
+    root.remove(egg.shadow);
+    egg.shadow.geometry.dispose();
+    egg.shadow.material.dispose();
+  }
+
+  // 補一顆:從桌子上方隨機一點掉進來,落地會彈幾下(物理照常算)
+  function dropEgg(capsule) {
+    const angle = rand(0, Math.PI * 2);
+    const dist = Math.sqrt(rand(0, 1)) * (TABLE - R * 1.6);
+    const e = makeEgg(capsule, Math.cos(angle) * dist, 3.2, Math.sin(angle) * dist);
+    e.v.set(rand(-0.6, 0.6), -1, rand(-0.6, 0.6));
+    layout();
+    return e;
+  }
+
   // capsules:要擺上桌的那一批(已經抽樣過)。每一顆帶著自己在池子裡的 index,
   // 點下去才知道抽到的是哪一顆。
   function setEggs(capsules) {
@@ -111,30 +152,11 @@ export function createScene(canvas) {
     TABLE = Math.max(2.6, Math.min(7.2, Math.sqrt(capsules.length) * 1.15));
     table.scale.setScalar(TABLE / TABLE_BASE);
     capsules.forEach((c, i) => {
-      const group = new THREE.Group();
-      const top = shell(TOP_GEO, TOP_EDGE, new THREE.Color(c.color));
-      const bottom = shell(BOTTOM_GEO, BOTTOM_EDGE, 0xFFFFFF);
-      group.add(top, bottom);
-
-      // 影子是畫出來的(場上沒有光源)。用暖色而不是純黑 —— 純黑在米色桌面上
-      // 會是一團灰,跟站上其他畫面的暖色調對不起來。
-      const shadow = new THREE.Mesh(
-        new THREE.CircleGeometry(R * 0.92, 24),
-        new THREE.MeshBasicMaterial({ color: 0x9C7B52, transparent: true, opacity: 0.2 }));
-      shadow.rotation.x = -Math.PI / 2;
-      root.add(shadow);
-
       // 散在桌上,不要疊在正中央
       const angle = (i / capsules.length) * Math.PI * 2 + rand(-0.35, 0.35);
       const dist = Math.sqrt(rand(0.05, 1)) * (TABLE - R * 1.6);
-      group.position.set(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
-      group.rotation.y = rand(0, Math.PI * 2);
-      root.add(group);
-
-      eggs.push({
-        group, top, bottom, shadow, capsule: c,
-        v: new THREE.Vector3(rand(-1.6, 1.6), rand(0, 2.2), rand(-1.6, 1.6)),
-      });
+      const e = makeEgg(c, Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
+      e.v.set(rand(-1.6, 1.6), rand(0, 2.2), rand(-1.6, 1.6));
     });
     layout();
   }
@@ -347,6 +369,8 @@ export function createScene(canvas) {
     camera,
     get eggs() { return eggs; },
     setEggs,
+    removeEgg,
+    dropEgg,
     step,
     shake,
     layout,
