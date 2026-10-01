@@ -8,7 +8,7 @@
 // 片數。低階手機掉幀的話就調小,設 0 等於關掉。
 export const FLAKES = 24;
 
-const SIZE = [2, 6];        // px
+const SIZE = [5, 12];       // px —— 2026-10-01 使用者要求大顆一點(原本 2~6)
 const DURATION = [8, 18];   // 秒
 const DRIFT = [-24, 24];    // 左右飄移 px
 

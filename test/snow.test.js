@@ -39,7 +39,7 @@ test('雪花數量等於常數', () => {
 
 test('rng 回 0 時,每個參數都落在範圍下緣', () => {
   const [f] = flakeSpecs(1, seq([0]));
-  assert.equal(f.size, 2);
+  assert.equal(f.size, 5);
   assert.equal(f.duration, 8);
   assert.equal(f.left, 0);
   assert.equal(f.delay, -18);
@@ -48,7 +48,7 @@ test('rng 回 0 時,每個參數都落在範圍下緣', () => {
 
 test('rng 接近 1 時,每個參數都落在範圍上緣', () => {
   const [f] = flakeSpecs(1, seq([0.999999]));
-  assert.ok(f.size > 5.99 && f.size <= 6, `size=${f.size}`);
+  assert.ok(f.size > 11.99 && f.size <= 12, `size=${f.size}`);
   assert.ok(f.duration > 17.9 && f.duration <= 18, `duration=${f.duration}`);
   assert.ok(f.left > 99.9 && f.left <= 100, `left=${f.left}`);
   assert.ok(f.drift > 23.9 && f.drift <= 24, `drift=${f.drift}`);
