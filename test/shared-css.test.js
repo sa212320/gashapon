@@ -35,12 +35,23 @@ test('角落圖示、剩餘膠囊、稀有度標籤、shimmer 都在 shared/', (
   assert.ok(!style.includes('.preload-rack {'));
 });
 
-// 手機連點會觸發「點兩下放大」(2026-10-02 使用者回報):小孩連點蛋、按鈕,整頁就放大了。
-// touch-action: manipulation 只關掉雙擊放大,雙指縮放照樣可以(無障礙)。全站共用。
-test('全站關掉雙擊放大(保留雙指縮放)', () => {
+// 全站不能縮放、不能反白(2026-10-02 使用者指定):手機上連點會觸發雙擊放大、長按會反白文字,
+// 小孩玩的時候整頁就亂掉。代價是不能放大頁面(使用者知道並決定這樣做)。
+const PAGES = ['index.html', 'gashapon/index.html', 'gashapon3d/index.html', 'ichiban/index.html', 'ghostleg/index.html', 'smash/index.html'];
+
+test('全站不能縮放:viewport 鎖住、CSS 只留捲動、iOS 的縮放手勢被攔下', () => {
   const tokens = read('shared/css/tokens.css');
-  assert.match(tokens, /html\s*\{[^}]*touch-action:\s*manipulation/);
-  for (const page of ['index.html', 'gashapon/index.html', 'gashapon3d/index.html']) {
-    assert.ok(!/user-scalable\s*=\s*no|maximum-scale\s*=\s*1/.test(read(page)), `${page} 不能用 user-scalable=no 擋縮放`);
+  assert.match(tokens, /html\s*\{[^}]*touch-action:\s*pan-x pan-y/);
+  for (const page of PAGES) {
+    const html = read(page);
+    assert.match(html, /name="viewport"[^>]*maximum-scale=1[^>]*user-scalable=no/, `${page} 的 viewport 沒鎖縮放`);
+    assert.match(html, /<script src="(\.\.\/)?shared\/js\/no-zoom\.js"><\/script>/, `${page} 沒載 no-zoom.js`);
   }
+  assert.match(read('shared/js/no-zoom.js'), /gesturestart/);
+});
+
+test('全站不能反白,但輸入框還是可以選字', () => {
+  const tokens = read('shared/css/tokens.css');
+  assert.match(tokens, /html\s*\{[^}]*user-select:\s*none/);
+  assert.match(tokens, /input,\s*textarea,\s*select\s*\{[^}]*user-select:\s*text/);
 });

@@ -31,9 +31,23 @@
 
 * { box-sizing: border-box; }
 
-/* 手機連點不能觸發「點兩下放大」(2026-10-02 使用者回報:連點蛋、按鈕整頁就放大)。
-   manipulation 只關掉雙擊放大跟點擊延遲,雙指縮放照樣可以 —— 不要用 user-scalable=no */
-html { touch-action: manipulation; }
+/* 全站不能縮放、不能反白(2026-10-02 使用者指定:手機連點會雙擊放大、長按會反白,
+   小孩玩的時候整頁就亂掉;代價是沒辦法放大頁面,使用者知道)。
+   pan-x pan-y = 只留捲動,雙指縮放跟雙擊放大都關掉;viewport 的 user-scalable=no 跟
+   shared/js/no-zoom.js(擋 iOS Safari 的 gesture 事件)一起才擋得乾淨。 */
+html {
+  touch-action: pan-x pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;          /* 長按不跳出「拷貝/查詢」選單 */
+  -webkit-tap-highlight-color: transparent;
+}
+/* 設定裡要打獎項名字:輸入框還是要能選字、能編輯 */
+input, textarea, select {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
 
 /* 作者端的 display 會蓋掉 hidden 屬性的 UA 樣式,所以要明講一次 */
 [hidden] { display: none !important; }

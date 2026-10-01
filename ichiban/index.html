@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#FFF6E9">
 <title>一番賞</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🎫</text></svg>">
@@ -15,6 +15,7 @@
 <!-- 一番賞是等第一次開籤才載 three 的,所以用 prefetch(低優先)而不是 modulepreload:
      先暖進快取,但不跟開場那幾個請求搶頻寬。 -->
 <link rel="prefetch" href="../vendor/three.module.min.js" as="script" crossorigin>
+<script src="../shared/js/no-zoom.js"></script>
 </head>
 <body>
 
