@@ -1,0 +1,195 @@
+{
+  "frame": {
+    "w": 400,
+    "h": 360
+  },
+  "keyframes": {
+    "idle": "key/idle.webp",
+    "watch": "key/watch.webp",
+    "cheer": "key/cheer.webp",
+    "aww": "key/aww.webp",
+    "empty": "key/empty.webp"
+  },
+  "segments": [
+    {
+      "id": "idle-loop",
+      "kind": "loop",
+      "from": "idle",
+      "to": "idle",
+      "frames": 37,
+      "fps": 12,
+      "sheet": "seg/idle-loop.webp",
+      "cols": 8
+    },
+    {
+      "id": "idle-watch",
+      "kind": "transition",
+      "from": "idle",
+      "to": "watch",
+      "frames": 19,
+      "fps": 12,
+      "sheet": "seg/idle-watch.webp",
+      "cols": 8
+    },
+    {
+      "id": "idle-cheer",
+      "kind": "transition",
+      "from": "idle",
+      "to": "cheer",
+      "frames": 25,
+      "fps": 12,
+      "sheet": "seg/idle-cheer.webp",
+      "cols": 8
+    },
+    {
+      "id": "idle-aww",
+      "kind": "transition",
+      "from": "idle",
+      "to": "aww",
+      "frames": 25,
+      "fps": 12,
+      "sheet": "seg/idle-aww.webp",
+      "cols": 8
+    },
+    {
+      "id": "idle-empty",
+      "kind": "transition",
+      "from": "idle",
+      "to": "empty",
+      "frames": 25,
+      "fps": 12,
+      "sheet": "seg/idle-empty.webp",
+      "cols": 8
+    },
+    {
+      "id": "watch-loop",
+      "kind": "loop",
+      "from": "watch",
+      "to": "watch",
+      "frames": 25,
+      "fps": 12,
+      "sheet": "seg/watch-loop.webp",
+      "cols": 8
+    },
+    {
+      "id": "cheer-loop",
+      "kind": "loop",
+      "from": "cheer",
+      "to": "cheer",
+      "frames": 25,
+      "fps": 12,
+      "sheet": "seg/cheer-loop.webp",
+      "cols": 8
+    },
+    {
+      "id": "aww-loop",
+      "kind": "loop",
+      "from": "aww",
+      "to": "aww",
+      "frames": 25,
+      "fps": 12,
+      "sheet": "seg/aww-loop.webp",
+      "cols": 8
+    },
+    {
+      "id": "empty-loop",
+      "kind": "loop",
+      "from": "empty",
+      "to": "empty",
+      "frames": 37,
+      "fps": 12,
+      "sheet": "seg/empty-loop.webp",
+      "cols": 8
+    },
+    {
+      "id": "watch-idle",
+      "kind": "transition",
+      "from": "watch",
+      "to": "idle",
+      "frames": 19,
+      "fps": 12,
+      "sheet": "seg/watch-idle.webp",
+      "cols": 8
+    },
+    {
+      "id": "cheer-idle",
+      "kind": "transition",
+      "from": "cheer",
+      "to": "idle",
+      "frames": 19,
+      "fps": 12,
+      "sheet": "seg/cheer-idle.webp",
+      "cols": 8
+    },
+    {
+      "id": "aww-idle",
+      "kind": "transition",
+      "from": "aww",
+      "to": "idle",
+      "frames": 19,
+      "fps": 12,
+      "sheet": "seg/aww-idle.webp",
+      "cols": 8
+    },
+    {
+      "id": "empty-idle",
+      "kind": "transition",
+      "from": "empty",
+      "to": "idle",
+      "frames": 19,
+      "fps": 12,
+      "sheet": "seg/empty-idle.webp",
+      "cols": 8
+    },
+    {
+      "id": "watch-cheer",
+      "kind": "transition",
+      "from": "watch",
+      "to": "cheer",
+      "frames": 13,
+      "fps": 12,
+      "sheet": "seg/watch-cheer.webp",
+      "cols": 8
+    },
+    {
+      "id": "watch-aww",
+      "kind": "transition",
+      "from": "watch",
+      "to": "aww",
+      "frames": 13,
+      "fps": 12,
+      "sheet": "seg/watch-aww.webp",
+      "cols": 8
+    },
+    {
+      "id": "idle-ear",
+      "kind": "fidget",
+      "from": "idle",
+      "to": "idle",
+      "frames": 19,
+      "fps": 12,
+      "sheet": "seg/idle-ear.webp",
+      "cols": 8
+    },
+    {
+      "id": "idle-nuzzle",
+      "kind": "fidget",
+      "from": "idle",
+      "to": "idle",
+      "frames": 25,
+      "fps": 12,
+      "sheet": "seg/idle-nuzzle.webp",
+      "cols": 8
+    },
+    {
+      "id": "idle-doze",
+      "kind": "fidget",
+      "from": "idle",
+      "to": "idle",
+      "frames": 31,
+      "fps": 12,
+      "sheet": "seg/idle-doze.webp",
+      "cols": 8
+    }
+  ]
+}

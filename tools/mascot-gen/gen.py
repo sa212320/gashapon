@@ -228,7 +228,7 @@ def to_rgba(path, w, h):
 
 
 def cwebp(png_path, webp_path):
-    subprocess.run(['cwebp', '-quiet', '-q', '80', '-alpha_q', '90', '-exact', str(png_path), '-o', str(webp_path)], check=True)
+    subprocess.run(['cwebp', '-quiet', '-q', '65', '-alpha_q', '90', str(png_path), '-o', str(webp_path)], check=True)
 
 
 def cmd_build(args):
@@ -284,7 +284,8 @@ def main():
     sh = sub.add_parser('sheet'); sh.add_argument('round', type=int)
     rv = sub.add_parser('review'); rv.add_argument('round', type=int)
     pk = sub.add_parser('pick'); pk.add_argument('id'); pk.add_argument('n', type=int); pk.add_argument('--end', type=int)
-    b = sub.add_parser('build'); b.add_argument('--w', type=int, default=480); b.add_argument('--h', type=int, default=432); b.add_argument('--fps', type=int, default=16)
+    # 預設值是 2026-10-01 實測大小後定的:總量約 6.4 MB、揭曉前的前 5 段約 1.6 MB
+    b = sub.add_parser('build'); b.add_argument('--w', type=int, default=400); b.add_argument('--h', type=int, default=360); b.add_argument('--fps', type=int, default=12)
     args = ap.parse_args()
     {'run': cmd_run, 'sheet': cmd_sheet, 'review': cmd_review, 'pick': cmd_pick, 'build': cmd_build}[args.cmd](args)
 
