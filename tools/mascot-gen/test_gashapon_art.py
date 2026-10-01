@@ -70,3 +70,31 @@ class GreenFringe(unittest.TestCase):
 
     def test_outline_is_kept(self):
         self.assertEqual(clear_green_fringe(self.a)[0, 2, 3], 255)
+
+
+from gashapon_art import to_tint_gray, split_at, split_cells
+
+
+class TintGray(unittest.TestCase):
+    def test_channels_equal_and_alpha_kept(self):
+        rgba = np.array([[[200, 100, 50, 128]]], np.uint8)
+        g = to_tint_gray(rgba)
+        self.assertEqual(g[0, 0, 0], g[0, 0, 1]); self.assertEqual(g[0, 0, 1], g[0, 0, 2])
+        self.assertEqual(g[0, 0, 3], 128)
+
+    def test_light_becomes_pure_white(self):
+        # 模型畫的「白」常常是淡灰或偏暖;拉到 255 上色後才會是準確的稀有度色
+        self.assertEqual(to_tint_gray(np.array([[[235, 230, 228, 255]]], np.uint8))[0, 0, 0], 255)
+
+    def test_dark_outline_stays_dark(self):
+        self.assertLess(to_tint_gray(np.array([[[87, 66, 57, 255]]], np.uint8))[0, 0, 0], 90)
+
+
+class Split(unittest.TestCase):
+    def test_split_at(self):
+        top, bottom = split_at(np.zeros((10, 4, 4), np.uint8), 3)
+        self.assertEqual(top.shape[0], 3); self.assertEqual(bottom.shape[0], 7)
+
+    def test_split_cells(self):
+        cells = split_cells(np.zeros((10, 50, 3), np.uint8), 5)
+        self.assertEqual([c.shape[1] for c in cells], [10] * 5)

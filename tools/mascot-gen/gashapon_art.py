@@ -58,3 +58,21 @@ def clear_green_fringe(rgba, margin=25):
         clear = grown
     out[clear, 3] = 0
     return out
+
+
+def to_tint_gray(rgba, white=225):
+    """轉成給程式上色用的灰階:亮度 >= white 的當成純白(上色後就是準確的稀有度色),
+    其餘線性拉伸。模型偶爾偷帶一點顏色也沒關係,這裡全部洗掉。"""
+    rgb = rgba[..., :3].astype(np.float32)
+    lum = rgb @ np.array([0.299, 0.587, 0.114], np.float32)
+    g = np.clip(lum / white * 255, 0, 255).astype(np.uint8)
+    return np.dstack([g, g, g, rgba[..., 3]])
+
+
+def split_at(rgba, y):
+    return rgba[:y], rgba[y:]
+
+
+def split_cells(rgb, n):
+    w = rgb.shape[1] // n
+    return [rgb[:, i * w:(i + 1) * w] for i in range(n)]
