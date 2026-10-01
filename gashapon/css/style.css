@@ -1,3 +1,15 @@
+/* 扭蛋機頁自己的稀有度色微調(2026-10-01,使用者:「UR 太鮮艷」「SSR 不夠金」)。
+   只覆寫在這一頁 —— shared/css/tokens.css 也給立體扭蛋機用,那邊這次不動。 */
+:root {
+  --r-SSR-a: #FFD54A;
+  --r-SSR-b: #E3A008;
+  --gold: linear-gradient(135deg, #FFE68C 0%, #F7BE1E 38%, #FFF0B3 52%, #E3A008 70%, #F7C948 100%);
+  --rainbow: linear-gradient(115deg,
+    #FFA3B1 0%, #FFCF9E 18%, #FFF1A6 34%, #A8EBC4 52%, #A6DDFF 70%, #CDB6FF 86%, #FFB8E1 100%);
+  --rainbow-conic: conic-gradient(from 0deg,
+    #FFA3B1, #FFF1A6, #A8EBC4, #A6DDFF, #CDB6FF, #FFB8E1, #FFA3B1);
+}
+
 html, body {
   margin: 0;
   height: 100%;
@@ -154,6 +166,9 @@ body {
 .capsule[data-rarity="R"]   { --half-a: var(--r-R-a);   --half-b: var(--r-R-b);   --pattern: url(../img/pattern-R.webp?v=4a28a827); }
 .capsule[data-rarity="SR"]  { --half-a: var(--r-SR-a);  --half-b: var(--r-SR-b);  --pattern: url(../img/pattern-SR.webp?v=5fe470dd); }
 .capsule[data-rarity="SSR"] { --half-a: var(--r-SSR-a); --half-b: var(--r-SSR-b); --pattern: url(../img/pattern-SSR.webp?v=26007f16); }
+/* SSR 的金:殼跟標籤都加一道金屬光澤的漸層(純色看起來像奶油黃) */
+.capsule[data-rarity="SSR"] .capsule__half { background: var(--gold); background-size: 100% 200%; }
+.capsule[data-rarity="SSR"] .capsule__half--bottom { background-position: 0 100%; }
 .capsule[data-rarity="UR"]   { --pattern: url(../img/pattern-UR.webp?v=6b924b7a); }
 .capsule[data-rarity="UR"] .capsule__half {
   background: var(--rainbow);
@@ -220,7 +235,7 @@ body {
 .prize-card__badge[data-rarity="N"]   { background: var(--r-N-a); }
 .prize-card__badge[data-rarity="R"]   { background: var(--r-R-a); }
 .prize-card__badge[data-rarity="SR"]  { background: var(--r-SR-a); }
-.prize-card__badge[data-rarity="SSR"] { background: var(--r-SSR-a); }
+.prize-card__badge[data-rarity="SSR"] { background: var(--gold); }
 .prize-card__badge[data-rarity="UR"]  { background: var(--rainbow); animation: shimmer 3.2s linear infinite; color: #fff; text-shadow: 0 2px 3px rgba(0,0,0,.6); }
 .prize-card__name {
   margin: 0;
