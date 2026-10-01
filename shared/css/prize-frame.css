@@ -5,21 +5,28 @@
    雪花與積雪由 tools/mascot-gen/flakes.py 產生。
    扭蛋機在用;立體扭蛋機之後加上 .prize-frame、data-rarity 與同樣的 markup 就能用(issue #6)。 */
 .prize-frame {
-  --frame-w: 14px;
-  --flake: 64px;
+  --frame-w: 10px;
+  --flake: 50px;
   --frame-color: var(--r-N-b);
   position: relative;
   /* 左右各留半朵雪花的空間,名字很長時四角的雪花才不會被畫面邊緣切掉 */
   max-width: calc(100vw - var(--flake) - 16px);
-  padding: calc(var(--frame-w) + 18px) calc(var(--frame-w) + 22px);
+  padding: calc(var(--frame-w) + 26px) calc(var(--frame-w) + 22px) calc(var(--frame-w) + 20px);
   background: var(--cream);
   border: var(--frame-w) solid var(--frame-color);
-  border-radius: 28px;
-  /* 色帶外圈、內圈各一條深棕線,再加一個往下的厚影子 */
+  border-radius: 26px;
+  /* 外圈一條深棕線 + 往下的厚影子;內側是原本卡片那種淡淡的虛線(::before) */
   box-shadow:
     0 0 0 4px var(--ink),
-    inset 0 0 0 4px var(--ink),
-    0 12px 0 4px rgba(87, 66, 57, .25);
+    0 12px 0 4px rgba(87, 66, 57, .22);
+}
+.prize-frame::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 2.5px dashed rgba(87, 66, 57, .22);
+  border-radius: 16px;
+  pointer-events: none;
 }
 .prize-frame[data-rarity="N"]   { --frame-color: var(--r-N-b); }
 .prize-frame[data-rarity="R"]   { --frame-color: var(--r-R-b); }
@@ -49,22 +56,22 @@
   z-index: 2;
 }
 .prize-frame__corner--tl { top: calc(var(--frame-w) / -2 - var(--flake) / 2); left: calc(var(--frame-w) / -2 - var(--flake) / 2); }
-.prize-frame__corner--tr { top: calc(var(--frame-w) / -2 - var(--flake) / 2); right: calc(var(--frame-w) / -2 - var(--flake) / 2); transform: rotate(15deg); }
-.prize-frame__corner--bl { bottom: calc(var(--frame-w) / -2 - var(--flake) / 2); left: calc(var(--frame-w) / -2 - var(--flake) / 2); transform: rotate(-10deg); }
-.prize-frame__corner--br { bottom: calc(var(--frame-w) / -2 - var(--flake) / 2); right: calc(var(--frame-w) / -2 - var(--flake) / 2); transform: rotate(25deg); }
+.prize-frame__corner--tr { top: calc(var(--frame-w) / -2 - var(--flake) / 2); right: calc(var(--frame-w) / -2 - var(--flake) / 2);  }
+.prize-frame__corner--bl { bottom: calc(var(--frame-w) / -2 - var(--flake) / 2); left: calc(var(--frame-w) / -2 - var(--flake) / 2);  }
+.prize-frame__corner--br { bottom: calc(var(--frame-w) / -2 - var(--flake) / 2); right: calc(var(--frame-w) / -2 - var(--flake) / 2);  }
 .prize-frame[data-rarity="N"] .prize-frame__corner   { background-image: url(../img/flakes/flake-N.svg); }
 .prize-frame[data-rarity="R"] .prize-frame__corner   { background-image: url(../img/flakes/flake-R.svg); }
 .prize-frame[data-rarity="SR"] .prize-frame__corner  { background-image: url(../img/flakes/flake-SR.svg); }
 .prize-frame[data-rarity="SSR"] .prize-frame__corner { background-image: url(../img/flakes/flake-SSR.svg); }
 .prize-frame[data-rarity="UR"] .prize-frame__corner  { background-image: url(../img/flakes/flake-UR.svg); }
 
-/* 上緣的積雪:蓋在上方色帶上,兩端讓給四角的雪花 */
+/* 上緣的積雪:蓋住整條上緣、兩端稍微超出去,下緣的雪滴垂在色帶上 */
 .prize-frame__snow {
   position: absolute;
-  top: calc(var(--frame-w) * -1 - 16px);
-  left: calc(var(--flake) / 2 - 4px);
-  right: calc(var(--flake) / 2 - 4px);
-  height: 30px;
+  top: calc(var(--frame-w) * -1 - 22px);
+  left: calc(var(--frame-w) * -1 - 8px);
+  right: calc(var(--frame-w) * -1 - 8px);
+  height: 44px;
   background: url(../img/flakes/snow-cap.svg) center / 100% 100% no-repeat;
   pointer-events: none;
   z-index: 1;
