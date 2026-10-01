@@ -115,3 +115,16 @@ test('preloadImages:全部成功 → true;有一張失敗 → false,不丟例外
   assert.equal(await preloadImages(['a', 'b'], () => Promise.resolve()), true);
   assert.equal(await preloadImages(['a', 'b'], u => (u === 'b' ? Promise.reject(new Error('404')) : Promise.resolve())), false);
 });
+
+import { particleCount } from '../gashapon/js/particles.js';
+
+test('particleCount:升階的雪花一階比一階多(R 6 → UR 18)', () => {
+  assert.deepEqual([1, 2, 3, 4].map(l => particleCount('upgrade', l)), [6, 10, 14, 18]);
+});
+
+test('particleCount:最後爆開比同一階升階還多,維持原本的數量', () => {
+  for (const l of [0, 1, 2, 3, 4]) {
+    assert.equal(particleCount('burst', l), 18 + l * 12);
+    if (l > 0) assert.ok(particleCount('burst', l) > particleCount('upgrade', l));
+  }
+});

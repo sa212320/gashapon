@@ -175,6 +175,9 @@ body {
 
 .particles {
   grid-area: 1 / 1;
+  /* 疊在蛋的上面:升階的雪花是從蛋身上噴出來的,排在後面會被蛋擋住 */
+  position: relative;
+  z-index: 2;
   display: grid;
   place-items: center;
   pointer-events: none;
@@ -186,6 +189,14 @@ body {
   border-radius: 50%;
 }
 .particle--rainbow { background: var(--rainbow); }
+.particle--snow {
+  width: 26px;
+  height: 26px;
+  border-radius: 0;
+  overflow: visible;
+  /* 白色(N)的雪花在亮背景上看不到,加一圈深色描邊般的影子 */
+  filter: drop-shadow(0 0 1.5px rgba(58, 46, 41, .7));
+}
 
 .prize-card {
   grid-area: 1 / 1;

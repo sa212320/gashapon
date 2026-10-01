@@ -3,6 +3,9 @@
 import { RARITIES, RARITY_META } from './constants.js';
 import { sfx } from '../../shared/js/sound.js';
 import { outletPoint } from './machine-art.js';
+import { particleCount } from './particles.js';
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
 const DURATION = {
   turn: 1000, drop: 720, shake: 360, upgrade: 480, crack: 420, burst: 900, show: 320,
@@ -102,28 +105,38 @@ export function createRevealer(els) {
     els.aura.hidden = true;
   }
 
-  function spawnParticles(rarity, amount) {
+  // 雪花粒子(2026-10-01 從圓點改成雪花,呼應冰雪主題)。顏色是稀有度色,UR 每顆隨機一個色相。
+  // near = 升階那一小圈;最後爆開飛得比較遠。
+  // 每顆動畫結束就自己移除 —— 升階會連續噴好幾次,不能用「幾秒後清空整個容器」,
+  // 不然前一次的計時器會把下一次剛噴出來的雪花清掉。
+  function spawnParticles(rarity, amount, { near = false } = {}) {
     if (isSkipping()) return;
     const meta = RARITY_META[rarity];
     const frag = document.createDocumentFragment();
     for (let i = 0; i < amount; i++) {
-      const dot = document.createElement('span');
-      dot.className = 'particle';
-      if (rarity === 'UR') dot.classList.add('particle--rainbow');
-      else dot.style.background = meta.color;
-      frag.appendChild(dot);
+      const flake = document.createElementNS(SVG_NS, 'svg');
+      flake.setAttribute('class', 'particle particle--snow');
+      flake.setAttribute('viewBox', '-12 -12 24 24');
+      const use = document.createElementNS(SVG_NS, 'use');
+      use.setAttribute('href', '#snowflake');
+      flake.appendChild(use);
+      flake.style.color = rarity === 'UR' ? `hsl(${Math.round(Math.random() * 360)}, 90%, 68%)` : meta.color;
+      frag.appendChild(flake);
       const angle = (Math.PI * 2 * i) / amount + Math.random() * 0.4;
-      const distance = 120 + Math.random() * 220;
-      dot.animate([
-        { transform: 'translate(0,0) scale(1)', opacity: 1 },
-        {
-          transform: `translate(${Math.cos(angle) * distance}px, ${Math.sin(angle) * distance}px) scale(0)`,
-          opacity: 0,
-        },
-      ], { duration: 700 + Math.random() * 500, easing: 'cubic-bezier(.2,.7,.4,1)', fill: 'forwards' });
+      const distance = near ? 100 + Math.random() * 90 : 120 + Math.random() * 220;
+      const spin = (Math.random() - 0.5) * 360;
+      const dx = Math.cos(angle) * distance;
+      const dy = Math.sin(angle) * distance;
+      // 前 60% 保持清楚(放大到 1.1 倍、不透明)往外飛,最後才縮小淡出 ——
+      // 一開始就縮的話,飛出蛋的範圍時已經小到看不見
+      const anim = flake.animate([
+        { transform: 'translate(0,0) rotate(0deg) scale(.6)', opacity: 1 },
+        { transform: `translate(${dx * .7}px, ${dy * .7}px) rotate(${spin * .6}deg) scale(1.1)`, opacity: 1, offset: .6 },
+        { transform: `translate(${dx}px, ${dy}px) rotate(${spin}deg) scale(.3)`, opacity: 0 },
+      ], { duration: (near ? 750 : 900) + Math.random() * 400, easing: 'cubic-bezier(.25,.6,.4,1)', fill: 'forwards' });
+      anim.finished.then(() => flake.remove(), () => flake.remove());
     }
     els.particles.appendChild(frag);
-    setTimeout(() => els.particles.replaceChildren(), 1400);
   }
 
   const stepHandlers = {
@@ -177,6 +190,7 @@ export function createRevealer(els) {
       const index = Math.max(0, RARITIES.indexOf(step.to) - 1);
       sfx.upgrade(index);
       els.capsule.dataset.rarity = step.to;
+      spawnParticles(step.to, particleCount('upgrade', index + 1), { near: true });
       const glow = flashAura(step.to, 2.6 + index * 0.5);
       await animate(els.capsule,
         [{ transform: 'scale(1)' }, { transform: 'scale(1.28)', offset: 0.45 }, { transform: 'scale(1)' }],
@@ -199,7 +213,7 @@ export function createRevealer(els) {
     async burst(step) {
       const level = RARITIES.indexOf(step.rarity);
       sfx.burst(level);
-      spawnParticles(step.rarity, 18 + level * 12);
+      spawnParticles(step.rarity, particleCount('burst', level));
       await flashAura(step.rarity, 3.4 + level * 0.8);
     },
 

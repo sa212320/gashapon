@@ -15,6 +15,16 @@
 
 <a class="home-link home-link--corner" href="../" aria-label="回首頁">←</a>
 
+<!-- 雪花粒子的形狀(reveal.js 的 spawnParticles 用 <use href="#snowflake"> 引用) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="snowflake" viewBox="-12 -12 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
+      <path d="M0-10V10M-8.7-5 8.7 5M-8.7 5 8.7-5"/>
+      <path d="M-3-7.5 0-4.5 3-7.5M-3 7.5 0 4.5 3 7.5M-7.9-1.2-4.4-2.4-5.1-6M7.9 1.2 4.4 2.4 5.1 6M-7.9 1.2-4.4 2.4-5.1 6M7.9-1.2 4.4-2.4 5.1-6"/>
+    </g>
+  </symbol>
+</svg>
+
 <main class="stage" id="stage">
   <div class="machine" id="machine">
     <img class="machine__body" src="img/machine.webp?v=75cbaebd" alt="" draggable="false">
