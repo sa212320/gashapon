@@ -23,6 +23,10 @@
   Claude-Session: https://claude.ai/code/session_01SemYkQLkTmSDDeYUKQcPZG
   ```
 - 驗收一律在**真實頁面**(本機 `python3 -m http.server` 開 repo 根目錄),390 與 1440 兩種寬度各截圖給使用者;不用另做 repro 頁
+- **預先載入**(使用者 2026-10-02 指定):這次新增或換過的每一張圖都要進預載範圍,兩層都要 ——
+  ① 首頁閒置預抓 `gashapon/img/preload.json`(由 `gashapon.py write_preload_manifest()` 產生,`test/preload-manifest.test.js` 檢查一字不差);
+  ② 進到立體扭蛋機頁時先暖好揭曉要用的圖(外框、花紋、托盤),不要等第一次揭曉才下載。
+  涵蓋清單:`pattern-*.webp`(白色版)、`frame-*.webp`、`gashapon3d/img/floor.webp`、`gashapon3d/img/wall.webp`。首頁卡片 `img/home/gashapon3d.webp` 是首頁本身的圖,不用預載
 - 生圖:ComfyUI 已關;本計畫用到的圖都已生好並選定,**不要再生**。後製失敗才回報使用者
 
 ## 已封閉的決策(逐字自 spec;實作時不得重新討論)
@@ -145,6 +149,8 @@ test('角落圖示、剩餘膠囊、稀有度標籤、shimmer 都在 shared/', (
   assert.ok(frame.includes('.prize-card__badge[data-rarity="UR"]'));
   assert.ok(frame.includes('@keyframes shimmer'));
   assert.ok(!read('gashapon/css/animations.css').includes('@keyframes shimmer'));
+  assert.ok(frame.includes('.preload-rack'));
+  assert.ok(!style.includes('.preload-rack {'));
 });
 ```
 
@@ -160,6 +166,7 @@ Expected: FAIL(`tokens.css 少了 --gold:`)
 3. `style.css` 兩段 `.remain-tag { … }`:第一段(一般寬度)搬到 `tokens.css`;`@media (max-height: 560px)` 裡那段跟一般寬度完全一樣,直接刪掉;同一個 media 區塊裡被誤貼的 `.draw-group { … }` 也刪(上層已有同樣規則)
 4. `style.css` 的 `.prize-card__badge { … }` 與五行 `.prize-card__badge[data-rarity=…]` 搬到 `prize-frame.css` 末尾
 5. `animations.css` 的 `@keyframes shimmer { … }` 搬到 `prize-frame.css` 末尾(`style.css` 的 UR 殼也用它,2D 兩支 CSS 都有載入,不受影響)
+6. `style.css` 末尾的 `.preload-rack { … }`(含註解)搬到 `prize-frame.css` 末尾 —— 立體扭蛋機也要用它暖外框圖
 
 - [ ] **Step 4: 跑全部測試**
 
@@ -331,15 +338,34 @@ Run: `node --test test/gashapon3d.test.js` → PASS
 ```
 
 - `dismissPrize()` 在 `$('prizeCard').hidden = true;` 後加 `$('dim').classList.remove('is-on');`
+- 進頁面就暖好 5 張外框圖(預先載入 ②)。不自己組網址 —— 放一排看不到的 `.prize-frame[data-rarity]`,讓瀏覽器照 CSS 的網址(含 `?v=`)下載,跟正式卡片同一份快取:
+
+```js
+// 揭曉卡片的外框先下載好,第一次揭曉時才不會畫出半張框(同扭蛋機頁的 mountPreloadRack)
+function warmFrames() {
+  const rack = document.createElement('div');
+  rack.className = 'preload-rack';
+  rack.setAttribute('aria-hidden', 'true');
+  for (const r of RARITIES) {
+    const f = document.createElement('div');
+    f.className = 'prize-card prize-frame';
+    f.dataset.rarity = r;
+    rack.appendChild(f);
+  }
+  document.body.appendChild(rack);
+}
+warmFrames();
+```
 - `document` 的 capture 監聽保留原樣(`closest('.toolbar, dialog')` 那行改成 `closest('.toolbar, .corner-tools, .home-link, dialog')`,角落圖示也不算「點外面」)
 
 - [ ] **Step 6: 實機驗收**(`http://localhost:8000/gashapon3d/`,390 與 1440)
 
 1. 角落圖示、膠囊位置與 2D 相同;設定裡關掉「抽到的就拿走」→ 膠囊消失
-2. 設定把獎項改成 5 種稀有度各 1 顆,逐顆點開:卡片外框、代號標籤、長名字縮字都對;卡片出現時才變暗
-3. 卡片開著時點 canvas 上別的蛋 → 只關卡片,**沒有**開下一顆(設定「剩下什麼」的數字只少 1)
-4. 最後一顆抽到 SSR:卡片 + 歡呼 → 關卡片才出現「扭蛋機空了!」→「再裝滿一次」點一下就裝滿
-5. 截圖給使用者
+2. DevTools → Network,重新整理:頁面一載入就抓了 5 張 `frame-*.webp`(帶 `?v=`),第一次揭曉時 Network 沒有再抓外框
+3. 設定把獎項改成 5 種稀有度各 1 顆,逐顆點開:卡片外框、代號標籤、長名字縮字都對;卡片出現時才變暗
+4. 卡片開著時點 canvas 上別的蛋 → 只關卡片,**沒有**開下一顆(設定「剩下什麼」的數字只少 1)
+5. 最後一顆抽到 SSR:卡片 + 歡呼 → 關卡片才出現「扭蛋機空了!」→「再裝滿一次」點一下就裝滿
+6. 截圖給使用者
 
 - [ ] **Step 7: Commit**
 
@@ -1059,6 +1085,10 @@ Run: `node --test` → PASS
 - 粒子與光暈從蛋身上噴出(不是畫面正中央以外的地方)
 錄成 GIF 或逐步截圖給使用者。
 
+- [ ] **Step 4b: 預載檢查**
+
+DevTools → Network,重新整理 3D 頁:一載入就抓了 `pattern-R/SR/SSR/UR.webp`(`loadSkins()` 在啟動時跑,等於暖花紋),網址跟 2D 頁一字不差;第一次升級時沒有再抓。先開首頁等幾秒再進 3D 頁:這些圖顯示 `(disk cache)` / `(memory cache)`。
+
 - [ ] **Step 5: 失敗路徑(Review Focus 2)**
 
 DevTools → Network → 封鎖 `pattern-UR.webp`,重新整理後抽 UR:console 有一行 warn,殼仍是純色或只有底色,演出跑完、卡片出現、按鈕恢復可按。
@@ -1214,6 +1244,9 @@ def build_tray():
     ART.write_text(text)
     for name in ('floor', 'wall'):
         print(name, (IMG / f'{name}.webp').stat().st_size // 1024, 'KB')
+    # 雜湊變了,首頁的預載清單要跟著重產(預先載入 ①)
+    from gashapon import write_preload_manifest
+    write_preload_manifest()
 
 
 if __name__ == '__main__':
@@ -1244,6 +1277,17 @@ Expected: 印出兩行 KB,floor ≤ 100 KB;`tray-art.js` 的 `00000000` 換成�
 (測試名稱改成「preload.json 跟扭蛋機頁、立體扭蛋機托盤實際引用的圖一字不差」。)
 
 Run: `tools/mascot-gen/.venv/bin/python tools/mascot-gen/gashapon.py manifest && node --test` → PASS,`preload.json: 14 張`
+
+再補一個測試釘死「托盤兩張圖一定在預載清單裡」(`test/preload-manifest.test.js` 末尾):
+
+```js
+test('立體扭蛋機的托盤貼圖也在首頁預載清單裡', () => {
+  const manifest = JSON.parse(read('gashapon/img/preload.json'));
+  for (const name of ['floor', 'wall']) {
+    assert.ok(manifest.some(u => u.startsWith(`gashapon3d/img/${name}.webp?v=`)), `預載清單少了 ${name}`);
+  }
+});
+```
 
 - [ ] **Step 6: Commit**
 
@@ -1357,7 +1401,8 @@ Run: `node --test` → PASS
 1. 獎項 3 顆、20 顆、40 顆各看一次:牆高不變、蛋不穿牆、按「搖動」蛋撞牆反彈
 2. 390 寬:整圈牆都在畫面內
 3. 點開一顆:前半牆擋住蛋下半部的地方沒有描邊穿過去
-4. 跟首頁卡片 s2 的冰盤截圖並排給使用者
+4. Network:`floor.webp`、`wall.webp` 在頁面載入時就抓了;先開首頁再進來是快取命中
+5. 跟首頁卡片 s2 的冰盤截圖並排給使用者
 
 - [ ] **Step 6: Commit**
 
@@ -1429,5 +1474,6 @@ git commit -m "feat(home): illustrated card for the 3D gashapon"
 
 - [ ] `node --test` 與 Python unittest 全部 PASS
 - [ ] 2D、3D、首頁各在 390 / 1440 截一張最終圖給使用者
+- [ ] 預載總檢查:清空快取 → 開首頁等 5 秒 → 進 3D 頁抽一顆 UR:Network 裡所有 `pattern-*` / `frame-*` / `floor` / `wall` 都是快取命中
 - [ ] 驗收報告寫明:手機效能只在桌機 Chrome 裝置模擬看過,沒有真機量測
 - [ ] 首頁卡片文案「看蛋在球裡滾來滾去」已經不符(現在是托盤),**不在本計畫範圍**,在報告裡提出給使用者決定
