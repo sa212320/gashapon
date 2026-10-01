@@ -19,7 +19,7 @@
 | Q3 | 升級演出 | **完全比照 2D**:起點是那顆蛋的隨機純色;每次 upgrade 殼換成該稀有度的外觀(2D 的底色 × `pattern-*.webp`),配粒子 + 光暈 + 彈跳。N 不升級、殼不換 |
 | — | 轉正 | 蛋飛到中央時**要轉正**:上半朝上、接縫在畫面上水平、正面朝鏡頭 |
 | Q9 | 花紋貼法 | **正面 planar 投影**(頂點 x、y 算 UV),不重生花紋素材 |
-| — | 殼的材質做法 | **執行時 Canvas 合成**:底色(純色 / SSR 金漸層 / UR 彩虹)畫進 canvas,再把花紋圖**直接疊上去**(一般 source-over)→ `CanvasTexture`。底色**從 `tokens.css` 的 CSS 變數讀**,不在 JS 複製色碼。UR 的流動靠捲 texture offset |
+| — | 殼的材質做法 | **執行時 Canvas 合成**:底色(純色 / SSR 金漸層 / UR 彩虹)畫進 canvas,再把花紋圖**直接疊上去**(一般 source-over)→ `CanvasTexture`。底色**從 `tokens.css` 的 CSS 變數讀**,不在 JS 複製色碼。UR 的流動:2D 是 `shimmer` = `filter: hue-rotate(360deg) saturate(1.15)` 3.2s 一圈(整顆含花紋一起轉色相),3D 在載入時用**同一個 CSS hue-rotate 色彩矩陣**預算 24 格貼圖、依時間輪播 |
 | — | 花紋改白(設計階段,使用者看過模擬圖決定) | 花紋從「深色 multiply」改成**白色**:N/R/SR/SSR = 白色雪花;**UR = 淺水晶藍 `#7FD3FF` 雪花 + 白邊**(白邊寬約為圖寬的 1.7%,即 300px 預覽上的 5px MaxFilter)。**2D 一起改**。花紋在 `build-patterns` 時就烘成 **RGBA webp**(白 / 藍 + 透明度 = 原灰階反轉),檔名不變、雜湊更新;2D 的 `::before` 拿掉 `mix-blend-mode: multiply`,3D 直接疊。兩台讀同一張圖 |
 | — | 稀有度色共用(設計階段發現) | 2D `style.css` 開頭覆寫了 `--r-SSR-a/b`、`--gold`、`--rainbow`、`--rainbow-conic`(「UR 太鮮艷」「SSR 不夠金」那次);`tokens.css` 還是舊值、也沒有 `--gold`。這些變數只有 `gashapon/` 在用 → **整段搬進 `tokens.css`**,2D 畫面不變,3D 讀到同一份 |
 | Q8 | 粒子 / 光暈 | 2D `reveal.js` 的 `spawnParticles` / `flashAura` 抽到 `shared/js/reveal-fx.js` 兩台共用;3D 用 DOM 疊在 canvas 上,對準蛋的螢幕投影。2D 行為不變 |
@@ -58,7 +58,7 @@
 | `gashapon/js/reveal.js` | 修改 | 改用 `reveal-fx.js`,行為不變 |
 | `gashapon/css/style.css` → `shared/css/tokens.css` | 搬移 | `.remain-tag`、`.home-link--corner`、`.corner-tools`(含 iOS 修正)、開頭的稀有度色覆寫 `:root{…}` 搬到共用處;`.capsule__half::before` 拿掉 `mix-blend-mode` |
 | `tools/mascot-gen/gashapon.py` `build-patterns`、`gashapon_art.py` | 修改 | 輸出白色(UR 水晶藍 + 白邊)RGBA 花紋;新增純函式 `to_white_pattern(gray, fill, edge)` 附測試 |
-| `gashapon3d/js/skin.js` | 新增 | `loadSkins()`:讀 `tokens.css` 變數 + 5 張 pattern,Canvas 合成每個稀有度上 / 下半的 `CanvasTexture`;`applySkin(egg, rarity)`、`resetSkin(egg)`、`tickSkins(dt)`(UR 捲 offset);純函式 `skinSequence(steps)` |
+| `gashapon3d/js/skin.js` | 新增 | `loadSkins()`:讀 `tokens.css` 變數 + 5 張 pattern,Canvas 合成每個稀有度上 / 下半的 `CanvasTexture`;`applySkin(egg, rarity)`、`resetSkin(egg)`、`tickSkins(now)`(UR 輪播預算好的 hue-rotate 格);純函式 `skinSequence(steps)` |
 | `gashapon3d/js/scene.js` | 修改 | 半球幾何加正面 UV;托盤 = 盤底貼圖 + 冰牆幾何(含描邊);影子冷色;`upright(egg, k)`(slerp 到正面朝鏡頭);`screenPos(egg)`;反彈邊界改牆內壁;取景算進牆高 |
 | `gashapon3d/js/main.js` | 修改 | `play()`:drop 加轉正、upgrade 換殼 + 粒子 + 光暈、show 用 prize-frame + 暗幕;版面 DOM 跟著改 |
 | `gashapon3d/index.html`、`css/gashapon3d.css` | 修改 | 角落圖示、膠囊、`.fx` 層、`#dim`、prize-frame 卡片、`<symbol id="snowflake">`、空機畫面;刪舊 `.prize-card` 樣式與 topbar |
@@ -83,7 +83,7 @@
 | burst | 大量粒子 + 大光暈(`particleCount('burst', level)`) |
 | show | 卡片設 `data-rarity`、`waitForImage` 最多 2 秒(等不到用 `is-frame-loading`),**暗幕此時才淡入**,卡片置中 |
 
-- 殼的外觀:上半 = `--r-<R>-a`、下半 = `--r-<R>-b`(N/R/SR);SSR 用 `--gold` 漸層;UR 用 `--rainbow` 漸層 + offset 捲動。漸層在 canvas 上重畫 CSS 那條漸層的色標;直接疊上白色 RGBA 花紋,上下兩半共用同一張花紋、各取一半(同 2D 的 `::before` 200% 高)
+- 殼的外觀:上半 = `--r-<R>-a`、下半 = `--r-<R>-b`(N/R/SR);SSR 用 `--gold` 漸層;UR 用 `--rainbow` 漸層 + 預算 24 格 hue-rotate 輪播(3.2s 一圈,同 2D `shimmer`)。漸層在 canvas 上重畫 CSS 那條漸層的色標;直接疊上白色 RGBA 花紋,上下兩半共用同一張花紋、各取一半(同 2D 的 `::before` 200% 高)
 - 粒子 / 光暈定位:觸發當下取 `scene.screenPos(egg)`,特效容器以那點為中心
 - 收尾:點掉卡片後 `render()` → `dealTable()` 全部重建,換過的材質跟著丟;`resetSkin()` 只是防衛
 - 演出中的例外照現在的 `finally` 收尾,`playing` 不能卡住
