@@ -189,3 +189,12 @@ test('nextForTable:均勻挑 —— rng 決定挑哪一顆', () => {
   const setup = createSetup3d({ prizes: [createPrize({ name: '甲', count: 3 })], rng: seeded(7) });
   assert.equal(nextForTable(setup, new Set(), () => 0.99), setup.pool[2]);
 });
+
+// 審查發現(2026-10-02):抽到不拿走時,已經被抽走(drawn)的蛋也會被補上桌;之後把開關切回
+// 「抽到就拿走」,桌上就留著抽過的蛋 —— 點開等於白拿一個獎,剩 0 顆時碗裡還有蛋。
+// tableBatch 永遠排除 drawn,nextForTable 也要一樣。
+test('nextForTable:已經被抽走的蛋永遠不會再上桌(不管開關怎麼切)', () => {
+  const setup = createSetup3d({ prizes: [createPrize({ name: '甲', count: 2 })], removeOnDraw: false, rng: seeded(8) });
+  const pool = [{ ...setup.pool[0], drawn: true }, setup.pool[1]];
+  assert.equal(nextForTable({ ...setup, pool }, new Set([pool[1]])), null);
+});

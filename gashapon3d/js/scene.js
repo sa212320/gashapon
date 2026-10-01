@@ -576,8 +576,10 @@ export function createScene(canvas) {
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     applyViewShift();
-    // 長寬比變了,取景就要重算 —— 不重下一次 look 之前整桌都是切掉的
-    look(...lastView);
+    // 長寬比變了,取景就要重算 —— 不重下一次 look 之前整桌都是切掉的。
+    // 演出中(推到近景)也要照當下的推近程度重算,不然轉手機會一下跳回整碗(2026-10-02 審查發現)
+    if (focusK > 0) focusView(focusK);
+    else look(...lastView);
   }
 
   // 目前的取景參數,resize 之後要拿它重算一次
@@ -608,10 +610,15 @@ export function createScene(canvas) {
   // 平常看整桌。
   // 平常看整碗。仰角壓低到約 36 度(原本約 48 度):從太高的地方往下看,只看得到碗口一圈,
   // 看不出碗的形狀跟厚度。
-  function homeView() {
+  let focusK = 0;   // 目前推近到哪(0 = 整碗、1 = 那顆蛋的近景),resize 時要照著重算
+  function homeFraming() {
     viewShift = VIEW_SHIFT;
     applyViewShift();
     look(TABLE * 1.95, TABLE * 1.42);
+  }
+  function homeView() {
+    focusK = 0;
+    homeFraming();
   }
 
   // 點開一顆時推近。k: 0(整桌)→ 1(看那一顆)。
@@ -623,7 +630,8 @@ export function createScene(canvas) {
   const HOME = new THREE.Vector3();
   const CLOSE = new THREE.Vector3();
   function focusView(k) {
-    homeView();
+    focusK = k;
+    homeFraming();
     HOME.copy(camera.position);
     const vHalf = (camera.fov * Math.PI) / 360;
     const hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);

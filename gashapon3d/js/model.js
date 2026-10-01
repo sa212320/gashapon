@@ -93,10 +93,12 @@ export function openCapsule(setup, capsule) {
 }
 
 // 抽完一顆之後補哪一顆上桌(2026-10-02:抽完不再整桌重排,只拿掉被抽的那顆、再補一顆)。
-// 從「還沒上桌」的蛋裡均勻挑;抽到就拿走的話,已經被抽走的不算。全部都在桌上就不補。
+// 從「還沒上桌、也還沒被抽走」的蛋裡均勻挑(同 tableBatch)。全部都在桌上就不補。
+// drawn 只有「抽到就拿走」時才會被標上;那個開關之後切掉,drawn 的蛋也不能回到桌上 ——
+// 不然切回來之後,點開它等於白拿一個獎(2026-10-02 審查發現)。
 // onTable 是桌上那幾顆的 capsule 物件 —— 沒被抽到的蛋在 pool 裡始終是同一個物件。
 export function nextForTable(setup, onTable, rng = Math.random) {
-  const candidates = setup.pool.filter(c => !(setup.removeOnDraw && c.drawn) && !onTable.has(c));
+  const candidates = setup.pool.filter(c => !c.drawn && !onTable.has(c));
   if (candidates.length === 0) return null;
   return candidates[Math.floor(rng() * candidates.length)];
 }
