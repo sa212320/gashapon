@@ -19,7 +19,7 @@ from PIL import Image
 
 import comfy
 from post import key_border, keep_largest, key_green
-from gashapon_art import anchors_from_pick, cut_disk, content_hash, stamp, clear_green_fringe, to_tint_gray, split_at, split_cells, square_about_seam, normalize_edges
+from gashapon_art import anchors_from_pick, cut_disk, content_hash, stamp, clear_green_fringe, to_tint_gray, split_at, split_cells, square_about_seam, normalize_edges, clear_center, crop_margin
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
@@ -179,7 +179,18 @@ def review_frames():
     return '\n'.join(out)
 
 
-REVIEW_SECTIONS = [review_machine, review_shells, review_frames]
+def review_patterns():
+    out = []
+    for r in RARITIES:
+        d = OUT / f'pattern-{r}'
+        figs = []
+        for f in sorted(d.glob('s*.png')) if d.exists() else []:
+            figs.append(figure(f'pattern-{r}', f, 220, [], f"`pick pattern-{r} {f.stem[1:]}`"))
+        out.append(section(f'pattern-{r}', figs))
+    return '\n'.join(out)
+
+
+REVIEW_SECTIONS = [review_machine, review_patterns, review_frames]
 
 
 def cmd_review(args):
@@ -241,7 +252,7 @@ def cmd_build_machine(args):
 def cmd_shells(args):
     cfg = load_cfg()
     if args.separate:
-        for r in RARITIES:
+        for r in (args.only.split(',') if args.only else RARITIES):
             generate(f'{cfg["shell_style"]}, {cfg["shells"][r]}{GREEN}', cfg['negative'], 768, 768, f'shell-{r}')
     else:
         generate(f'{cfg["shell_style"]}, {cfg["shells_sheet"]}', cfg['negative'], 2560, 512, 'shells-sheet')
@@ -301,7 +312,8 @@ def cmd_build_frames(args):
         rgb = np.asarray(Image.open(OUT / name / f's{p["n"]}.png').convert('RGB'))
         rgba = keep_largest(key_green(rgb))
         x0, y0, x1, y1 = Image.fromarray(rgba).getbbox()
-        im = Image.fromarray(normalize_edges(to_tint_gray(rgba[y0:y1, x0:x1]))).resize((512, 512), Image.LANCZOS)
+        frame = clear_center(rgba[y0:y1, x0:x1])   # 框中間常被畫成一塊灰色,挖空
+        im = Image.fromarray(normalize_edges(to_tint_gray(frame))).resize((512, 512), Image.LANCZOS)
         path = FRAMES / f'frame-{r}.webp'
         webp(im, path)
         if css.exists():
@@ -309,9 +321,34 @@ def cmd_build_frames(args):
     print('frames done')
 
 
+def cmd_patterns(args):
+    # 扭蛋殼的花紋貼圖(2026-10-01 模型修訂):球由 CSS 畫,這裡只生方形灰階貼圖,白底不用去背
+    cfg = load_cfg()
+    for r in (args.only.split(',') if args.only else RARITIES):
+        generate(f'{cfg["pattern_style"]}, {cfg["patterns"][r]}', cfg['negative'], 768, 768, f'pattern-{r}')
+
+
+def cmd_build_patterns(args):
+    picks = load_cfg().get('picks', {})
+    missing = [r for r in RARITIES if f'pattern-{r}' not in picks]
+    if missing:
+        sys.exit(f'還沒 pick:{", ".join("pattern-" + r for r in missing)}')
+    css = ROOT / 'gashapon' / 'css' / 'style.css'
+    for r in RARITIES:
+        rgb = np.asarray(Image.open(OUT / f'pattern-{r}' / f's{picks[f"pattern-{r}"]["n"]}.png').convert('RGB'))
+        rgb = crop_margin(rgb, 0.06)   # 模型常在貼圖外圈畫一圈方框
+        rgba = np.dstack([rgb, np.full(rgb.shape[:2], 255, np.uint8)])
+        im = Image.fromarray(to_tint_gray(rgba)[..., :3]).resize((256, 256), Image.LANCZOS)
+        path = IMG / f'pattern-{r}.webp'
+        webp(im, path)
+        restamp(css, f'../img/pattern-{r}.webp', path)
+    print('patterns done')
+
+
 COMMANDS = {'machine': cmd_machine, 'review': cmd_review, 'pick': cmd_pick, 'build-machine': cmd_build_machine,
             'shells': cmd_shells, 'build-shells': cmd_build_shells,
-            'frames': cmd_frames, 'build-frames': cmd_build_frames}
+            'frames': cmd_frames, 'build-frames': cmd_build_frames,
+            'patterns': cmd_patterns, 'build-patterns': cmd_build_patterns}
 
 
 def main():
@@ -323,8 +360,10 @@ def main():
     p.add_argument('name'); p.add_argument('n', type=int)
     p.add_argument('--knob'); p.add_argument('--outlet'); p.add_argument('--seams')
     sub.add_parser('build-machine')
-    sh = sub.add_parser('shells'); sh.add_argument('--separate', action='store_true')
+    sh = sub.add_parser('shells'); sh.add_argument('--separate', action='store_true'); sh.add_argument('--only', help='逗號分隔的稀有度,例如 SSR,UR')
     sub.add_parser('build-shells')
+    pt = sub.add_parser('patterns'); pt.add_argument('--only', help='逗號分隔的稀有度')
+    sub.add_parser('build-patterns')
     fr = sub.add_parser('frames'); fr.add_argument('--one', action='store_true')
     sub.add_parser('build-frames')
     args = ap.parse_args()

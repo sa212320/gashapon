@@ -1,6 +1,6 @@
 {
   "style": "flat 2D cartoon illustration, cute chibi style, flat colors, thick dark brown outlines, magical frozen ice palace theme, icy blue lavender and white palette, sparkling snowflakes, clean simple shapes",
-  "negative": "text, letters, words, numbers, watermark, signature, people, person, animal, character, face, eyes, mouth, photorealistic, 3d render, gradient mesh, blurry, shadow on background, handle sticking out, lever, crank arm, ground shadow, christmas, holly, berries, leaves, ribbon",
+  "negative": "text, letters, words, numbers, watermark, signature, people, person, animal, character, face, eyes, mouth, photorealistic, 3d render, gradient mesh, blurry, shadow on background, handle sticking out, lever, crank arm, ground shadow, christmas, holly, berries, leaves, ribbon, wings sticking out, crown on top",
   "machine": "a single cute capsule toy vending machine that looks magically made of ice, seen straight from the front, tall portrait proportions, a big round clear glass dome on top filled with many colorful round capsules, fluffy white snow and small ice crystals on top of the dome, a pale icy blue rounded body with a lavender rim, little white snowflake patterns and tiny sparkles on the body, a few small icicles hanging from the rim, in the middle of the body one big round turning knob as wide as half of the body, icy white with a lavender grip bar across it, the grip bar stays completely inside the circle, nothing sticks out of the circle, below the knob a wide rounded arch-shaped capsule exit opening big enough for one capsule, two short stubby feet, no face, no shadow on the ground, the machine alone with nothing else around it, isolated on a solid flat bright pure green #00FF00 background",
   "picks": {
     "machine": {
@@ -25,17 +25,25 @@
     "N": "one perfectly round ball-shaped capsule toy with a circular outline, seen from the front, a horizontal seam line exactly across its middle, the capsule fills the picture, plain with no pattern",
     "R": "one perfectly round ball-shaped capsule toy with a circular outline, seen from the front, a horizontal seam line exactly across its middle, the capsule fills the picture, bold diagonal stripes across the whole capsule",
     "SR": "one perfectly round ball-shaped capsule toy with a circular outline, seen from the front, a horizontal seam line exactly across its middle, the capsule fills the picture, many small snowflakes all over the capsule",
-    "SSR": "one perfectly round ball-shaped capsule toy with a circular outline, seen from the front, a horizontal seam line exactly across its middle, the capsule fills the picture, a small ice crystal crown sitting on top and a thick ornate band along the seam",
-    "UR": "one perfectly round ball-shaped capsule toy with a circular outline, seen from the front, a horizontal seam line exactly across its middle, the capsule fills the picture, a small feathered wing on each side and little sparkles"
+    "SSR": "one perfectly round ball-shaped capsule toy with a circular outline, seen from the front, a horizontal seam line exactly across its middle, the capsule fills the picture, a thick ornate patterned band along the seam and a small crown pattern printed on the top half, all decorations are printed flat on the surface and stay completely inside the circle, nothing sticks out of the round outline",
+    "UR": "one perfectly round ball-shaped capsule toy with a circular outline, seen from the front, a horizontal seam line exactly across its middle, the capsule fills the picture, a pair of small wing patterns printed on the surface and many little sparkles and stars, all decorations are printed flat on the surface and stay completely inside the circle, nothing sticks out of the round outline"
   },
   "frame_style": "flat 2D cartoon illustration, cute style, thick dark brown outlines, grayscale only, white and light gray, no colors",
   "frame_base": "a square decorative picture frame seen straight on, the frame is a band about one eighth of the width, the inside of the frame is completely empty and filled with the background, the four straight sides are plain simple bands without pattern, decorations only at the four corners",
   "frames": {
-    "N": "plain rounded corners with no decoration",
-    "R": "a small snowflake at each corner",
-    "SR": "a small ice crystal cluster at each corner",
-    "SSR": "a small ice crystal crown at each corner with a dotted inner line",
-    "UR": "small wings and sparkles at each corner with a dotted inner line"
+    "N": "a few tiny snow dots at each corner, very simple",
+    "R": "a small simple snowflake at each corner",
+    "SR": "a snowflake with a few ice crystals at each corner",
+    "SSR": "an ornate cluster of snowflakes and ice crystals at each corner with a dotted inner line",
+    "UR": "a large intricate ornate snowflake crystal with sparkles at each corner with a dotted inner line, the most luxurious"
   },
-  "frame_one": "a small snowflake at each corner"
+  "frame_one": "a small simple snowflake at each corner",
+  "pattern_style": "flat 2D cartoon pattern illustration, thick dark brown outlines, grayscale only, white background with light gray and dark gray shapes, no colors, flat, no shading",
+  "patterns": {
+    "N": "a square flat plain white swatch filling the whole picture, almost completely empty, only five or six tiny light gray snow dots scattered, no snowflakes, no border, no frame",
+    "R": "a square flat decorative pattern swatch filling the whole picture edge to edge, snowflake and ice crystal theme, a few small simple six-pointed snowflakes scattered evenly on white, no border, no frame around the edges",
+    "SR": "a square flat decorative pattern swatch filling the whole picture edge to edge, snowflake and ice crystal theme, many small snowflakes scattered evenly, plus one thin frosty band running horizontally across the middle, no border, no frame around the edges",
+    "SSR": "a square flat decorative pattern swatch filling the whole picture edge to edge, snowflake and ice crystal theme, dense small snowflakes all over, an ornate ice crystal patterned band running horizontally across the middle, small sparkles, no border, no frame around the edges",
+    "UR": "a square flat decorative pattern swatch filling the whole picture edge to edge, snowflake and ice crystal theme, one large intricate ornate snowflake crystal in the center, surrounded by many small snowflakes and sparkles, an ornate ice crystal patterned band running horizontally across the middle, the most luxurious and detailed, no border, no frame around the edges"
+  }
 }

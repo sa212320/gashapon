@@ -144,3 +144,29 @@ class NormalizeEdges(unittest.TestCase):
         a = np.random.default_rng(2).integers(0, 255, (40, 40, 4), dtype=np.uint8)
         out = normalize_edges(a, 0.25)
         self.assertTrue((out[10:30, :10] == out[20:21, :10]).all())
+
+
+from gashapon_art import clear_center, crop_margin
+
+
+class ClearCenter(unittest.TestCase):
+    def setUp(self):
+        a = np.zeros((9, 9, 4), np.uint8)
+        a[...] = (255, 255, 255, 255)        # 外框的白色帶
+        a[2:7, 2:7] = (70, 50, 40, 255)      # 深色內緣線
+        a[3:6, 3:6] = (200, 200, 200, 255)   # 框中間灰色那塊
+        self.a = a
+
+    def test_center_region_becomes_transparent(self):
+        self.assertEqual(clear_center(self.a)[4, 4, 3], 0)
+        self.assertEqual(clear_center(self.a)[3, 3, 3], 0)
+
+    def test_outline_and_band_kept(self):
+        out = clear_center(self.a)
+        self.assertEqual(out[2, 2, 3], 255)
+        self.assertEqual(out[0, 0, 3], 255)
+
+
+class CropMargin(unittest.TestCase):
+    def test_crops_each_side(self):
+        self.assertEqual(crop_margin(np.zeros((100, 50, 3), np.uint8), 0.1).shape[:2], (80, 40))

@@ -103,3 +103,30 @@ def normalize_edges(rgba, frac=0.25):
     out[sy:h - sy, :sx] = out[cy:cy + 1, :sx]
     out[sy:h - sy, w - sx:] = out[cy:cy + 1, w - sx:]
     return out
+
+
+def clear_center(rgba, tol=40.0):
+    """把外框中間那塊挖空:從圖片正中央往外填色,跟中心顏色相差 tol 以內的連通區域變透明。
+    模型常把「鏤空」畫成一塊灰色,border-image 用 fill 時那塊會蓋住卡片底色。"""
+    out = rgba.copy()
+    f = out[..., :3].astype(np.float32)
+    h, w = f.shape[:2]
+    near = np.sqrt(((f - f[h // 2, w // 2]) ** 2).sum(-1)) <= tol
+    region = np.zeros((h, w), bool)
+    region[h // 2, w // 2] = True
+    while True:
+        grown = region.copy()
+        grown[1:] |= region[:-1]; grown[:-1] |= region[1:]; grown[:, 1:] |= region[:, :-1]; grown[:, :-1] |= region[:, 1:]
+        grown &= near
+        if (grown == region).all():
+            break
+        region = grown
+    out[region, 3] = 0
+    return out
+
+
+def crop_margin(img, frac):
+    """裁掉四邊各 frac。花紋貼圖常被模型加上一圈方框,貼到球上會露出來。"""
+    h, w = img.shape[:2]
+    my, mx = round(h * frac), round(w * frac)
+    return img[my:h - my, mx:w - mx]
