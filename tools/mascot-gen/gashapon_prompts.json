@@ -15,6 +15,36 @@
         384,
         811
       ]
+    },
+    "pattern-N": {
+      "n": 1
+    },
+    "frame-N": {
+      "n": 1
+    },
+    "pattern-R": {
+      "n": 1
+    },
+    "frame-R": {
+      "n": 1
+    },
+    "pattern-SR": {
+      "n": 1
+    },
+    "frame-SR": {
+      "n": 1
+    },
+    "pattern-SSR": {
+      "n": 1
+    },
+    "frame-SSR": {
+      "n": 1
+    },
+    "pattern-UR": {
+      "n": 1
+    },
+    "frame-UR": {
+      "n": 1
     }
   },
   "style_forest_r6": "flat 2D cartoon illustration, cute chibi style, flat colors, thick dark brown outlines, cozy snowy winter forest theme, icy blue lavender white and warm wood palette, sparkling snowflakes, clean simple shapes",
@@ -42,8 +72,8 @@
   "patterns": {
     "N": "a square flat plain white swatch filling the whole picture, almost completely empty, only five or six tiny light gray snow dots scattered, no snowflakes, no border, no frame",
     "R": "a square flat decorative pattern swatch filling the whole picture edge to edge, snowflake and ice crystal theme, a few small simple six-pointed snowflakes scattered evenly on white, no border, no frame around the edges",
-    "SR": "a square flat decorative pattern swatch filling the whole picture edge to edge, snowflake and ice crystal theme, many small snowflakes scattered evenly, plus one thin frosty band running horizontally across the middle, no border, no frame around the edges",
-    "SSR": "a square flat decorative pattern swatch filling the whole picture edge to edge, snowflake and ice crystal theme, dense small snowflakes all over, an ornate ice crystal patterned band running horizontally across the middle, small sparkles, no border, no frame around the edges",
+    "SR": "a square flat decorative pattern swatch filling the whole picture edge to edge, snowflake and ice crystal theme, one medium-sized detailed snowflake in the center, many small snowflakes scattered evenly around it, one thin frosty band running horizontally across the middle, no border, no frame around the edges",
+    "SSR": "a square flat decorative pattern swatch filling the whole picture edge to edge, snowflake and ice crystal theme, one large ornate detailed snowflake in the center, dense small snowflakes all over, an ornate ice crystal patterned band running horizontally across the middle, small sparkles, no border, no frame around the edges",
     "UR": "a square flat decorative pattern swatch filling the whole picture edge to edge, snowflake and ice crystal theme, one large intricate ornate snowflake crystal in the center, surrounded by many small snowflakes and sparkles, an ornate ice crystal patterned band running horizontally across the middle, the most luxurious and detailed, no border, no frame around the edges"
   }
 }

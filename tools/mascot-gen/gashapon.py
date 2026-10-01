@@ -308,9 +308,10 @@ def cmd_build_frames(args):
     css = ROOT / 'shared' / 'css' / 'prize-frame.css'
     for r, p in src.items():
         name = 'frame-one' if one else f'frame-{r}'
-        # 外框中間是鏤空的:key_border 從邊緣往內填色碰不到框內的綠底,所以用純綠去背對整張做
+        # 外圍用 key_border 從邊緣往內去背(z_image 的綠底不純,key_green 吃不掉);
+        # 框中間碰不到邊緣,下面再用 clear_center 挖空
         rgb = np.asarray(Image.open(OUT / name / f's{p["n"]}.png').convert('RGB'))
-        rgba = keep_largest(key_green(rgb))
+        rgba = keep_largest(clear_green_fringe(key_border(rgb)))
         x0, y0, x1, y1 = Image.fromarray(rgba).getbbox()
         frame = clear_center(rgba[y0:y1, x0:x1])   # 框中間常被畫成一塊灰色,挖空
         im = Image.fromarray(normalize_edges(to_tint_gray(frame))).resize((512, 512), Image.LANCZOS)
