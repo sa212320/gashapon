@@ -113,3 +113,13 @@ test('音效、設定移到右上角;工具列只剩「剩 X 顆」和「轉!」
   assert.match(corner, /id="soundBtn"/);
   assert.match(corner, /id="settingsBtn"/);
 });
+
+test('把手位置直接寫在 #machine 的 inline style,跟 anchors.json 一致(不等 JS,圖還沒載完也對得準)', () => {
+  const a = JSON.parse(read('gashapon/img/anchors.json'));
+  const tag = /<div class="machine" id="machine"[^>]*>/.exec(read('gashapon/index.html'))?.[0] ?? '';
+  const v = name => Number(new RegExp(`--${name}:\\s*([\\d.]+)`).exec(tag)?.[1]);
+  assert.equal(v('machine-aspect'), a.aspect);
+  assert.equal(v('knob-x'), a.knob.cx);
+  assert.equal(v('knob-y'), a.knob.cy);
+  assert.equal(v('knob-r'), a.knob.r);
+});

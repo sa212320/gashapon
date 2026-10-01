@@ -10,6 +10,7 @@
 import argparse
 import html
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -234,6 +235,10 @@ def cmd_build_machine(args):
     page = ROOT / 'gashapon' / 'index.html'
     for name in ['machine.webp', 'knob.webp']:
         restamp(page, f'img/{name}', IMG / name)
+    # 把手位置也寫進 HTML 的 inline style:頁面一畫出來就對,不用等 JS 讀 anchors.json
+    style = (f'--machine-aspect: {anchors["aspect"]}; --knob-x: {anchors["knob"]["cx"]}; '
+             f'--knob-y: {anchors["knob"]["cy"]}; --knob-r: {anchors["knob"]["r"]}')
+    page.write_text(re.sub(r'<div class="machine" id="machine"[^>]*>', f'<div class="machine" id="machine" style="{style}">', page.read_text()))
     print(json.dumps(anchors))
 
 
