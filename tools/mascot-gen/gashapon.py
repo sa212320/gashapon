@@ -38,10 +38,10 @@ def save_cfg(cfg):
     CFG.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + '\n')
 
 
-def generate(prompt, negative, w, h, name):
+def generate(prompt, negative, w, h, name, seeds=SEEDS):
     d = OUT / name
     d.mkdir(parents=True, exist_ok=True)
-    for n, seed in enumerate(SEEDS, 1):
+    for n, seed in enumerate(seeds, 1):
         imgs = comfy.run(comfy.graph_t2i(prompt, negative, w, h, seed, f'gashapon_{name}_s{n}'))
         (d / f's{n}.png').write_bytes(comfy.fetch(imgs[0]))
         print(f'{name} s{n} seed={seed}', flush=True)
@@ -61,7 +61,8 @@ def restamp(text_file, rel, asset):
 
 def cmd_machine(args):
     cfg = load_cfg()
-    generate(f'{cfg["style"]}, {cfg["machine"]}', cfg['negative'], MACHINE_W, MACHINE_H, 'machine')
+    seeds = [int(v) for v in args.seeds.split(',')] if args.seeds else SEEDS
+    generate(f'{cfg["style"]}, {cfg["machine"]}', cfg['negative'], MACHINE_W, MACHINE_H, 'machine', seeds)
 
 
 # 比較頁:每張圖可以用滑鼠標點,點滿之後頁面組出一行 pick 指令讓使用者複製。
@@ -211,7 +212,7 @@ COMMANDS = {'machine': cmd_machine, 'review': cmd_review, 'pick': cmd_pick, 'bui
 def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest='cmd', required=True)
-    sub.add_parser('machine')
+    m = sub.add_parser('machine'); m.add_argument('--seeds', help='逗號分隔,例如 44,55,66(多抽幾張)')
     sub.add_parser('review')
     p = sub.add_parser('pick')
     p.add_argument('name'); p.add_argument('n', type=int)
