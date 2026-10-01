@@ -66,14 +66,10 @@ function render() {
   desk.render(setup);
   setSoundIcon();
 
-  // 吉祥物「該待在哪裡」只由這裡一個地方決定 —— 不要在 closeOverlay()
-  // 之類的地方也做這個判斷,不然兩邊算出來的落點會打架(飛錯地方)。
+  // 吉祥物的待機姿勢只由這裡一個地方決定 —— 不要在 closeOverlay()
+  // 之類的地方也做這個判斷,不然兩邊會打架。
   // 一定要有 else:少了它,抽完後重新鋪一桌,吉祥物會永遠卡在 empty。
-  if (setup.tickets.length > 0 && left === 0) {
-    mascots.flyTo($('emptyAnchor'), { pose: 'empty' });
-  } else {
-    mascots.home();
-  }
+  mascots.setPose(setup.tickets.length > 0 && left === 0 ? 'empty' : 'idle');
 }
 
 function commit() {
@@ -180,12 +176,11 @@ async function doDraw(ticketEl) {
 
     skipHint.hidden = false;
     await revealer.tear();
-    // A/B 賞或最後一抽賞才值得吉祥物衝過來歡呼,其他賞別留在角落。
-    // 這裡只負責「要不要歡呼」,歡呼完之後該落腳在哪由 render() 決定
-    // (在 finally 裡呼叫),不在這裡搶著呼叫 mascots.home(),免得兩個
-    // 地方互相打架。
+    // A/B 賞或最後一抽賞才值得吉祥物歡呼。這裡只負責「要不要歡呼」,
+    // 歡呼完之後回到哪個姿勢由 render() 決定(在 finally 裡呼叫),
+    // 不在這裡搶著設,免得兩個地方互相打架。
     if (BIG_TIERS.has(result.prize.tier) || result.isLastOne) {
-      mascots.flyTo($('revealAnchor'), { pose: 'cheer' });
+      mascots.setPose('cheer');
     }
     await waitForDismiss();
     closeOverlay();

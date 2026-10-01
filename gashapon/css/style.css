@@ -225,13 +225,6 @@ body {
 .empty-state__egg { font-size: 72px; animation: idle-bob 2.4s ease-in-out infinite; }
 .empty-state__text { margin: 0; font-size: 24px; }
 
-/* emptyAnchor 是 stage 底下的普通 sibling(stage 也是 display:grid +
-   place-items:center),同樣的道理:不脫離 grid 流就可能多分一列出來,
-   擠動 .machine。改成 position:absolute 完全脫離排版。位置刻意不疊在
-   正中央 —— 那是 empty-state 自己置中「再裝滿一次」按鈕的地方,疊上去
-   吉祥物會蓋住按鈕,小孩點不到。改成貼在左側、垂直置中,落在面板旁邊。 */
-#emptyAnchor { position: absolute; left: 8%; top: 50%; transform: translateY(-50%); }
-
 /* ---------- toolbar ---------- */
 .toolbar {
   display: flex;

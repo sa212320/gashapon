@@ -27,6 +27,7 @@
 | 關鍵圖來源 | 全部從現有 `shared/img/mascot/idle.webp` 繁衍:i2v 從 idle 出發,最後一格當該姿勢的關鍵圖;其他片段全部是首尾幀夾在關鍵圖之間。其他五張舊圖淘汰 |
 | 把關 | 每段 **3 個 seed**,Claude 先過濾明顯壞掉的並標出原因,做比較頁,**使用者挑** |
 | 互動 | 維持**不可點**(`pointer-events: none`)。「跟著滑鼠」這類即時互動不在這次範圍 |
+| 位置(修訂 2026-10-01) | 實作後使用者看過實際畫面改了主意:**永遠固定在右下角**,揭曉與空狀態都不再飛到畫面中間,只在原地換姿勢;**排在頁面內容之後**(z-index -1),按鈕、卡片、揭曉面板都疊在牠上面。對外 API 改成只剩 `setPose` / `getState` / `stop`,`flyTo` / `home` / 錨點全部移除 |
 
 ---
 
@@ -34,7 +35,7 @@
 
 實作時若發現程式與此牴觸,是**計畫的 bug** —— 停下來反映,不要就地改模型。
 
-- **Entities**:`Pose`(idle / watch / cheer / aww / empty;對外 `setPose` / `flyTo` / `home` API 不變);`Keyframe`(每個 Pose 一張停止格,生成用 + 保底用);`Segment {id, kind: 'transition'|'loop'|'fidget', from, to, frames, fps, sheet}`;`Player`(目前片段、第幾格、單格 `pending`)
+- **Entities**:`Pose`(idle / watch / cheer / aww / empty;對外 API 原本是 `setPose` / `flyTo` / `home`,2026-10-01 起只剩 `setPose`);`Keyframe`(每個 Pose 一張停止格,生成用 + 保底用);`Segment {id, kind: 'transition'|'loop'|'fidget', from, to, frames, fps, sheet}`;`Player`(目前片段、第幾格、單格 `pending`)
 - **Cardinality**:Pose↔Keyframe 1:1;Pose↔loop 1:1;idle→fidget 1:N;過渡片段**剛好 10 條邊**(idle↔watch/cheer/aww/empty 共 8 條 + watch→cheer、watch→aww)
 - **Seen vs stored**:呼叫端看到 5 個姿勢;存的是約 18 段逐格圖;doze 是 idle 的小動作不是 Pose;畫面上的 idle 是解碼後的影格,不是 `idle.webp` 原圖
 - **最可能的 3 個錯誤(錯誤版本)**:

@@ -1,108 +1,34 @@
-/* 吉祥物。固定層,不可點,不參與任何模式的排版。
-   兩張 <img> 疊放,姿勢切換靠換 src + 交叉淡入,不再是 SVG 骨架
-   (見 shared/js/mascot.js 開頭「修訂一」的說明)。
+/* 吉祥物。固定在右下角的一層,不可點,不參與任何模式的排版。
+   畫面是 canvas 逐格播放預先生成的影片片段(見 shared/js/mascot.js 開頭)。
 
-   修訂二(2026-09-25):使用者實測手機版之後回報「感覺都只是換圖,
-   沒有動畫的感覺」。查證後問題不在素材,是動作參數訂得太小(呼吸只有
-   3%、100px 高的元素上是 3 個像素)、換姿勢完全沒有位移(純 opacity
-   淡入淡出)。這一版把呼吸幅度拉大、加上換姿勢的擠壓拉伸、cheer 進場
-   彈跳、飛行傾斜與落地擠壓。
+   歷史:手刻 SVG → 每個姿勢一張圖 + CSS 呼吸/擠壓/彈跳/飛行
+   → 2026-09-30 改成影片片段,外框的形變全部拿掉(影片自己在動,再疊
+   形變會跟影片打架)→ 2026-10-01 使用者決定永遠固定在右下角,不再飛到
+   畫面中間,飛行位移、傾斜、揭曉放大、錨點也一起拿掉。
 
-   關鍵決定:呼吸、擠壓、彈跳、傾斜全部改用 CSS 的**獨立變換屬性**
-   (scale / rotate / translate),完全不碰 transform。transform 專職
-   飛行位移(translate3d(var(--fly-x), var(--fly-y), 0)),獨立屬性
-   跟 transform 是不同的合成階段,兩邊永遠不會互相覆蓋 —— 這是結構上
-   的保證,不是「小心別用到同一個屬性」的約定(smash/css/smash.css
-   已有用 translate: 這套獨立屬性的先例)。
-   scale 屬性本身還是只有一個值,呼吸(m-breathe)跟擠壓拉伸
-   (m-squash-stretch)都要用它,兩者用「animation-name 疊加列表」的
-   寫法同時掛在元素上(見 .mascots--squash),讓擠壓播放期間 scale 由
-   它接管(疊加順序後面的贏),播完之後呼吸的 timeline 沒有被中斷,
-   會自然接回去,不會整個重新從頭播。 */
-
-/* 修訂三(2026-09-30):改成 canvas 逐格播放影片片段。呼吸、擠壓拉伸、
-   cheer 彈跳全部拿掉 —— 影片自己在動,外框再形變會跟影片打架。
-   只留飛行位移 + 傾斜。reduced-motion 區塊也拿掉:吉祥物一律照播
-   (使用者的決定;雪花有自己的處理,不受影響)。 */
-/* 尺寸放在 :root,揭曉錨點(.mascot-anchor--beside)也要用同一組數字算距離。
-   2026-10-01 使用者看了覺得太小,放大一級(原本 clamp(96px, 15vh, 180px)、
-   揭曉 1.1 倍)。手機在下面的 media query 維持原尺寸,不然會蓋到音效按鈕。 */
-:root {
-  --mascot-w: clamp(140px, 28vh, 300px);
-  --mascot-reveal-scale: 1.35;
-}
-
+   reduced-motion 不處理:吉祥物一律照播(使用者的決定;雪花有自己的處理)。 */
 .mascots {
   position: fixed;
-  /* 2026-10-01 使用者要求從左下角改到右下角 */
   right: 16px;
   bottom: 16px;
-  width: var(--mascot-w);
-  /* JS 的 flyTo() 會讀這個值,把揭曉落點夾在畫面內 */
-  --reveal-scale: var(--mascot-reveal-scale);
+  /* 2026-10-01 使用者覺得太小,放大一級(原本 clamp(96px, 15vh, 180px)) */
+  width: clamp(140px, 28vh, 300px);
   aspect-ratio: var(--mascot-aspect, 10 / 9);
-  pointer-events: none;   /* 這層永遠不可點,飛行途中也是 */
-  z-index: 50;            /* 蓋在揭曉面板之上;設定面板是 <dialog>,在 top layer,蓋不到也不需要蓋 */
-  --fly-x: 0px;
-  --fly-y: 0px;
-  --fly-tilt: 0deg;
-  transform: translate3d(var(--fly-x), var(--fly-y), 0);
-  /* 傾斜與揭曉放大都以腳為支點,腳釘在地上不會跟著浮動。 */
-  transform-origin: bottom center;
-  rotate: var(--fly-tilt);
-  transition:
-    transform .5s cubic-bezier(.34, 1.2, .5, 1),
-    rotate .22s ease-in-out;
+  pointer-events: none;
+  /* 排在所有頁面內容後面:按鈕、卡片、揭曉面板都疊在牠上面,不會被擋住
+     (使用者回報牠蓋住「轉!」跟設定鈕)。跟雪花同一層(-1),DOM 在後面所以
+     畫在雪花之上;背景圖層是 -2(shared/css/tokens.css)。
+     代價:扭蛋機、一番賞揭曉時的半透明遮罩會蓋住牠,歡呼看起來會暗一點。 */
+  z-index: -1;
 }
 
-.mascots--home {
-  position: static;
-  width: clamp(120px, 26vw, 260px);
-}
-
-/* 飛到揭曉區時放大一點,因為那是主角時刻。 */
-.mascots--at-reveal {
-  transform: translate3d(var(--fly-x), var(--fly-y), 0) scale(var(--reveal-scale));
+/* 手機維持原尺寸 */
+@media (max-width: 600px) {
+  .mascots { width: clamp(96px, 15vh, 180px); }
 }
 
 .mascots__canvas {
   display: block;
   width: 100%;
   height: 100%;
-}
-
-
-/* 揭曉錨點:放在獲勝卡片元素裡,定位到卡片右側外面、腳對齊卡片底邊,
-   吉祥物就站在卡片旁邊,不會蓋住卡片內容。距離照吉祥物放大後的寬度算
-   (畫格是 400x360,高 = 寬 x 0.9;以腳為支點放大,所以腳的位置不受倍率影響)。
-   手機上卡片幾乎全寬,右側外面在螢幕外,flyTo() 會把落點夾回畫面內。
-   一定要 position: absolute:卡片本身是 grid / flex,普通的空 div 會多佔一格
-   (連同 gap),把卡片裡的按鈕往下擠 —— 一番賞出過「按鈕突然往上擠」的 bug。 */
-.mascot-anchor--beside {
-  position: absolute;
-  left: calc(100% + var(--mascot-w) * var(--mascot-reveal-scale) / 2 + 12px);
-  top: calc(100% - var(--mascot-w) * 0.45);
-}
-
-@media (max-width: 600px) {
-  :root {
-    --mascot-w: clamp(96px, 15vh, 180px);
-    --mascot-reveal-scale: 1.1;
-  }
-  /* 手機上卡片幾乎全寬,右側沒有位置;改站在卡片上緣,右側對齊卡片,
-     腳踩在卡片頂邊 —— 往右夾回畫面內的話會蓋到最後一列獎項跟按鈕。 */
-  .mascot-anchor--beside {
-    left: calc(100% - var(--mascot-w) * var(--mascot-reveal-scale) / 2);
-    top: calc(var(--mascot-w) * -0.45);
-  }
-}
-
-/* 錨點只是座標,不是容器。它不能佔空間,也不能被看到。 */
-.mascot-anchor {
-  width: 1px;
-  height: 1px;
-  margin: 0;
-  padding: 0;
-  pointer-events: none;
-  opacity: 0;
 }

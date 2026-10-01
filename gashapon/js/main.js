@@ -64,11 +64,8 @@ function render() {
   view.setSoundIcon(prefs.soundOn);
   const machine = getActiveMachine(state);
   const empty = machine.removeOnDraw && machine.pool.every(c => c.drawn);
-  // flyTo() 算的是「角落到錨點」的位移,跟吉祥物現在飛到哪裡無關(見
-  // shared/js/mascot.js),不用先 home() 等歸零再飛,呼叫哪個都可以
-  // 直接呼叫。
-  if (empty) mascots.flyTo($('emptyAnchor'), { pose: 'empty' });
-  else mascots.home();
+  // 吉祥物固定在右下角,只換姿勢(2026-10-01 起不再飛到畫面中間)
+  mascots.setPose(empty ? 'empty' : 'idle');
 }
 
 function commit() {
@@ -80,17 +77,14 @@ function commit() {
 const overlay = $('overlay');
 const mascots = mountMascots();
 
-// 只有高階才值得讓牠們衝過來。每抽一次就衝一次的話,那個動作三次之後
-// 就不特別了,而且會變成干擾 —— 普通結果在角落換個表情就好。
+// 只有高階才值得歡呼。每抽一次就歡呼一次的話,那個動作三次之後
+// 就不特別了 —— 普通結果回到待機就好。
 const BIG = new Set(['SSR', 'UR']);
 
 function closeOverlay() {
   overlay.hidden = true;
-  // 不在這裡呼叫 mascots.home() —— render() 底下已經有「空了飛去 emptyAnchor,
-  // 否則回角落」的判斷。flyTo() 是用「現在畫面上的位置」算出要飛多遠,如果
-  // 這裡先呼叫 home() 把座標歸零,CSS transition 還沒轉場、下一行 render()
-  // 馬上又用同一個元素現在的畫面位置去算 flyTo(emptyAnchor) 的位移,
-  // 量到的會是「歸零指令生效前」那個舊位置,兩隻會飛錯地方。
+  // 吉祥物的姿勢交給下面的 render() 決定(空了是 empty,否則 idle),
+  // 不在這裡另外設,免得兩個地方打架。
   revealer.clear();
   $('capsule').hidden = true;
   render();
@@ -126,9 +120,9 @@ async function doDraw({ turn = true } = {}) {
   try {
     await revealer.play(result.revealSteps);
     if (BIG.has(result.prize.rarity)) {
-      mascots.flyTo($('revealAnchor'), { pose: 'cheer' });
+      mascots.setPose('cheer');
     } else {
-      mascots.home();
+      mascots.setPose('idle');
     }
   } catch (err) {
     // 不吞掉錯誤:留下稀有度等上下文,不然以後出事完全查不到是哪一步炸的。

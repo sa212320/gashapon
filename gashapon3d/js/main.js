@@ -74,16 +74,16 @@ function render() {
     // 被呼叫(見 play() 的 finally),如果剛好最後一顆就是 SSR/UR,
     // 這裡會在歡呼姿勢都還沒被看到之前立刻蓋成 empty。真正的空機切換
     // 交給 dismissPrize() 關卡片的那一刻自己判斷。
-    if ($('prizeCard').hidden) mascots.flyTo($('emptyAnchor'), { pose: 'empty' });
+    if ($('prizeCard').hidden) mascots.setPose('empty');
   } else if (mascots.getState().pose === 'empty' || mascots.getState().pose === 'watch') {
     // empty:上一輪卡在 empty 姿勢、現在裝滿重來了,要收尾。
     // watch:play() 若在跑到 'show' 步驟之前就丟例外(drop/shake/upgrade/
     // crack/burst 任何一個 tween 出錯),這裡的 finally 還是會呼叫
     // render(),但 prizeCard 從沒顯示過、dismissPrize() 也不會被觸發,
     // 吉祥物會卡在 watch 回不了角落,要等下一次抽獎才被蓋掉 —— 這裡一起收。
-    // cheer 不在這個名單裡:那是歡呼中,收尾交給 dismissPrize() 的
-    // mascots.home() 或 flyTo(emptyAnchor),不該在這裡被打斷。
-    mascots.home();
+    // cheer 不在這個名單裡:那是歡呼中,收尾交給 dismissPrize(),
+    // 不該在這裡被打斷。
+    mascots.setPose('idle');
   }
   $('pickHint').hidden = empty || playing;
   $('turnBtn').disabled = empty || playing;
@@ -157,7 +157,7 @@ async function play(result, egg) {
         $('prizeName').textContent = step.prize?.name ?? '';
         $('prizeCard').hidden = false;
         if (BIG.has(step.rarity)) {
-          mascots.flyTo($('revealAnchor'), { pose: 'cheer' });
+          mascots.setPose('cheer');
         }
         await tween(400, () => {});
       }
@@ -239,9 +239,9 @@ function dismissPrize() {
   // 關卡片的當下才是「是不是空了」該由誰接手的正確時機點。
   const setup = getActive(state);
   if (setup.removeOnDraw && remaining3d(setup) === 0) {
-    mascots.flyTo($('emptyAnchor'), { pose: 'empty' });
+    mascots.setPose('empty');
   } else {
-    mascots.home();
+    mascots.setPose('idle');
   }
   return true;
 }

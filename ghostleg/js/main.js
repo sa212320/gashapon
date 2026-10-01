@@ -36,14 +36,13 @@ function render() {
   $('remaining').textContent = `${n} 個人 · ${setup.prizes.reduce((a, p) => a + p.count, 0)} 個獎`;
   const ready = n >= 2;
   $('emptyState').hidden = ready;
-  // 吉祥物「該待在哪裡」只由這裡一個地方決定(空了才飛去 emptyAnchor,
-  // 否則回角落)——一定要有 else,不然結果揭曉後重新鋪一組設定,
+  // 吉祥物的待機姿勢只由這裡一個地方決定(空了是 empty,否則 idle)
+  // —— 一定要有 else,不然結果揭曉後重新鋪一組設定,
   // 吉祥物會永遠卡在 empty。演出中途的 watch/cheer/aww 是暫時姿勢,
   // 由 start()/finish() 自己接手 —— 但 render() 不是只在設定異動時才會
   // 被呼叫:音效鈕在演出中與結果顯示期間都可以點,點下去一樣會觸發
   // 這裡的 render()。
-  if (!ready) mascots.flyTo($('emptyAnchor'), { pose: 'empty' });
-  else mascots.home();
+  mascots.setPose(ready ? 'idle' : 'empty');
   $('track').hidden = !ready;
   $('startBtn').disabled = !ready;
   $('soundIcon').textContent = prefs.soundOn ? '🔊' : '🔇';
@@ -87,10 +86,8 @@ function start() {
   $('startBtn').disabled = true;
   // footer 的開始鍵在結果卡片顯示期間一直是可點的(.results 蓋不到 footer,
   // startBtn.disabled 只跟 running/ready 有關,跟 results.hidden 無關)——
-  // 小孩可能略過「再跑一次」直接按「開始」,所以 start() 自己要負責把吉祥物
-  // 從上一輪的 revealAnchor 收回角落,不能假設使用者一定按過「再跑一次」。
-  // 先 home() 把位移歸零、姿勢設回 idle,再用 setPose('watch') 只改姿勢不動位置。
-  mascots.home();
+  // 小孩可能略過「再跑一次」直接按「開始」,所以 start() 自己要把吉祥物
+  // 從上一輪的 cheer/aww 切到 watch,不能假設使用者一定按過「再跑一次」。
   mascots.setPose('watch');
 
   // 待機時擺出來的那一局就是要跑的這一局 —— 重新產一局的話,
@@ -153,13 +150,13 @@ function finish(round) {
   $('results').hidden = false;
   // 全部都是銘謝惠顧才是真的槓龜。有人中獎就值得歡呼。
   const anyWin = round.results.some(r => r.slot.prizeId !== null);
-  mascots.flyTo($('revealAnchor'), { pose: anyWin ? 'cheer' : 'aww' });
+  mascots.setPose(anyWin ? 'cheer' : 'aww');
 }
 
 $('startBtn').addEventListener('click', start);
 $('againBtn').addEventListener('click', () => {
   $('results').hidden = true;
-  mascots.home();
+  mascots.setPose('idle');
   showIdle();
   start();
 });
