@@ -1,0 +1,47 @@
+/* 揭曉卡片的九宮格外框。外框圖是灰階的,由 shared/js/tint.js 插入的 SVG 濾鏡
+   依稀有度上色(border-image 沒辦法直接上色;mask-border 只有 Safari 支援)。
+   濾鏡只套在 ::before 上,卡片裡的文字跟按鈕不會被染到。
+   扭蛋機在用;立體扭蛋機之後加上 .prize-frame 與 data-rarity 就能用(issue #6)。 */
+.prize-frame {
+  --frame-w: 34px;
+  position: relative;
+  isolation: isolate;
+  padding: calc(var(--frame-w) + 8px);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+/* 外框圖中間是鏤空的,卡片底色鋪在外框內側 */
+.prize-frame::after {
+  content: "";
+  position: absolute;
+  inset: calc(var(--frame-w) * .5);
+  z-index: -1;
+  background: var(--cream);
+  border-radius: 16px;
+}
+.prize-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-style: solid;
+  border-width: var(--frame-w);
+  border-image-slice: 25% fill;
+  border-image-width: var(--frame-w);
+  border-image-repeat: stretch;
+  border-radius: 0;
+  pointer-events: none;
+}
+.prize-frame[data-rarity="N"]::before   { border-image-source: url(../img/frames/frame-N.webp?v=27278ee3);   filter: url(#tint-N); }
+.prize-frame[data-rarity="R"]::before   { border-image-source: url(../img/frames/frame-R.webp?v=e1a7557b);   filter: url(#tint-R); }
+.prize-frame[data-rarity="SR"]::before  { border-image-source: url(../img/frames/frame-SR.webp?v=13815b0e);  filter: url(#tint-SR); }
+.prize-frame[data-rarity="SSR"]::before { border-image-source: url(../img/frames/frame-SSR.webp?v=0ade8268); filter: url(#tint-SSR); }
+/* UR 轉色:整個框一起輪流換色(使用者 2026-10-01 確認)。filter 清單裡有 url() 就不能內插
+   (會直接跳格),所以動畫一個註冊過型別的自訂屬性 --frame-hue,filter 讀它。 */
+@property --frame-hue { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+.prize-frame[data-rarity="UR"]::before  { border-image-source: url(../img/frames/frame-UR.webp?v=28b63475);  filter: url(#tint-UR) hue-rotate(var(--frame-hue)); animation: frame-rainbow 3.2s linear infinite; }
+
+@keyframes frame-rainbow {
+  to { --frame-hue: 360deg; }
+}

@@ -15,6 +15,8 @@ import { loadPrefs, savePrefs } from '../../shared/js/prefs.js';
 import { mountMascots } from '../../shared/js/mascot.js';
 import { loadAnchors, anchorVars, DEFAULT_ANCHORS } from './machine-art.js';
 import { PATTERN_URLS, preloadImages } from './patterns.js';
+import { mountTintFilters } from '../../shared/js/tint.js';
+import { RARITY_META } from './constants.js';
 
 const $ = id => document.getElementById(id);
 
@@ -47,6 +49,9 @@ applyAnchors(DEFAULT_ANCHORS);
 loadAnchors().then(applyAnchors);
 // 花紋貼圖先下載好,第一次升階時才不會慢半拍才出現(沒載到也只是素面,不擋抽獎)
 preloadImages(PATTERN_URLS);
+// 外框的上色濾鏡要在第一次揭曉前就在頁面上;filter: url(#…) 指到不存在的濾鏡時,
+// 有的瀏覽器會整個元素不畫。
+mountTintFilters(RARITY_META);
 
 const revealer = createRevealer({
   machine: $('machine'),

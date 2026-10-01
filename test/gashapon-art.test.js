@@ -55,3 +55,23 @@ test('蛋殼是 CSS 畫的球:不用 mask(圖沒載入時蛋不能隱形)', () =
   const css = read('gashapon/css/style.css');
   assert.ok(!/\bmask(-image)?\s*:/.test(css), 'style.css 不該再有 mask');
 });
+
+test('5 張外框都存在,prize-frame.css 每個稀有度都有圖和濾鏡', () => {
+  const css = read('shared/css/prize-frame.css');
+  for (const r of RARITIES) {
+    assert.ok(existsSync(join(root, `shared/img/frames/frame-${r}.webp`)), r);
+    assert.match(css, new RegExp(`\\[data-rarity="${r}"\\][^{]*\\{[^}]*frame-${r}\\.webp\\?v=[0-9a-f]{8}[^}]*url\\(#tint-${r}\\)`), r);
+  }
+});
+
+test('卡片內距寫成 calc(var(--frame-w) + Npx)(長名字不會壓到四角裝飾)', () => {
+  const css = read('shared/css/prize-frame.css');
+  assert.ok(Number(/--frame-w:\s*(\d+)px/.exec(css)?.[1]) > 0, '--frame-w');
+  assert.match(css, /\.prize-frame\s*\{[^}]*padding:\s*calc\(var\(--frame-w\)\s*\+\s*\d+px\)/);
+});
+
+test('扭蛋機的揭曉卡片用了 prize-frame,也引用了 prize-frame.css', () => {
+  const html = read('gashapon/index.html');
+  assert.match(html, /class="prize-card prize-frame"/);
+  assert.match(html, /href="\.\.\/shared\/css\/prize-frame\.css"/);
+});

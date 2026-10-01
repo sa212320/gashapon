@@ -211,14 +211,6 @@ body {
   box-shadow: 0 10px 0 rgba(87,66,57,.2);
   position: relative;
 }
-.prize-card::before {
-  content: "";
-  position: absolute;
-  inset: 8px;
-  border: 2.5px dashed rgba(87,66,57,.24);
-  border-radius: 22px;
-  pointer-events: none;
-}
 .prize-card__badge {
   padding: 5px 16px;
   border-radius: 999px;
