@@ -5,6 +5,7 @@ import { sfx } from '../../shared/js/sound.js';
 import { outletPoint } from './machine-art.js';
 import { particleCount } from './particles.js';
 import { fitText } from './fit-text.js';
+import { cssUrl, waitForImage } from './image-ready.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 // 雪花 <symbol id="snowflake"> 自己有 viewBox;外層 svg 的 viewBox 要從 0 開始,
@@ -221,9 +222,20 @@ export function createRevealer(els) {
     },
 
     async show(step) {
+      // 先換好等級,等這張外框圖解碼完才讓卡片出現(最多等 2 秒,等不到照樣顯示)。
+      // 卡片還 hidden 時 getComputedStyle 一樣拿得到 background-image 的網址。
+      els.card.dataset.rarity = step.rarity;
+      const frameUrl = cssUrl(getComputedStyle(els.card).backgroundImage);
+      const frameReady = await waitForImage(frameUrl);
+      // 網路很慢、2 秒還沒到:先用保底外觀(奶油色圓角卡片),圖一到就換上外框
+      els.card.classList.toggle('is-frame-loading', !frameReady);
+      if (!frameReady) {
+        waitForImage(frameUrl, { timeout: 60000 }).then(ok => {
+          if (ok && els.card.dataset.rarity === step.rarity) els.card.classList.remove('is-frame-loading');
+        });
+      }
       els.capsule.hidden = true;
       els.card.hidden = false;
-      els.card.dataset.rarity = step.rarity;
       els.cardName.textContent = step.prize?.name ?? '';
       // 標籤顯示稀有度代號(N / R / SR / SSR / UR),使用者 2026-10-01 指定
       els.cardBadge.textContent = step.rarity;

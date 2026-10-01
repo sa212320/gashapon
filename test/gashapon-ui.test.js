@@ -142,3 +142,18 @@ test('setSoundIcon:開 → sound-on,關 → sound-off', () => {
   view.setSoundIcon(false);
   assert.match(els.soundIcon.href, /#sound-off$/);
 });
+
+import { cssUrl, waitForImage } from '../gashapon/js/image-ready.js';
+
+test('cssUrl:從 background-image 的值取出網址', () => {
+  assert.equal(cssUrl('url("http://x/a.webp?v=1")'), 'http://x/a.webp?v=1');
+  assert.equal(cssUrl('url(a.webp)'), 'a.webp');
+  assert.equal(cssUrl('none'), null);
+});
+
+test('waitForImage:解碼完成就放行;太久沒好也放行(不讓演出卡住),不丟例外', async () => {
+  assert.equal(await waitForImage('a', { decode: () => Promise.resolve(), timeout: 50 }), true);
+  assert.equal(await waitForImage('a', { decode: () => new Promise(() => {}), timeout: 20 }), false);
+  assert.equal(await waitForImage('a', { decode: () => Promise.reject(new Error('404')), timeout: 50 }), false);
+  assert.equal(await waitForImage(null, { decode: () => Promise.resolve(), timeout: 50 }), true);
+});

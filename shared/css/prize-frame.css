@@ -55,3 +55,10 @@
   translate: -50% 0;
   white-space: nowrap;
 }
+
+/* 外框圖還沒下載好(網路很慢)時的保底外觀:一般的奶油色圓角卡片,圖一到就換掉 */
+.prize-frame.is-frame-loading {
+  background-color: var(--cream);
+  border: var(--stroke) solid var(--ink);
+  border-radius: 26px;
+}

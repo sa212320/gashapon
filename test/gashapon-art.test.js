@@ -134,3 +134,8 @@ test('外框與扭蛋花紋用「預載架」預先載入(跟 CSS 同一個網�
   assert.match(read('gashapon/js/main.js'), /mountPreloadRack\(/);
   assert.match(read('gashapon/css/style.css'), /\.preload-rack\s*\{/);
 });
+
+test('外框圖還沒到時卡片有保底外觀(奶油色圓角卡片),不是一片透明', () => {
+  assert.match(read('shared/css/prize-frame.css'), /\.prize-frame\.is-frame-loading\s*\{[^}]*background-color:/);
+  assert.match(read('gashapon/js/reveal.js'), /is-frame-loading/);
+});
