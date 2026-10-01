@@ -10,6 +10,7 @@
   $PY tools/mascot-gen/gen.py build            # 輸出正式素材
 """
 import argparse
+import hashlib
 import io
 import json
 import subprocess
@@ -235,6 +236,13 @@ def cwebp(png_path, webp_path):
     subprocess.run(['cwebp', '-quiet', '-q', '65', '-alpha_q', '90', str(png_path), '-o', str(webp_path)], check=True)
 
 
+def versioned(rel):
+    """網址加上內容雜湊:素材換了網址就跟著換,瀏覽器跟 GitHub Pages 的快取
+    不會繼續給舊圖(曾經發生:換了 idle-loop,使用者看到的還是舊的)。"""
+    h = hashlib.sha1((ASSETS / rel).read_bytes()).hexdigest()[:8]
+    return f'{rel}?v={h}'
+
+
 def cmd_build(args):
     cfg = load_cfg()
     missing = [s['id'] for s in cfg['segments'] if not s.get('pick')]
@@ -254,7 +262,7 @@ def cmd_build(args):
 
     cols = 8
     manifest = {'frame': {'w': args.w, 'h': args.h},
-                'keyframes': {p: f'key/{p}.webp' for p in keys},
+                'keyframes': {p: versioned(f'key/{p}.webp') for p in keys},
                 'segments': []}
     for s in cfg['segments']:
         files = select_frames(frames_of(s['id'], s['pick']), s.get('pick_end'))
@@ -266,7 +274,7 @@ def cmd_build(args):
         cwebp(png, ASSETS / 'seg' / f'{s["id"]}.webp')
         manifest['segments'].append({'id': s['id'], 'kind': s['kind'], 'from': s['from'], 'to': s['to'],
                                      'frames': len(frames), 'fps': args.fps,
-                                     'sheet': f'seg/{s["id"]}.webp', 'cols': cols})
+                                     'sheet': versioned(f'seg/{s["id"]}.webp'), 'cols': cols})
     (ASSETS / 'segments.json').write_text(json.dumps(manifest, indent=2) + '\n')
 
     total = sum(p.stat().st_size for p in [*(ASSETS / 'seg').glob('*.webp'), *(ASSETS / 'key').glob('*.webp')])

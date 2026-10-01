@@ -4,11 +4,11 @@
     "h": 360
   },
   "keyframes": {
-    "idle": "key/idle.webp",
-    "watch": "key/watch.webp",
-    "cheer": "key/cheer.webp",
-    "aww": "key/aww.webp",
-    "empty": "key/empty.webp"
+    "idle": "key/idle.webp?v=f46ffdaf",
+    "watch": "key/watch.webp?v=04d842f8",
+    "cheer": "key/cheer.webp?v=b27a65be",
+    "aww": "key/aww.webp?v=d6de49f9",
+    "empty": "key/empty.webp?v=d025c28a"
   },
   "segments": [
     {
@@ -18,7 +18,7 @@
       "to": "idle",
       "frames": 37,
       "fps": 12,
-      "sheet": "seg/idle-loop.webp",
+      "sheet": "seg/idle-loop.webp?v=9813f3cd",
       "cols": 8
     },
     {
@@ -28,7 +28,7 @@
       "to": "watch",
       "frames": 19,
       "fps": 12,
-      "sheet": "seg/idle-watch.webp",
+      "sheet": "seg/idle-watch.webp?v=7b424b65",
       "cols": 8
     },
     {
@@ -38,7 +38,7 @@
       "to": "cheer",
       "frames": 25,
       "fps": 12,
-      "sheet": "seg/idle-cheer.webp",
+      "sheet": "seg/idle-cheer.webp?v=f1d6d2d2",
       "cols": 8
     },
     {
@@ -48,7 +48,7 @@
       "to": "aww",
       "frames": 25,
       "fps": 12,
-      "sheet": "seg/idle-aww.webp",
+      "sheet": "seg/idle-aww.webp?v=ea85f08a",
       "cols": 8
     },
     {
@@ -58,7 +58,7 @@
       "to": "empty",
       "frames": 25,
       "fps": 12,
-      "sheet": "seg/idle-empty.webp",
+      "sheet": "seg/idle-empty.webp?v=d79bd573",
       "cols": 8
     },
     {
@@ -68,7 +68,7 @@
       "to": "watch",
       "frames": 25,
       "fps": 12,
-      "sheet": "seg/watch-loop.webp",
+      "sheet": "seg/watch-loop.webp?v=b5310c6e",
       "cols": 8
     },
     {
@@ -78,7 +78,7 @@
       "to": "cheer",
       "frames": 25,
       "fps": 12,
-      "sheet": "seg/cheer-loop.webp",
+      "sheet": "seg/cheer-loop.webp?v=0550e15a",
       "cols": 8
     },
     {
@@ -88,7 +88,7 @@
       "to": "aww",
       "frames": 25,
       "fps": 12,
-      "sheet": "seg/aww-loop.webp",
+      "sheet": "seg/aww-loop.webp?v=dde410fd",
       "cols": 8
     },
     {
@@ -98,7 +98,7 @@
       "to": "empty",
       "frames": 37,
       "fps": 12,
-      "sheet": "seg/empty-loop.webp",
+      "sheet": "seg/empty-loop.webp?v=c726df47",
       "cols": 8
     },
     {
@@ -108,7 +108,7 @@
       "to": "idle",
       "frames": 19,
       "fps": 12,
-      "sheet": "seg/watch-idle.webp",
+      "sheet": "seg/watch-idle.webp?v=8173e8c4",
       "cols": 8
     },
     {
@@ -118,7 +118,7 @@
       "to": "idle",
       "frames": 19,
       "fps": 12,
-      "sheet": "seg/cheer-idle.webp",
+      "sheet": "seg/cheer-idle.webp?v=4a90a9c1",
       "cols": 8
     },
     {
@@ -128,7 +128,7 @@
       "to": "idle",
       "frames": 19,
       "fps": 12,
-      "sheet": "seg/aww-idle.webp",
+      "sheet": "seg/aww-idle.webp?v=66849e9c",
       "cols": 8
     },
     {
@@ -138,7 +138,7 @@
       "to": "idle",
       "frames": 19,
       "fps": 12,
-      "sheet": "seg/empty-idle.webp",
+      "sheet": "seg/empty-idle.webp?v=4290ff8a",
       "cols": 8
     },
     {
@@ -148,7 +148,7 @@
       "to": "cheer",
       "frames": 13,
       "fps": 12,
-      "sheet": "seg/watch-cheer.webp",
+      "sheet": "seg/watch-cheer.webp?v=1b73e94a",
       "cols": 8
     },
     {
@@ -158,7 +158,7 @@
       "to": "aww",
       "frames": 13,
       "fps": 12,
-      "sheet": "seg/watch-aww.webp",
+      "sheet": "seg/watch-aww.webp?v=a7e7ab6f",
       "cols": 8
     },
     {
@@ -168,7 +168,7 @@
       "to": "idle",
       "frames": 19,
       "fps": 12,
-      "sheet": "seg/idle-ear.webp",
+      "sheet": "seg/idle-ear.webp?v=73be05e1",
       "cols": 8
     },
     {
@@ -178,7 +178,7 @@
       "to": "idle",
       "frames": 25,
       "fps": 12,
-      "sheet": "seg/idle-nuzzle.webp",
+      "sheet": "seg/idle-nuzzle.webp?v=f47509b1",
       "cols": 8
     },
     {
@@ -188,7 +188,7 @@
       "to": "idle",
       "frames": 31,
       "fps": 12,
-      "sheet": "seg/idle-doze.webp",
+      "sheet": "seg/idle-doze.webp?v=47ba600e",
       "cols": 8
     }
   ]

@@ -417,3 +417,27 @@ test('根元素不再帶 squash / bounce class', async () => {
   m.flyTo(anchorAt(300, 200), { pose: 'cheer' });
   assert.ok(!/squash|bounce/.test(m.el.className), m.el.className);
 });
+
+// 回歸測試:mountMascots() 曾在元素還沒套上 .mascots(position: fixed)時
+// 就量「角落位置」—— 量到的是它掛在 body 最底下、還在排版流裡的位置,
+// 之後每一次 flyTo() 的位移都拿這個錯的基準去算,吉祥物飛不到錨點
+// (main 上的舊版就已經飛歪,只是換成 canvas 後歪的方向變了)。
+// 這裡讓假元素在沒有 mascots class 時回傳一個離角落很遠的矩形。
+test('量角落位置時元素已經套上 .mascots —— flyTo 的位移才會以真的角落為基準', () => {
+  const doc = fakeDoc();
+  const origCreate = doc.createElement;
+  doc.createElement = () => {
+    const el = origCreate();
+    const real = el.getBoundingClientRect;
+    el.getBoundingClientRect = () => (String(el.className).split(' ').includes('mascots')
+      ? real()
+      : { x: 0, y: 900, left: 0, top: 900, width: 300, height: 150 });
+    return el;
+  };
+  const m = mountMascots({ doc, manifest: makeManifest(), loadImage: instantImage, timers: fakeTimers() });
+  m.flyTo(anchorAt(300, 200));
+  // 角落基準 BASE = {0,0,100,80},中心 (50,40);錨點中心 (305,205)
+  assert.equal(m.el.style.getPropertyValue('--fly-x'), '255px');
+  assert.equal(m.el.style.getPropertyValue('--fly-y'), '165px');
+});
+

@@ -41,7 +41,9 @@ const FLY_TILT_DEG = 5;
 const FLY_TILT_LEVEL_MS = 260;
 
 async function defaultLoadManifest() {
-  const res = await fetch(MANIFEST_URL);
+  // no-cache:每次都向伺服器確認一次。圖的網址帶內容雜湊(見 tools/mascot-gen/gen.py
+  // versioned()),manifest 一更新,圖就跟著換新網址。
+  const res = await fetch(MANIFEST_URL, { cache: 'no-cache' });
   if (!res.ok) throw new Error(`segments.json ${res.status}`);
   return res.json();
 }
@@ -104,6 +106,9 @@ export function mountMascots({
     if (r && (r.width || r.height)) homeRect = r;
     return homeRect;
   }
+  // 先套上 .mascots(position: fixed)再量 —— 沒套 class 的元素還在排版流裡,
+  // 掛在 body 最底下,量到的不是角落,之後每次 flyTo() 都會飛歪。
+  paint();
   measureHome();
 
   let onResize = null;
