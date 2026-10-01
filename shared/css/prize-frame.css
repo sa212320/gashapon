@@ -62,3 +62,36 @@
   border: var(--stroke) solid var(--ink);
   border-radius: 26px;
 }
+
+/* 稀有度標籤(2026-10-01 放大、跟扭蛋殼同一套顏色,外圈一條白色霜邊) */
+.prize-card__badge {
+  padding: 6px 22px;
+  border-radius: 999px;
+  border: 4px solid var(--ink);
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, .8);
+  font-size: 22px;
+  line-height: 1.15;
+  color: var(--ink);
+}
+.prize-card__badge[data-rarity="N"]   { background: var(--r-N-b); }
+.prize-card__badge[data-rarity="R"]   { background: var(--r-R-b); }
+.prize-card__badge[data-rarity="SR"]  { background: var(--r-SR-b); color: #fff; text-shadow: 0 1px 0 var(--ink); }
+.prize-card__badge[data-rarity="SSR"] { background: var(--gold); }
+.prize-card__badge[data-rarity="UR"]  { background: var(--rainbow); animation: shimmer 3.2s linear infinite; }
+
+@keyframes shimmer {
+  to { filter: hue-rotate(360deg) saturate(1.15); }
+}
+
+/* 預載架(2026-10-01):每個稀有度的外框與扭蛋各放一個看不到的元素,
+   瀏覽器用跟 CSS 完全相同的網址(含 ?v=)先把圖下載好,揭曉時才不會畫出半張圖 */
+.preload-rack {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}

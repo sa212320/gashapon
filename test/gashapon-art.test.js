@@ -132,7 +132,8 @@ test('卡片內距不能用百分比(百分比是相對外層遮罩的寬度,電
 
 test('外框與扭蛋花紋用「預載架」預先載入(跟 CSS 同一個網址,含 ?v=)', () => {
   assert.match(read('gashapon/js/main.js'), /mountPreloadRack\(/);
-  assert.match(read('gashapon/css/style.css'), /\.preload-rack\s*\{/);
+  // 2026-10-02 搬到 shared/css/prize-frame.css:立體扭蛋機也用它暖外框圖
+  assert.match(read('shared/css/prize-frame.css'), /\.preload-rack\s*\{/);
 });
 
 test('外框圖還沒到時卡片有保底外觀(奶油色圓角卡片),不是一片透明', () => {

@@ -18,12 +18,15 @@
   --r-N-a: #FFFFFF;  --r-N-b: #E7DFD4;
   --r-R-a: #8CF0B4;  --r-R-b: #34C77B;
   --r-SR-a: #CBA9FF; --r-SR-b: #8B5CF6;
-  --r-SSR-a: #FFE493;--r-SSR-b: #F0A500;
-  /* 小尺寸上 conic 會糊成色輪,所以實心處用流動的線性彩虹,只有光暈用 conic */
+  /* 稀有度的金與彩虹(2026-10-01 扭蛋機頁調過:「UR 太鮮艷」「SSR 不夠金」),扭蛋機與立體扭蛋機共用。
+     小尺寸上 conic 會糊成色輪,所以實心處用流動的線性彩虹,只有光暈用 conic */
+  --r-SSR-a: #FFD54A;
+  --r-SSR-b: #E3A008;
+  --gold: linear-gradient(135deg, #FFE68C 0%, #F7BE1E 38%, #FFF0B3 52%, #E3A008 70%, #F7C948 100%);
   --rainbow: linear-gradient(115deg,
-    #FF5F6D 0%, #FFB347 18%, #FFE14D 34%, #4BE08A 52%, #4CC5FF 70%, #B57BFF 86%, #FF6FC8 100%);
+    #FFA3B1 0%, #FFCF9E 18%, #FFF1A6 34%, #A8EBC4 52%, #A6DDFF 70%, #CDB6FF 86%, #FFB8E1 100%);
   --rainbow-conic: conic-gradient(from 0deg,
-    #FF5F6D, #FFE14D, #4BE08A, #4CC5FF, #B57BFF, #FF6FC8, #FF5F6D);
+    #FFA3B1, #FFF1A6, #A8EBC4, #A6DDFF, #CDB6FF, #FFB8E1, #FFA3B1);
 }
 
 * { box-sizing: border-box; }
@@ -247,6 +250,46 @@ body::before {
 .home-link:active { background: rgba(87, 66, 57, .1); }
 .home-link:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
 
+/* 沒有標題列的頁面(2026-10-01 扭蛋機起),← 浮在左上角,不佔版面 */
+.home-link--corner {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  left: max(8px, env(safe-area-inset-left));
+  transform: none;
+  z-index: 5;
+}
+
+/* 音效、設定放右上角(2026-10-01):設定是給大人用的,放在「轉!」旁邊小孩很容易按到;
+   工具列只留「轉!」,主要按鈕單獨置中。 */
+.corner-tools {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  right: max(10px, env(safe-area-inset-right));
+  display: flex;
+  gap: 10px;
+  z-index: 5;
+}
+.corner-tools .icon-btn {
+  width: 46px;
+  height: 46px;
+  /* iOS(WebKit)的 <button> 預設內距比較大,46px 的按鈕裝 26px 圖示會被擠偏,
+     喇叭的聲波凸出到圓框外面變成一塊白角(使用者 iPhone 截圖,2026-10-01)。
+     內距歸零、grid 置中、關掉預設外觀,再用 overflow: hidden 讓任何超出的東西都被圓框裁掉 */
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-width: 4px;
+  box-shadow: 0 4px 0 var(--ink);
+}
+/* 手寫 SVG 圖示(shared/img/icons.svg) */
+.icon { width: 28px; height: 28px; color: var(--ink); stroke-width: var(--icon-stroke); overflow: visible; }
+.icon-btn .icon { display: block; margin: auto; }
+.home-link .icon { width: 26px; height: 26px; }
+.corner-tools .icon { width: 26px; height: 26px; margin: 0; overflow: hidden; }
+
 /* ---------- chip ---------- */
 .chip {
   font: inherit;
@@ -262,3 +305,14 @@ body::before {
 }
 .chip:disabled { opacity: .35; cursor: default; }
 .chip--danger { color: #C03A2B; }
+
+/* 工具列上的「剩 X 顆」膠囊(扭蛋機與立體扭蛋機共用) */
+.remain-tag {
+  margin: 0;
+  padding: 4px 14px;
+  border-radius: 999px;
+  border: 3px solid var(--ink);
+  background: var(--cream);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}

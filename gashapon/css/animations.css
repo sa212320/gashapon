@@ -8,8 +8,3 @@
   92%           { transform: scale(1.06) rotate(-2deg); }
   96%           { transform: scale(1.06) rotate(2deg); }
 }
-
-@keyframes shimmer {
-  to { filter: hue-rotate(360deg) saturate(1.15); }
-}
-
