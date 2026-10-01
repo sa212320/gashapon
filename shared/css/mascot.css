@@ -24,15 +24,21 @@
    cheer 彈跳全部拿掉 —— 影片自己在動,外框再形變會跟影片打架。
    只留飛行位移 + 傾斜。reduced-motion 區塊也拿掉:吉祥物一律照播
    (使用者的決定;雪花有自己的處理,不受影響)。 */
+/* 尺寸放在 :root,揭曉錨點(.mascot-anchor--beside)也要用同一組數字算距離。
+   2026-10-01 使用者看了覺得太小,放大一級(原本 clamp(96px, 15vh, 180px)、
+   揭曉 1.1 倍)。手機在下面的 media query 維持原尺寸,不然會蓋到音效按鈕。 */
+:root {
+  --mascot-w: clamp(140px, 28vh, 300px);
+  --mascot-reveal-scale: 1.35;
+}
+
 .mascots {
   position: fixed;
   left: 16px;
   bottom: 16px;
-  /* 2026-10-01 使用者看了覺得太小,放大一級(原本 clamp(96px, 15vh, 180px)、
-     揭曉 1.1 倍)。手機在下面的 media query 維持原尺寸,不然會蓋到音效按鈕。 */
-  width: clamp(140px, 28vh, 300px);
+  width: var(--mascot-w);
   /* JS 的 flyTo() 會讀這個值,把揭曉落點夾在畫面內 */
-  --reveal-scale: 1.35;
+  --reveal-scale: var(--mascot-reveal-scale);
   aspect-ratio: var(--mascot-aspect, 10 / 9);
   pointer-events: none;   /* 這層永遠不可點,飛行途中也是 */
   z-index: 50;            /* 蓋在揭曉面板之上;設定面板是 <dialog>,在 top layer,蓋不到也不需要蓋 */
@@ -64,10 +70,29 @@
   height: 100%;
 }
 
+
+/* 揭曉錨點:放在獲勝卡片元素裡,定位到卡片右側外面、腳對齊卡片底邊,
+   吉祥物就站在卡片旁邊,不會蓋住卡片內容。距離照吉祥物放大後的寬度算
+   (畫格是 400x360,高 = 寬 x 0.9;以腳為支點放大,所以腳的位置不受倍率影響)。
+   手機上卡片幾乎全寬,右側外面在螢幕外,flyTo() 會把落點夾回畫面內。
+   一定要 position: absolute:卡片本身是 grid / flex,普通的空 div 會多佔一格
+   (連同 gap),把卡片裡的按鈕往下擠 —— 一番賞出過「按鈕突然往上擠」的 bug。 */
+.mascot-anchor--beside {
+  position: absolute;
+  left: calc(100% + var(--mascot-w) * var(--mascot-reveal-scale) / 2 + 12px);
+  top: calc(100% - var(--mascot-w) * 0.45);
+}
+
 @media (max-width: 600px) {
-  .mascots:not(.mascots--home) {
-    width: clamp(96px, 15vh, 180px);
-    --reveal-scale: 1.1;
+  :root {
+    --mascot-w: clamp(96px, 15vh, 180px);
+    --mascot-reveal-scale: 1.1;
+  }
+  /* 手機上卡片幾乎全寬,右側沒有位置;改站在卡片上緣,右側對齊卡片,
+     腳踩在卡片頂邊 —— 往右夾回畫面內的話會蓋到最後一列獎項跟按鈕。 */
+  .mascot-anchor--beside {
+    left: calc(100% - var(--mascot-w) * var(--mascot-reveal-scale) / 2);
+    top: calc(var(--mascot-w) * -0.45);
   }
 }
 

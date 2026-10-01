@@ -68,10 +68,6 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
 }
 .prize-card .skip-hint { position: static; margin: 4px 0 0; background: none; color: inherit; opacity: .6; font-size: 13px; }
 
-/* revealAnchor 同理:跟著 prize-card 的定位方式(絕對定位、位置寫死),
-   才會量到跟獎項卡同一個地方,而不是 stage 排版裡隨便一個空格子。 */
-#revealAnchor { position: absolute; left: 50%; bottom: 8%; }
-
 .pick-hint {
   position: absolute;
   top: 8px;

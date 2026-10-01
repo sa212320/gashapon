@@ -53,17 +53,6 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
 .winner__label { margin: 0; font-size: 14px; opacity: .7; }
 .winner__name { margin: 0; font-size: clamp(26px, 9vw, 40px); font-weight: 900; color: var(--team-color, var(--ink)); }
 
-/* revealAnchor 是 #winner 底下的普通 sibling,而 #winner 是 display:grid;
-   justify-items:center —— 不脫離排版流的話,這個空 div 會多佔一個 grid row
-   (連同 gap),把「再來一場」往下擠。改成 position:absolute 完全脫離排版流,
-   只當座標錨點用。#winner 本身已經是 position:absolute,所以這裡的座標是
-   相對於獲勝卡片,不是整個畫面。放在卡片右上角,離下方的按鈕遠遠的。 */
-#revealAnchor {
-  position: absolute;
-  right: -8px;
-  top: -8px;
-}
-
 .toolbar {
   display: flex;
   align-items: center;

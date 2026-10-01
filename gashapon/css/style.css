@@ -211,14 +211,6 @@ body {
   font-size: 14px;
 }
 
-/* revealAnchor 是 overlay 底下的普通 sibling。overlay 用 display:grid +
-   place-items:center,其他每個手足不是 grid-area:1/1(疊在同一格)就是
-   position:absolute/fixed(跳出排版)—— 只有這個普通 <div> 沒有,會讓隱式
-   grid 從一列變兩列,理論上可能分掉版面、擠動 .machine / .prize-card。
-   改成 position:absolute 讓它完全脫離 grid 流,結構上保證不會發生這件事,
-   不是「今天量起來剛好沒事」而已。 */
-#revealAnchor { position: absolute; left: 50%; top: 70%; transform: translate(-50%, -50%); }
-
 /* ---------- empty ---------- */
 .empty-state {
   position: absolute;

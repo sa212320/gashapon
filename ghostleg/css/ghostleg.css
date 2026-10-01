@@ -83,18 +83,6 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
 .results__prize { opacity: .85; }
 .results__item--empty .results__prize { opacity: .5; font-weight: 400; }
 
-/* revealAnchor 是 #results 底下的普通 sibling,而 #results 是
-   display:flex; flex-direction:column —— 不脫離排版流的話,這個空 div
-   會被排進直向堆疊裡,多佔一段高度(連同 gap),把「再跑一次」往下擠。
-   改成 position:absolute 完全脫離排版流,只當座標錨點用。#results 本身
-   已經是 position:absolute,所以這裡的座標是相對於結果卡片,不是整個畫面。
-   放在卡片右上角,離下方的「再跑一次」按鈕遠遠的。 */
-#revealAnchor {
-  position: absolute;
-  right: 12px;
-  top: 44px;
-}
-
 .toolbar {
   display: flex;
   align-items: center;
