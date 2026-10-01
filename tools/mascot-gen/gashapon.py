@@ -19,14 +19,13 @@ from PIL import Image
 
 import comfy
 from post import key_border, keep_largest, key_green
-from gashapon_art import anchors_from_pick, cut_disk, content_hash, stamp, clear_green_fringe, to_tint_gray, split_at, split_cells, square_about_seam, normalize_edges, clear_center, crop_margin
+from gashapon_art import anchors_from_pick, cut_disk, content_hash, stamp, clear_green_fringe, to_tint_gray, split_at, split_cells, square_about_seam, crop_margin
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 OUT = HERE / 'out' / 'gashapon'
 CFG = HERE / 'gashapon_prompts.json'
 IMG = ROOT / 'gashapon' / 'img'
-FRAMES = ROOT / 'shared' / 'img' / 'frames'
 SEEDS = [11, 22, 33]
 MACHINE_W, MACHINE_H = 768, 1024
 RARITIES = ['N', 'R', 'SR', 'SSR', 'UR']
@@ -168,17 +167,6 @@ def review_shells():
     return '\n'.join(out)
 
 
-def review_frames():
-    out = []
-    for key in [*RARITIES, 'one']:
-        d = OUT / f'frame-{key}'
-        figs = []
-        for f in sorted(d.glob('s*.png')) if d.exists() else []:
-            figs.append(figure(f'frame-{key}', f, 280, [], f"`pick frame-{key} {f.stem[1:]}`"))
-        out.append(section(f'frame-{key}', figs))
-    return '\n'.join(out)
-
-
 def review_patterns():
     out = []
     for r in RARITIES:
@@ -190,7 +178,7 @@ def review_patterns():
     return '\n'.join(out)
 
 
-REVIEW_SECTIONS = [review_machine, review_patterns, review_frames]
+REVIEW_SECTIONS = [review_machine, review_patterns]
 
 
 def cmd_review(args):
@@ -289,39 +277,6 @@ def cmd_build_shells(args):
     print('shells done')
 
 
-def cmd_frames(args):
-    cfg = load_cfg()
-    items = {'one': cfg['frame_one']} if args.one else cfg['frames']
-    for key, deco in items.items():
-        generate(f'{cfg["frame_style"]}, {cfg["frame_base"]}, {deco}{GREEN}', cfg['negative'], 1024, 1024, f'frame-{key}')
-
-
-def cmd_build_frames(args):
-    picks = load_cfg().get('picks', {})
-    # 退路(Q13):九宮格分別生不出來時只挑一款,5 個稀有度共用、只靠濾鏡換色
-    one = 'frame-one' in picks
-    src = {r: picks['frame-one'] for r in RARITIES} if one else {r: picks.get(f'frame-{r}') for r in RARITIES}
-    missing = [r for r, p in src.items() if not p]
-    if missing:
-        sys.exit(f'還沒 pick:{", ".join("frame-" + r for r in missing)}')
-    FRAMES.mkdir(parents=True, exist_ok=True)
-    css = ROOT / 'shared' / 'css' / 'prize-frame.css'
-    for r, p in src.items():
-        name = 'frame-one' if one else f'frame-{r}'
-        # 外圍用 key_border 從邊緣往內去背(z_image 的綠底不純,key_green 吃不掉);
-        # 框中間碰不到邊緣,下面再用 clear_center 挖空
-        rgb = np.asarray(Image.open(OUT / name / f's{p["n"]}.png').convert('RGB'))
-        rgba = keep_largest(clear_green_fringe(key_border(rgb)))
-        x0, y0, x1, y1 = Image.fromarray(rgba).getbbox()
-        frame = clear_center(rgba[y0:y1, x0:x1])   # 框中間常被畫成一塊灰色,挖空
-        im = Image.fromarray(normalize_edges(to_tint_gray(frame))).resize((512, 512), Image.LANCZOS)
-        path = FRAMES / f'frame-{r}.webp'
-        webp(im, path)
-        if css.exists():
-            restamp(css, f'../img/frames/frame-{r}.webp', path)
-    print('frames done')
-
-
 def cmd_patterns(args):
     # 扭蛋殼的花紋貼圖(2026-10-01 模型修訂):球由 CSS 畫,這裡只生方形灰階貼圖,白底不用去背
     cfg = load_cfg()
@@ -348,7 +303,6 @@ def cmd_build_patterns(args):
 
 COMMANDS = {'machine': cmd_machine, 'review': cmd_review, 'pick': cmd_pick, 'build-machine': cmd_build_machine,
             'shells': cmd_shells, 'build-shells': cmd_build_shells,
-            'frames': cmd_frames, 'build-frames': cmd_build_frames,
             'patterns': cmd_patterns, 'build-patterns': cmd_build_patterns}
 
 
@@ -365,8 +319,6 @@ def main():
     sub.add_parser('build-shells')
     pt = sub.add_parser('patterns'); pt.add_argument('--only', help='逗號分隔的稀有度')
     sub.add_parser('build-patterns')
-    fr = sub.add_parser('frames'); fr.add_argument('--one', action='store_true')
-    sub.add_parser('build-frames')
     args = ap.parse_args()
     COMMANDS[args.cmd](args)
 

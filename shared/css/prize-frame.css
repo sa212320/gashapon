@@ -1,80 +1,71 @@
-/* 揭曉卡片的九宮格外框。外框圖是灰階的,由 shared/js/tint.js 插入的 SVG 濾鏡
-   依稀有度上色(border-image 沒辦法直接上色;mask-border 只有 Safari 支援)。
-   濾鏡只套在 ::before 上,卡片裡的文字跟按鈕不會被染到。
-   扭蛋機在用;立體扭蛋機之後加上 .prize-frame 與 data-rarity 就能用(issue #6)。 */
+/* 揭曉卡片的外框(2026-10-01 改成全部由程式畫):
+   - 色帶:稀有度色的粗框 + 深棕外緣線;UR 跟 UR 標籤一樣用 --rainbow
+   - 四角:白色 SVG 雪花,不吃稀有度色,一階比一階華麗(shared/img/flakes/flake-*.svg)
+   - 上緣:一片 SVG 積雪
+   雪花與積雪由 tools/mascot-gen/flakes.py 產生。
+   扭蛋機在用;立體扭蛋機之後加上 .prize-frame、data-rarity 與同樣的 markup 就能用(issue #6)。 */
 .prize-frame {
-  --frame-w: 34px;
+  --frame-w: 14px;
+  --flake: 64px;
+  --frame-color: var(--r-N-b);
   position: relative;
-  isolation: isolate;
-  padding: calc(var(--frame-w) + 8px);
-  border: 0;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-}
-/* 外框圖中間是鏤空的,卡片底色鋪在外框內側 */
-.prize-frame::after {
-  content: "";
-  position: absolute;
-  inset: calc(var(--frame-w) * .5);
-  z-index: -1;
+  /* 左右各留半朵雪花的空間,名字很長時四角的雪花才不會被畫面邊緣切掉 */
+  max-width: calc(100vw - var(--flake) - 16px);
+  padding: calc(var(--frame-w) + 18px) calc(var(--frame-w) + 22px);
   background: var(--cream);
-  border-radius: 16px;
+  border: var(--frame-w) solid var(--frame-color);
+  border-radius: 28px;
+  /* 色帶外圈、內圈各一條深棕線,再加一個往下的厚影子 */
+  box-shadow:
+    0 0 0 4px var(--ink),
+    inset 0 0 0 4px var(--ink),
+    0 12px 0 4px rgba(87, 66, 57, .25);
 }
-.prize-frame::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-style: solid;
-  border-width: var(--frame-w);
-  border-image-slice: 25% fill;
-  border-image-width: var(--frame-w);
-  border-image-repeat: stretch;
-  border-radius: 0;
-  pointer-events: none;
+.prize-frame[data-rarity="N"]   { --frame-color: var(--r-N-b); }
+.prize-frame[data-rarity="R"]   { --frame-color: var(--r-R-b); }
+.prize-frame[data-rarity="SR"]  { --frame-color: var(--r-SR-b); }
+.prize-frame[data-rarity="SSR"] { --frame-color: var(--r-SSR-b); }
+/* UR:框跟標籤同一條彩虹。padding-box 鋪奶油色、border-box 鋪彩虹,彩虹只露在邊框上 */
+.prize-frame[data-rarity="UR"] {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--cream), var(--cream)) padding-box,
+    var(--rainbow) border-box;
+  background-size: 100% 100%, 200% 200%;
+  animation: frame-rainbow 3.2s linear infinite alternate;
 }
-.prize-frame[data-rarity="N"]::before   { border-image-source: url(../img/frames/frame-N.webp?v=27278ee3);   filter: url(#tint-N); }
-.prize-frame[data-rarity="R"]::before   { border-image-source: url(../img/frames/frame-R.webp?v=e1a7557b);   filter: url(#tint-R); }
-.prize-frame[data-rarity="SR"]::before  { border-image-source: url(../img/frames/frame-SR.webp?v=13815b0e);  filter: url(#tint-SR); }
-.prize-frame[data-rarity="SSR"]::before { border-image-source: url(../img/frames/frame-SSR.webp?v=0ade8268); filter: url(#tint-SSR); }
-/* UR:外框跟 UR 標籤一樣是彩虹漸層(使用者 2026-10-01)。濾鏡一次只能上一種顏色,所以 UR 多一層
-   .prize-frame__rainbow 鋪彩虹,用外框圖的形狀裁出來(-webkit-mask-box-image = 九宮格遮罩,
-   Chrome / Safari 支援);灰階外框不上色、用 multiply 疊在上面,留住深色線條與雪花細節。 */
-.prize-frame__rainbow { display: none; }
-.prize-frame[data-rarity="UR"] .prize-frame__rainbow {
-  display: block;
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: var(--rainbow);
-  -webkit-mask-box-image: url(../img/frames/frame-UR.webp?v=28b63475) 25% / var(--frame-w) stretch;
-  animation: frame-shimmer 3.2s linear infinite;
-  pointer-events: none;
-}
-.prize-frame[data-rarity="UR"]::before {
-  z-index: 1;
-  border-image-source: url(../img/frames/frame-UR.webp?v=28b63475);
-  mix-blend-mode: multiply;
-}
-.prize-frame > :not(.prize-frame__rainbow) { position: relative; z-index: 2; }
-
-/* 不支援九宮格遮罩的瀏覽器(Firefox):不能露出一整塊彩虹長方形,退回單色濾鏡輪流換色。
-   filter 清單裡有 url() 就不能內插,所以動畫一個註冊過型別的自訂屬性 --frame-hue。 */
-@property --frame-hue { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
-@supports not (-webkit-mask-box-image: none) {
-  .prize-frame[data-rarity="UR"] .prize-frame__rainbow { display: none; }
-  .prize-frame[data-rarity="UR"]::before {
-    mix-blend-mode: normal;
-    filter: url(#tint-UR) hue-rotate(var(--frame-hue));
-    animation: frame-rainbow 3.2s linear infinite;
-  }
-}
-
 @keyframes frame-rainbow {
-  to { --frame-hue: 360deg; }
+  to { background-position: 0 0, 100% 100%; }
 }
 
-/* 跟 UR 標籤的 shimmer 一樣;這支是共用檔,不能依賴扭蛋機自己的 animations.css */
-@keyframes frame-shimmer {
-  to { filter: hue-rotate(360deg) saturate(1.15); }
+/* 四角的雪花:中心對準色帶的轉角。絕對定位的參考框是 padding box,
+   所以色帶中線在 -frame-w/2 的位置。 */
+.prize-frame__corner {
+  position: absolute;
+  width: var(--flake);
+  height: var(--flake);
+  background: center / contain no-repeat;
+  pointer-events: none;
+  z-index: 2;
+}
+.prize-frame__corner--tl { top: calc(var(--frame-w) / -2 - var(--flake) / 2); left: calc(var(--frame-w) / -2 - var(--flake) / 2); }
+.prize-frame__corner--tr { top: calc(var(--frame-w) / -2 - var(--flake) / 2); right: calc(var(--frame-w) / -2 - var(--flake) / 2); transform: rotate(15deg); }
+.prize-frame__corner--bl { bottom: calc(var(--frame-w) / -2 - var(--flake) / 2); left: calc(var(--frame-w) / -2 - var(--flake) / 2); transform: rotate(-10deg); }
+.prize-frame__corner--br { bottom: calc(var(--frame-w) / -2 - var(--flake) / 2); right: calc(var(--frame-w) / -2 - var(--flake) / 2); transform: rotate(25deg); }
+.prize-frame[data-rarity="N"] .prize-frame__corner   { background-image: url(../img/flakes/flake-N.svg); }
+.prize-frame[data-rarity="R"] .prize-frame__corner   { background-image: url(../img/flakes/flake-R.svg); }
+.prize-frame[data-rarity="SR"] .prize-frame__corner  { background-image: url(../img/flakes/flake-SR.svg); }
+.prize-frame[data-rarity="SSR"] .prize-frame__corner { background-image: url(../img/flakes/flake-SSR.svg); }
+.prize-frame[data-rarity="UR"] .prize-frame__corner  { background-image: url(../img/flakes/flake-UR.svg); }
+
+/* 上緣的積雪:蓋在上方色帶上,兩端讓給四角的雪花 */
+.prize-frame__snow {
+  position: absolute;
+  top: calc(var(--frame-w) * -1 - 16px);
+  left: calc(var(--flake) / 2 - 4px);
+  right: calc(var(--flake) / 2 - 4px);
+  height: 30px;
+  background: url(../img/flakes/snow-cap.svg) center / 100% 100% no-repeat;
+  pointer-events: none;
+  z-index: 1;
 }

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" preserveAspectRatio="none">
+  <!-- 揭曉卡片外框上緣的積雪。由 tools/mascot-gen/flakes.py 產生,不要手改 -->
+  <path d="M4 34 C4 22 14 18 24 22 C28 8 46 6 54 16 C62 4 84 4 92 16 C100 6 120 6 126 18 C134 8 154 8 160 20 C168 12 186 14 188 24 C196 24 198 30 196 34 Z"
+        fill="#fff" stroke="#574239" stroke-width="4" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+</svg>

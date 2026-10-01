@@ -56,19 +56,24 @@ test('蛋殼是 CSS 畫的球:不用 mask(圖沒載入時蛋不能隱形)', () =
   assert.ok(!/\bmask(-image)?\s*:/.test(css), 'style.css 不該再有 mask');
 });
 
-test('5 張外框都存在,prize-frame.css 每個稀有度都有圖和濾鏡', () => {
+test('外框是 CSS 色帶:每個稀有度一個顏色,UR 跟標籤一樣用 --rainbow;沒有生成圖、沒有濾鏡', () => {
   const css = read('shared/css/prize-frame.css');
-  for (const r of RARITIES) {
-    assert.ok(existsSync(join(root, `shared/img/frames/frame-${r}.webp`)), r);
-    // UR 是彩虹漸層,不走單色濾鏡(見下面那條測試)
-    if (r === 'UR') continue;
-    assert.match(css, new RegExp(`\\[data-rarity="${r}"\\][^{]*\\{[^}]*frame-${r}\\.webp\\?v=[0-9a-f]{8}[^}]*url\\(#tint-${r}\\)`), r);
+  for (const r of RARITIES.filter(r => r !== 'UR')) {
+    assert.match(css, new RegExp(`\\.prize-frame\\[data-rarity="${r}"\\]\\s*\\{[^}]*--frame-color:`), r);
   }
+  assert.match(css, /\.prize-frame\[data-rarity="UR"\]\s*\{[^}]*var\(--rainbow\)/);
+  assert.ok(!/frames\/frame-|filter:\s*url\(#tint|mask-box-image/.test(css), '舊的九宮格外框要拿乾淨');
+  assert.ok(!existsSync(join(root, 'shared/js/tint.js')), 'tint.js 只給舊外框用,要刪掉');
 });
 
-test('卡片內距寫成 calc(var(--frame-w) + Npx)(長名字不會壓到四角裝飾)', () => {
+test('外框上緣有一片積雪', () => {
+  assert.ok(existsSync(join(root, 'shared/img/flakes/snow-cap.svg')));
+  assert.match(read('gashapon/index.html'), /class="prize-frame__snow"/);
+  assert.match(read('shared/css/prize-frame.css'), /\.prize-frame__snow\s*\{[^}]*snow-cap\.svg/);
+});
+
+test('卡片內距寫成 calc(var(--frame-w) + Npx)(長名字不會壓到四角雪花)', () => {
   const css = read('shared/css/prize-frame.css');
-  assert.ok(Number(/--frame-w:\s*(\d+)px/.exec(css)?.[1]) > 0, '--frame-w');
   assert.match(css, /\.prize-frame\s*\{[^}]*padding:\s*calc\(var\(--frame-w\)\s*\+\s*\d+px\)/);
 });
 
@@ -78,11 +83,19 @@ test('扭蛋機的揭曉卡片用了 prize-frame,也引用了 prize-frame.css', 
   assert.match(html, /href="\.\.\/shared\/css\/prize-frame\.css"/);
 });
 
-test('UR 外框跟 UR 標籤一樣是彩虹漸層:多一層 rainbow,用外框形狀裁出來', () => {
+test('外框四角的雪花:獨立一層、每個稀有度一款、不吃稀有度濾鏡', () => {
   const css = read('shared/css/prize-frame.css');
-  assert.match(read('gashapon/index.html'), /class="prize-frame__rainbow"/);
-  assert.match(css, /\.prize-frame__rainbow\s*\{[^}]*background:\s*var\(--rainbow\)/);
-  assert.match(css, /-webkit-mask-box-image:\s*url\(\.\.\/img\/frames\/frame-UR\.webp\?v=[0-9a-f]{8}\)/);
-  // 不支援九宮格遮罩的瀏覽器(Firefox)不能露出一整塊彩虹長方形
-  assert.match(css, /@supports\s+not\s+\(-webkit-mask-box-image:/);
+  const html = read('gashapon/index.html');
+  for (const pos of ['tl', 'tr', 'bl', 'br']) assert.match(html, new RegExp(`prize-frame__corner--${pos}`));
+  for (const r of RARITIES) {
+    assert.ok(existsSync(join(root, `shared/img/flakes/flake-${r}.svg`)), r);
+    assert.match(css, new RegExp(`\\[data-rarity="${r}"\\] \\.prize-frame__corner\\s*\\{[^}]*flake-${r}\\.svg`), r);
+  }
+  const cornerRules = [...css.matchAll(/\.prize-frame__corner[^{]*\{([^}]*)\}/g)].map(m => m[1]).join('\n');
+  assert.ok(!/filter:/.test(cornerRules), '四角的雪花不能上稀有度色');
+});
+
+test('四角雪花一階比一階華麗(檔案裡的線條越來越多)', () => {
+  const counts = RARITIES.map(r => (read(`shared/img/flakes/flake-${r}.svg`).match(/<path\b/g) || []).length);
+  for (let i = 1; i < counts.length; i++) assert.ok(counts[i] > counts[i - 1], counts.join(','));
 });

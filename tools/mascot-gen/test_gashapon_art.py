@@ -124,47 +124,7 @@ class SquareAboutSeam(unittest.TestCase):
         self.assertEqual(int(out[seam, out.shape[1] // 2, 3]), 200)
 
 
-from gashapon_art import normalize_edges
-
-
-class NormalizeEdges(unittest.TestCase):
-    def test_top_edge_middle_is_uniform_copy_of_center_column(self):
-        a = np.random.default_rng(0).integers(0, 255, (40, 40, 4), dtype=np.uint8)
-        out = normalize_edges(a, 0.25)
-        band = out[:10, 10:30]
-        self.assertTrue((band == out[:10, 20:21]).all())
-
-    def test_corners_untouched(self):
-        a = np.random.default_rng(1).integers(0, 255, (40, 40, 4), dtype=np.uint8)
-        out = normalize_edges(a, 0.25)
-        self.assertTrue((out[:10, :10] == a[:10, :10]).all())
-        self.assertTrue((out[30:, 30:] == a[30:, 30:]).all())
-
-    def test_left_edge_middle_is_uniform_copy_of_center_row(self):
-        a = np.random.default_rng(2).integers(0, 255, (40, 40, 4), dtype=np.uint8)
-        out = normalize_edges(a, 0.25)
-        self.assertTrue((out[10:30, :10] == out[20:21, :10]).all())
-
-
-from gashapon_art import clear_center, crop_margin
-
-
-class ClearCenter(unittest.TestCase):
-    def setUp(self):
-        a = np.zeros((9, 9, 4), np.uint8)
-        a[...] = (255, 255, 255, 255)        # 外框的白色帶
-        a[2:7, 2:7] = (70, 50, 40, 255)      # 深色內緣線
-        a[3:6, 3:6] = (200, 200, 200, 255)   # 框中間灰色那塊
-        self.a = a
-
-    def test_center_region_becomes_transparent(self):
-        self.assertEqual(clear_center(self.a)[4, 4, 3], 0)
-        self.assertEqual(clear_center(self.a)[3, 3, 3], 0)
-
-    def test_outline_and_band_kept(self):
-        out = clear_center(self.a)
-        self.assertEqual(out[2, 2, 3], 255)
-        self.assertEqual(out[0, 0, 3], 255)
+from gashapon_art import crop_margin
 
 
 class CropMargin(unittest.TestCase):

@@ -91,40 +91,6 @@ def square_about_seam(rgba, seam):
     return out, side // 2
 
 
-def normalize_edges(rgba, frac=0.25):
-    """九宮格外框的四條邊會被 border-image 拉伸。模型畫的邊不保證均勻,拉長後會看到
-    被拉歪的花紋。這裡把每條邊的中段換成「邊上正中間那一條像素」重複出來,保證拉伸不變形。"""
-    out = rgba.copy()
-    h, w = out.shape[:2]
-    sy, sx = round(h * frac), round(w * frac)
-    cx, cy = w // 2, h // 2
-    out[:sy, sx:w - sx] = out[:sy, cx:cx + 1]
-    out[h - sy:, sx:w - sx] = out[h - sy:, cx:cx + 1]
-    out[sy:h - sy, :sx] = out[cy:cy + 1, :sx]
-    out[sy:h - sy, w - sx:] = out[cy:cy + 1, w - sx:]
-    return out
-
-
-def clear_center(rgba, tol=40.0):
-    """把外框中間那塊挖空:從圖片正中央往外填色,跟中心顏色相差 tol 以內的連通區域變透明。
-    模型常把「鏤空」畫成一塊灰色,border-image 用 fill 時那塊會蓋住卡片底色。"""
-    out = rgba.copy()
-    f = out[..., :3].astype(np.float32)
-    h, w = f.shape[:2]
-    near = np.sqrt(((f - f[h // 2, w // 2]) ** 2).sum(-1)) <= tol
-    region = np.zeros((h, w), bool)
-    region[h // 2, w // 2] = True
-    while True:
-        grown = region.copy()
-        grown[1:] |= region[:-1]; grown[:-1] |= region[1:]; grown[:, 1:] |= region[:, :-1]; grown[:, :-1] |= region[:, 1:]
-        grown &= near
-        if (grown == region).all():
-            break
-        region = grown
-    out[region, 3] = 0
-    return out
-
-
 def crop_margin(img, frac):
     """裁掉四邊各 frac。花紋貼圖常被模型加上一圈方框,貼到球上會露出來。"""
     h, w = img.shape[:2]
