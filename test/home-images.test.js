@@ -31,3 +31,7 @@ test('首頁引用的每一張圖都存在', () => {
 test('首頁的扭蛋機卡片用了插畫(機台跟扭蛋機頁同一張合成)', () => {
   assert.ok(refs().some(p => p.endsWith('img/home/gashapon.webp')), refs().join('\n'));
 });
+
+test('首頁的立體扭蛋機卡片用了插畫', () => {
+  assert.ok(refs().some(p => p.endsWith('img/home/gashapon3d.webp')), refs().join('\n'));
+});

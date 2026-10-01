@@ -78,10 +78,6 @@ body {
 }
 
 /* 立體扭蛋機:加一顆高光,做出球體感 */
-.card__art--gashapon3d {
-  background: radial-gradient(circle at 34% 28%, #fff 0 14%, var(--mint) 15% 60%, var(--coral-deep) 100%);
-}
-
 /* 一番賞:一張直立的籤紙,右上角折角 */
 .card__art--ichiban {
   width: 52px;
