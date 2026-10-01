@@ -56,14 +56,21 @@ test('蛋殼是 CSS 畫的球:不用 mask(圖沒載入時蛋不能隱形)', () =
   assert.ok(!/\bmask(-image)?\s*:/.test(css), 'style.css 不該再有 mask');
 });
 
-test('外框是 CSS 色帶:每個稀有度一個顏色,UR 跟標籤一樣用 --rainbow;沒有生成圖、沒有濾鏡', () => {
+test('外框所有稀有度同一個冰藍色,只靠裝飾變華麗;沒有生成圖、沒有濾鏡、沒有彩虹框', () => {
   const css = read('shared/css/prize-frame.css');
-  for (const r of RARITIES.filter(r => r !== 'UR')) {
-    assert.match(css, new RegExp(`\\.prize-frame\\[data-rarity="${r}"\\]\\s*\\{[^}]*--frame-color:`), r);
-  }
-  assert.match(css, /\.prize-frame\[data-rarity="UR"\]\s*\{[^}]*var\(--rainbow\)/);
+  assert.match(css, /\.prize-frame\s*\{[^}]*--frame-color:\s*#[0-9A-Fa-f]{6}/);
+  assert.equal((css.match(/--frame-color:/g) || []).length, 1, '框的顏色只能定義一次,不分稀有度');
+  assert.ok(!/--rainbow/.test(css), 'UR 不再用彩虹框(使用者 2026-10-01)');
   assert.ok(!/frames\/frame-|filter:\s*url\(#tint|mask-box-image/.test(css), '舊的九宮格外框要拿乾淨');
   assert.ok(!existsSync(join(root, 'shared/js/tint.js')), 'tint.js 只給舊外框用,要刪掉');
+});
+
+test('外框裝飾逐級增加:N 沒積雪、SR 起有亮點、SSR 起雙層外框、UR 有光澤動畫', () => {
+  const css = read('shared/css/prize-frame.css');
+  assert.match(css, /\.prize-frame\[data-rarity="N"\] \.prize-frame__snow\s*\{[^}]*display:\s*none/);
+  assert.match(css, /\[data-rarity="SR"\][^{]*\{[^}]*radial-gradient/);
+  assert.match(css, /\[data-rarity="SSR"\][^{]*\{[^}]*box-shadow/);
+  assert.match(css, /\[data-rarity="UR"\][^{]*\{[^}]*animation:/);
 });
 
 test('外框上緣有一片積雪', () => {

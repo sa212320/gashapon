@@ -1,20 +1,25 @@
-/* 揭曉卡片的外框(2026-10-01 改成全部由程式畫):
-   - 色帶:稀有度色的粗框 + 深棕外緣線;UR 跟 UR 標籤一樣用 --rainbow
-   - 四角:白色 SVG 雪花,不吃稀有度色,一階比一階華麗(shared/img/flakes/flake-*.svg)
+/* 揭曉卡片的外框(2026-10-01 全部由程式畫):
+   - 所有稀有度同一個冰藍色框,只靠裝飾一階比一階華麗(使用者決定;稀有度色已經在扭蛋殼、標籤、光暈上)
+     N 細框 → R +上緣積雪 → SR +框上亮點 → SSR +雙層外框、雪花變大 → UR +光澤掃過
+   - 四角:白色 SVG 雪花,一階比一階繁複(shared/img/flakes/flake-*.svg)
    - 上緣:一片 SVG 積雪
    雪花與積雪由 tools/mascot-gen/flakes.py 產生。
    扭蛋機在用;立體扭蛋機之後加上 .prize-frame、data-rarity 與同樣的 markup 就能用(issue #6)。 */
 .prize-frame {
   --frame-w: 10px;
   --flake: 50px;
-  --frame-color: var(--r-N-b);
+  --frame-color: #9FD6F2;
   position: relative;
   /* 左右各留半朵雪花的空間,名字很長時四角的雪花才不會被畫面邊緣切掉 */
   max-width: calc(100vw - var(--flake) - 16px);
   padding: calc(var(--frame-w) + 26px) calc(var(--frame-w) + 22px) calc(var(--frame-w) + 20px);
-  background: var(--cream);
-  border: var(--frame-w) solid var(--frame-color);
+  /* 框是透明邊框底下露出來的背景:padding-box 鋪奶油色,border-box 鋪框的顏色。
+     高階的亮點、光澤都是再疊在 border-box 上的背景層,只會露在框上 */
+  border: var(--frame-w) solid transparent;
   border-radius: 26px;
+  background:
+    linear-gradient(var(--cream), var(--cream)) padding-box,
+    linear-gradient(var(--frame-color), var(--frame-color)) border-box;
   /* 外圈一條深棕線 + 往下的厚影子;內側是原本卡片那種淡淡的虛線(::before) */
   box-shadow:
     0 0 0 4px var(--ink),
@@ -28,21 +33,43 @@
   border-radius: 16px;
   pointer-events: none;
 }
-.prize-frame[data-rarity="N"]   { --frame-color: var(--r-N-b); }
-.prize-frame[data-rarity="R"]   { --frame-color: var(--r-R-b); }
-.prize-frame[data-rarity="SR"]  { --frame-color: var(--r-SR-b); }
-.prize-frame[data-rarity="SSR"] { --frame-color: var(--r-SSR-b); }
-/* UR:框跟標籤同一條彩虹。padding-box 鋪奶油色、border-box 鋪彩虹,彩虹只露在邊框上 */
+
+/* ---- 逐級加裝飾 ---- */
+.prize-frame[data-rarity="N"] .prize-frame__snow { display: none; }
+
+/* SR 起:框上點綴一排冰晶亮點 */
+.prize-frame[data-rarity="SR"],
+.prize-frame[data-rarity="SSR"],
 .prize-frame[data-rarity="UR"] {
-  border-color: transparent;
   background:
     linear-gradient(var(--cream), var(--cream)) padding-box,
-    var(--rainbow) border-box;
-  background-size: 100% 100%, 200% 200%;
-  animation: frame-rainbow 3.2s linear infinite alternate;
+    radial-gradient(circle, #fff 0 2px, transparent 2.6px) border-box 0 0 / 16px 16px,
+    linear-gradient(var(--frame-color), var(--frame-color)) border-box;
 }
-@keyframes frame-rainbow {
-  to { background-position: 0 0, 100% 100%; }
+
+/* SSR 起:雙層外框,雪花變大 */
+.prize-frame[data-rarity="SSR"],
+.prize-frame[data-rarity="UR"] {
+  --flake: 60px;
+  box-shadow:
+    0 0 0 4px var(--ink),
+    0 0 0 9px var(--frame-color),
+    0 0 0 13px var(--ink),
+    0 14px 0 13px rgba(87, 66, 57, .22);
+}
+
+/* UR:一道光澤從框上掃過 */
+.prize-frame[data-rarity="UR"] {
+  background:
+    linear-gradient(var(--cream), var(--cream)) padding-box,
+    linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, .95) 50%, transparent 60%) border-box 0 0 / 300% 300%,
+    radial-gradient(circle, #fff 0 2px, transparent 2.6px) border-box 0 0 / 16px 16px,
+    linear-gradient(var(--frame-color), var(--frame-color)) border-box;
+  animation: frame-shine 2.4s ease-in-out infinite;
+}
+@keyframes frame-shine {
+  from { background-position: 0 0, 100% 100%, 0 0, 0 0; }
+  to   { background-position: 0 0, 0 0, 0 0, 0 0; }
 }
 
 /* 四角的雪花:中心對準色帶的轉角。絕對定位的參考框是 padding box,
