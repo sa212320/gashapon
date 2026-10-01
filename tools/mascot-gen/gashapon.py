@@ -240,6 +240,7 @@ def cmd_build_machine(args):
              f'--knob-y: {anchors["knob"]["cy"]}; --knob-r: {anchors["knob"]["r"]}')
     page.write_text(re.sub(r'<div class="machine" id="machine"[^>]*>', f'<div class="machine" id="machine" style="{style}">', page.read_text()))
     print(json.dumps(anchors))
+    write_preload_manifest()
 
 
 def cmd_shells(args):
@@ -338,6 +339,7 @@ def cmd_build_frames(args):
         if css.exists():
             restamp(css, f'../img/frames/frame-{r}.webp', path)
         print(r, 'panel', box)
+    write_preload_manifest()
 
 
 def review_frames():
@@ -374,12 +376,39 @@ def cmd_build_patterns(args):
         webp(im, path)
         restamp(css, f'../img/pattern-{r}.webp', path)
     print('patterns done')
+    write_preload_manifest()
+
+
+def write_preload_manifest():
+    """首頁趁空閒預先下載扭蛋機頁的圖(js/preload-modes.js)。快取靠網址比對,所以清單直接從
+    扭蛋機頁的 HTML / CSS 抓實際引用的網址(含 ?v=),換成相對網站根目錄的路徑。
+    test/preload-manifest.test.js 會檢查兩邊一致。"""
+    import posixpath
+    refs = set()
+
+    def add(base, url):
+        if re.match(r'(data:|https?:|#)', url) or not re.search(r'\.(webp|png|svg)', url):
+            return
+        refs.add(posixpath.normpath(posixpath.join(base, url)))
+
+    for m in re.finditer(r'<img\b[^>]*\bsrc="([^"]+)"', (ROOT / 'gashapon' / 'index.html').read_text()):
+        add('gashapon', m.group(1))
+    for css, base in [('gashapon/css/style.css', 'gashapon/css'), ('shared/css/prize-frame.css', 'shared/css')]:
+        for m in re.finditer(r'url\(\s*["\']?([^"\')#]+)["\']?\s*\)', (ROOT / css).read_text()):
+            add(base, m.group(1))
+    path = IMG / 'preload.json'
+    path.write_text(json.dumps(sorted(refs), indent=2) + '\n')
+    print(f'preload.json: {len(refs)} 張')
+
+
+def cmd_manifest(args):
+    write_preload_manifest()
 
 
 COMMANDS = {'machine': cmd_machine, 'review': cmd_review, 'pick': cmd_pick, 'build-machine': cmd_build_machine,
             'shells': cmd_shells, 'build-shells': cmd_build_shells,
             'patterns': cmd_patterns, 'build-patterns': cmd_build_patterns,
-            'frames': cmd_frames, 'build-frames': cmd_build_frames, 'frames-i2i': cmd_frames_i2i}
+            'frames': cmd_frames, 'manifest': cmd_manifest, 'build-frames': cmd_build_frames, 'frames-i2i': cmd_frames_i2i}
 
 
 def main():
@@ -395,6 +424,7 @@ def main():
     sub.add_parser('build-shells')
     fr = sub.add_parser('frames'); fr.add_argument('--only', help='逗號分隔的稀有度'); fr.add_argument('--seeds', help='逗號分隔,例如 22,44,66')
     sub.add_parser('build-frames')
+    sub.add_parser('manifest')
     fi = sub.add_parser('frames-i2i'); fi.add_argument('base', help='相對於 out/gashapon,例如 frame-SR/s2.png')
     fi.add_argument('--denoise', default='0.35,0.45,0.52,0.6,0.68', help='N,R,SR,SSR,UR 的改動幅度'); fi.add_argument('--seeds', type=int, default=2)
     pt = sub.add_parser('patterns'); pt.add_argument('--only', help='逗號分隔的稀有度')
