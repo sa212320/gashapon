@@ -38,3 +38,23 @@ def content_hash(path):
 def stamp(text, rel, digest):
     """網址加上內容雜湊:素材換了網址就跟著換,瀏覽器跟 GitHub Pages 的快取不會繼續給舊圖。"""
     return re.sub(re.escape(rel) + r'(\?v=[0-9a-f]{8})?(?![\w.])', f'{rel}?v={digest}', text)
+
+
+def clear_green_fringe(rgba, margin=25):
+    """綠幕去背後的第二道:偏綠(綠比紅、藍都多 margin 以上)而且跟透明區連在一起的像素
+    也清掉。z_image 會在機台腳下畫一塊比背景深的綠色陰影,key_border 的容差吃不到它,
+    它又連著底座,keep_largest 也清不掉。被深色外框包住的綠色(圓頂裡的綠色扭蛋)
+    碰不到透明區,不會被誤吃。"""
+    out = rgba.copy()
+    f = out[..., :3].astype(np.int32)
+    greenish = (f[..., 1] - np.maximum(f[..., 0], f[..., 2]) >= margin) & (out[..., 3] > 0)
+    clear = out[..., 3] == 0
+    while True:
+        grown = clear.copy()
+        grown[1:] |= clear[:-1]; grown[:-1] |= clear[1:]; grown[:, 1:] |= clear[:, :-1]; grown[:, :-1] |= clear[:, 1:]
+        grown &= greenish | clear
+        if (grown == clear).all():
+            break
+        clear = grown
+    out[clear, 3] = 0
+    return out

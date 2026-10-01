@@ -46,3 +46,27 @@ class Stamp(unittest.TestCase):
             p = Path(d) / 'x.bin'
             p.write_bytes(b'abc')
             self.assertEqual(content_hash(p), 'a9993e36')
+
+
+from gashapon_art import clear_green_fringe
+
+
+class GreenFringe(unittest.TestCase):
+    def setUp(self):
+        # 透明背景 | 一條偏綠的陰影 | 深色外框 | 框內一顆綠色扭蛋
+        a = np.zeros((1, 6, 4), np.uint8)
+        a[0, 1] = (120, 190, 120, 255)   # 地面陰影:偏綠,跟透明區相連
+        a[0, 2] = (70, 50, 40, 255)      # 外框
+        a[0, 3] = (90, 200, 90, 255)     # 框內的綠色扭蛋
+        a[0, 4] = (70, 50, 40, 255)
+        a[0, 5] = (0, 0, 0, 0)
+        self.a = a
+
+    def test_greenish_touching_transparency_is_cleared(self):
+        self.assertEqual(clear_green_fringe(self.a)[0, 1, 3], 0)
+
+    def test_green_enclosed_by_outline_is_kept(self):
+        self.assertEqual(clear_green_fringe(self.a)[0, 3, 3], 255)
+
+    def test_outline_is_kept(self):
+        self.assertEqual(clear_green_fringe(self.a)[0, 2, 3], 255)

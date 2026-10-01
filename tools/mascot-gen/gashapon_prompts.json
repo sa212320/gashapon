@@ -2,7 +2,21 @@
   "style": "flat 2D cartoon illustration, cute chibi style, flat colors, thick dark brown outlines, magical frozen ice palace theme, icy blue lavender and white palette, sparkling snowflakes, clean simple shapes",
   "negative": "text, letters, words, numbers, watermark, signature, people, person, animal, character, face, eyes, mouth, photorealistic, 3d render, gradient mesh, blurry, shadow on background, handle sticking out, lever, crank arm, ground shadow, christmas, holly, berries, leaves, ribbon",
   "machine": "a single cute capsule toy vending machine that looks magically made of ice, seen straight from the front, tall portrait proportions, a big round clear glass dome on top filled with many colorful round capsules, fluffy white snow and small ice crystals on top of the dome, a pale icy blue rounded body with a lavender rim, little white snowflake patterns and tiny sparkles on the body, a few small icicles hanging from the rim, in the middle of the body one big round turning knob as wide as half of the body, icy white with a lavender grip bar across it, the grip bar stays completely inside the circle, nothing sticks out of the circle, below the knob a wide rounded arch-shaped capsule exit opening big enough for one capsule, two short stubby feet, no face, no shadow on the ground, the machine alone with nothing else around it, isolated on a solid flat bright pure green #00FF00 background",
-  "picks": {},
+  "picks": {
+    "machine": {
+      "n": 6,
+      "dir": "machine-r11",
+      "knob": [
+        384,
+        645,
+        89
+      ],
+      "outlet": [
+        384,
+        811
+      ]
+    }
+  },
   "style_forest_r6": "flat 2D cartoon illustration, cute chibi style, flat colors, thick dark brown outlines, cozy snowy winter forest theme, icy blue lavender white and warm wood palette, sparkling snowflakes, clean simple shapes",
   "machine_forest_r6": "a single cute capsule toy vending machine standing in a snowy forest mood, seen straight from the front, tall portrait proportions, a big round clear frosty glass dome on top filled with many colorful round capsules, fluffy white snow piled on top of the dome, a pale icy blue rounded body with little white snowflake patterns, a warm wooden base and wooden rim like a log cabin, a small snowy pine branch on the rim, a few small icicles hanging from the rim, in the middle of the body one large flat round silver-white coin-shaped knob with a thin grip line drawn across it, the grip line is short and stays completely inside the circle, nothing sticks out of the circle, a small dark capsule exit slot below the knob, short wooden feet with a little snow, no face, no shadow on the ground, the machine alone with nothing else around it, isolated on a solid flat bright pure green #00FF00 background"
 }

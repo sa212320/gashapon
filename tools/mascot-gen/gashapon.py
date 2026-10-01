@@ -19,7 +19,7 @@ from PIL import Image
 
 import comfy
 from post import key_border, keep_largest
-from gashapon_art import anchors_from_pick, cut_disk, content_hash, stamp
+from gashapon_art import anchors_from_pick, cut_disk, content_hash, stamp, clear_green_fringe
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
@@ -182,7 +182,7 @@ def cmd_pick(args):
 def cutout(path):
     """綠底 → 透明,只留最大的主體,裁掉四周透明邊。回傳 (rgba ndarray, 在原圖的 bbox)。"""
     rgb = np.asarray(Image.open(path).convert('RGB'))
-    rgba = keep_largest(key_border(rgb))
+    rgba = keep_largest(clear_green_fringe(key_border(rgb)))
     bbox = Image.fromarray(rgba).getbbox()
     x0, y0, x1, y1 = bbox
     return rgba[y0:y1, x0:x1], bbox
