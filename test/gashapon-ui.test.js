@@ -58,7 +58,7 @@ test('outletPoint:比例乘上機台實際位置', () => {
 });
 
 function el() {
-  return { hidden: false, disabled: false, textContent: '', classList: { toggle() {} }, setAttribute() {} };
+  return { hidden: false, disabled: false, textContent: '', classList: { toggle() {} }, setAttribute(k, v) { this[k] = v; } };
 }
 function viewWith() {
   const els = { remainTag: el(), emptyState: el(), drawBtn: el(), knob: el(), soundBtn: el(), soundIcon: el() };
@@ -145,3 +145,11 @@ test('fitFontSize:怎樣都放不下就停在最小字,不會無限縮', () => {
   assert.ok(Math.min(...tried) >= 18);
 });
 
+
+test('setSoundIcon:開 → sound-on,關 → sound-off', () => {
+  const { els, view } = viewWith();
+  view.setSoundIcon(true);
+  assert.match(els.soundIcon.href, /#sound-on$/);
+  view.setSoundIcon(false);
+  assert.match(els.soundIcon.href, /#sound-off$/);
+});

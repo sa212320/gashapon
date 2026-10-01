@@ -303,7 +303,9 @@ body {
 }
 .btn--draw:disabled { animation: none; }
 
-.is-muted { opacity: .45; }
+.icon { width: 28px; height: 28px; color: var(--ink); stroke-width: var(--icon-stroke); overflow: visible; }
+.icon-btn .icon { display: block; margin: auto; }
+.home-link .icon { width: 26px; height: 26px; }
 
 /* ---------- dialog (machine-specific bits) ---------- */
 .prize-list, .edit-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }

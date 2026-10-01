@@ -78,3 +78,28 @@ test('扭蛋機的揭曉卡片用了 prize-frame,也引用了 prize-frame.css', 
   assert.match(html, /href="\.\.\/shared\/css\/prize-frame\.css"/);
 });
 
+
+test('icons.svg 有 4 個 symbol,扭蛋機頁引用的 id 都存在,頁面上沒有 emoji 圖示', () => {
+  const svg = read('shared/img/icons.svg');
+  const ids = [...svg.matchAll(/<symbol\b[^>]*\bid="([^"]+)"/g)].map(m => m[1]);
+  assert.deepEqual(ids.sort(), ['home', 'settings', 'sound-off', 'sound-on']);
+  const html = read('gashapon/index.html');
+  const used = [...html.matchAll(/icons\.svg#([\w-]+)/g)].map(m => m[1]);
+  assert.ok(used.length >= 3, '扭蛋機頁至少用到 3 個圖示');
+  for (const id of used) assert.ok(ids.includes(id), id);
+  const toolbar = html.slice(html.indexOf('<footer class="toolbar">'), html.indexOf('</footer>'));
+  assert.ok(!/🔊|🔇|⚙/u.test(toolbar), '工具列不能再有 emoji 圖示');
+  assert.ok(!/>←</.test(html), '回首頁不能再是文字箭頭');
+});
+
+test('圖示只用 currentColor 跟 --icon-stroke,沒有寫死的顏色或漸層', () => {
+  const svg = read('shared/img/icons.svg');
+  assert.ok(!/#[0-9a-fA-F]{3,6}\b/.test(svg), '不要寫死顏色');
+  assert.ok(!/Gradient/.test(svg), '不要漸層');
+});
+
+test('SVG 檔的註解裡不能有 --(不合法的 XML,整個檔案會被瀏覽器拒絕,圖示全部消失)', () => {
+  for (const f of ['shared/img/icons.svg']) {
+    for (const [, body] of read(f).matchAll(/<!--([\s\S]*?)-->/g)) assert.ok(!body.includes('--'), `${f} 的註解有 --`);
+  }
+});

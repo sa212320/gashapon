@@ -12,6 +12,8 @@
   --mint: #9BE7C4;
   --stroke: 6px;
   --radius: 22px;
+  /* SVG 圖示的線條粗細(viewBox 32,顯示約 28px 時畫面上約 3.5px,跟按鈕外框的粗度相稱) */
+  --icon-stroke: 4;
 
   --r-N-a: #FFFFFF;  --r-N-b: #E7DFD4;
   --r-R-a: #8CF0B4;  --r-R-b: #34C77B;

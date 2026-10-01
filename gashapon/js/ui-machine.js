@@ -25,8 +25,7 @@ export function createMachineView(els) {
     },
 
     setSoundIcon(on) {
-      els.soundIcon.textContent = on ? '🔊' : '🔇';
-      els.soundBtn.classList.toggle('is-muted', !on);
+      els.soundIcon.setAttribute('href', `../shared/img/icons.svg#${on ? 'sound-on' : 'sound-off'}`);
     },
   };
 }
