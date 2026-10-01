@@ -20,7 +20,7 @@ from PIL import Image
 
 import comfy
 from post import key_border, keep_largest, key_green
-from gashapon_art import anchors_from_pick, cut_disk, content_hash, stamp, clear_green_fringe, to_tint_gray, split_at, split_cells, square_about_seam, crop_margin, panel_bbox, fit_panel
+from gashapon_art import anchors_from_pick, cut_disk, content_hash, stamp, clear_green_fringe, to_tint_gray, to_white_pattern, split_at, split_cells, square_about_seam, crop_margin, panel_bbox, fit_panel
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
@@ -371,9 +371,16 @@ def cmd_build_patterns(args):
         rgb = np.asarray(Image.open(OUT / f'pattern-{r}' / f's{picks[f"pattern-{r}"]["n"]}.png').convert('RGB'))
         rgb = crop_margin(rgb, 0.10)   # 模型常在貼圖外圈畫一圈方框(N 的框在 2–8% 處)
         rgba = np.dstack([rgb, np.full(rgb.shape[:2], 255, np.uint8)])
-        im = Image.fromarray(to_tint_gray(rgba)[..., :3]).resize((256, 256), Image.LANCZOS)
+        gray = to_tint_gray(rgba)[..., 0]
+        gray = np.asarray(Image.fromarray(gray).resize((256, 256), Image.LANCZOS))
+        if r == 'UR':
+            # UR:淺水晶藍雪花 + 白邊(使用者 2026-10-01 從模擬圖選的 ④:300px 預覽上 5×5 最大值濾波,
+            # 也就是半徑 2px;256px 上一樣用 2px)
+            out = to_white_pattern(gray, fill=(0x7F, 0xD3, 0xFF), edge=(255, 255, 255), edge_px=2)
+        else:
+            out = to_white_pattern(gray)   # 白色雪花,透明底
         path = IMG / f'pattern-{r}.webp'
-        webp(im, path)
+        webp(Image.fromarray(out), path)   # 4 通道 → RGBA
         restamp(css, f'../img/pattern-{r}.webp', path)
     print('patterns done')
     write_preload_manifest()

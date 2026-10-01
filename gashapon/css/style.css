@@ -114,8 +114,8 @@ body {
   /* 右下的暗面(月牙的下半) */
   box-shadow: inset -12px -14px 0 rgba(58, 40, 90, .16);
 }
-/* 花紋貼圖(2026-10-01):球由 CSS 畫,圖只負責花紋,灰階用 multiply 疊在稀有度色上 ——
-   白的地方就是稀有度色,顏色由程式決定(issue #5 共同規則)。
+/* 花紋貼圖(2026-10-01 改白):球由 CSS 畫,圖只負責花紋 —— 圖本身是白色雪花(UR 是水晶藍加白邊)
+   加透明度,直接疊在稀有度色上,底色由程式決定(issue #5 共同規則)。立體扭蛋機讀同一張圖。
    上下兩半共用同一張圖:各鋪成整顆球的大小,上半對齊頂、下半對齊底,裂開時花紋跟著兩半走。 */
 .capsule__half::before {
   content: "";
@@ -124,7 +124,6 @@ body {
   width: 100%;
   height: 200%;
   background: var(--pattern, none) center / cover no-repeat;
-  mix-blend-mode: multiply;
   pointer-events: none;
 }
 .capsule__half--top::before { top: 0; }
@@ -142,14 +141,14 @@ body {
 /* 落在下方的影子 */
 .capsule { filter: drop-shadow(0 12px 0 rgba(87, 66, 57, .18)); }
 
-.capsule[data-rarity="N"]   { --half-a: var(--r-N-a);   --half-b: var(--r-N-b);   --pattern: url(../img/pattern-N.webp?v=5bd43d8d); }
-.capsule[data-rarity="R"]   { --half-a: var(--r-R-a);   --half-b: var(--r-R-b);   --pattern: url(../img/pattern-R.webp?v=4a28a827); }
-.capsule[data-rarity="SR"]  { --half-a: var(--r-SR-a);  --half-b: var(--r-SR-b);  --pattern: url(../img/pattern-SR.webp?v=5fe470dd); }
-.capsule[data-rarity="SSR"] { --half-a: var(--r-SSR-a); --half-b: var(--r-SSR-b); --pattern: url(../img/pattern-SSR.webp?v=26007f16); }
+.capsule[data-rarity="N"]   { --half-a: var(--r-N-a);   --half-b: var(--r-N-b);   --pattern: url(../img/pattern-N.webp?v=b36879a3); }
+.capsule[data-rarity="R"]   { --half-a: var(--r-R-a);   --half-b: var(--r-R-b);   --pattern: url(../img/pattern-R.webp?v=c59a5357); }
+.capsule[data-rarity="SR"]  { --half-a: var(--r-SR-a);  --half-b: var(--r-SR-b);  --pattern: url(../img/pattern-SR.webp?v=f681b021); }
+.capsule[data-rarity="SSR"] { --half-a: var(--r-SSR-a); --half-b: var(--r-SSR-b); --pattern: url(../img/pattern-SSR.webp?v=59738a23); }
 /* SSR 的金:殼跟標籤都加一道金屬光澤的漸層(純色看起來像奶油黃) */
 .capsule[data-rarity="SSR"] .capsule__half { background: var(--gold); background-size: 100% 200%; }
 .capsule[data-rarity="SSR"] .capsule__half--bottom { background-position: 0 100%; }
-.capsule[data-rarity="UR"]   { --pattern: url(../img/pattern-UR.webp?v=6b924b7a); }
+.capsule[data-rarity="UR"]   { --pattern: url(../img/pattern-UR.webp?v=565edd30); }
 .capsule[data-rarity="UR"] .capsule__half {
   background: var(--rainbow);
   animation: shimmer 3.2s linear infinite;

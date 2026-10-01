@@ -174,3 +174,29 @@ class ComposeCard(unittest.TestCase):
         self.assertEqual(out.size, (400, 300))
         self.assertEqual(out.getpixel((200, 250)), (255, 0, 0))   # 機台在底部中間
         self.assertEqual(out.getpixel((10, 10)), (0, 0, 255))     # 其他地方是背景
+
+
+from gashapon_art import to_white_pattern
+
+
+class WhitePattern(unittest.TestCase):
+    def test_alpha_is_inverted_gray(self):
+        gray = np.array([[255, 0], [128, 255]], np.uint8)
+        out = to_white_pattern(gray)
+        self.assertEqual(out.shape, (2, 2, 4))
+        self.assertEqual(out[0, 0, 3], 0)        # 原本白底 → 透明
+        self.assertEqual(out[0, 1, 3], 255)      # 原本黑線 → 不透明
+        self.assertEqual(tuple(out[0, 1, :3]), (255, 255, 255))
+
+    def test_fill_with_edge(self):
+        gray = np.full((9, 9), 255, np.uint8)
+        gray[4, 4] = 0
+        out = to_white_pattern(gray, fill=(0x7F, 0xD3, 0xFF), edge=(255, 255, 255), edge_px=1)
+        self.assertEqual(tuple(out[4, 4, :3]), (0x7F, 0xD3, 0xFF))   # 花紋本體是水晶藍
+        self.assertEqual(tuple(out[4, 5, :3]), (255, 255, 255))      # 外圍一圈白邊
+        self.assertEqual(out[4, 5, 3], 255)
+        self.assertEqual(out[0, 0, 3], 0)                             # 遠處仍透明
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -69,6 +69,26 @@ def to_tint_gray(rgba, white=225):
     return np.dstack([g, g, g, rgba[..., 3]])
 
 
+def to_white_pattern(gray, fill=(255, 255, 255), edge=None, edge_px=0):
+    """花紋改成「有顏色的線 + 透明底」(2026-10-01 使用者決定:深色雪花改白色;UR 用水晶藍加白邊)。
+    透明度 = 灰階反轉:原本白底的地方全透明,黑線的地方不透明。edge 給的話,在花紋外圍再長一圈
+    edge_px 寬的邊(用最大值濾波擴張透明度),花紋本體蓋在邊上面。"""
+    a = 255 - gray.astype(np.int32)
+    h, w = gray.shape
+    rgb = np.empty((h, w, 3), np.float32)
+    rgb[:] = fill
+    alpha = a.astype(np.float32)
+    if edge is not None and edge_px > 0:
+        grown = a.copy()
+        for dy in range(-edge_px, edge_px + 1):
+            for dx in range(-edge_px, edge_px + 1):
+                grown = np.maximum(grown, np.roll(np.roll(a, dy, axis=0), dx, axis=1))
+        k = (a / 255.0)[..., None]
+        rgb = rgb * k + np.array(edge, np.float32) * (1 - k)
+        alpha = grown.astype(np.float32)
+    return np.dstack([np.clip(rgb, 0, 255).astype(np.uint8), np.clip(alpha, 0, 255).astype(np.uint8)])
+
+
 def split_at(rgba, y):
     return rgba[:y], rgba[y:]
 
