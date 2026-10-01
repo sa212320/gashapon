@@ -128,3 +128,19 @@ test('particleCount:最後爆開比同一階升階還多,維持原本的數量',
     if (l > 0) assert.ok(particleCount('burst', l) > particleCount('upgrade', l));
   }
 });
+
+import { fitFontSize } from '../gashapon/js/fit-text.js';
+
+test('fitFontSize:放得下就用最大字', () => {
+  assert.equal(fitFontSize(() => true, { max: 40, min: 18 }), 40);
+});
+
+test('fitFontSize:一級一級縮到放得下為止', () => {
+  assert.equal(fitFontSize(s => s <= 30, { max: 40, min: 18, step: 2 }), 30);
+});
+
+test('fitFontSize:怎樣都放不下就停在最小字,不會無限縮', () => {
+  const tried = [];
+  assert.equal(fitFontSize(s => { tried.push(s); return false; }, { max: 40, min: 18, step: 2 }), 18);
+  assert.ok(Math.min(...tried) >= 18);
+});
