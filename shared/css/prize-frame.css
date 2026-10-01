@@ -5,12 +5,14 @@
    1000x750 畫布的 (120,190)–(880,610),外圍裝飾往外凸 —— 換等級時框身跟文字區完全一樣。
    扭蛋機在用;立體扭蛋機之後加上 .prize-frame、data-rarity 就能用(issue #6)。 */
 .prize-frame {
-  width: min(88vw, 460px);
+  --card-w: min(88vw, 460px);
+  width: var(--card-w);
   aspect-ratio: 4 / 3;
   max-height: 80dvh;
-  /* 面板:左右各 12% 寬、上 190/750 高、下 140/750 高;padding 的百分比是相對寬度,
-     所以上 = 190/750×0.75 = 19%、下 = 14%,再各往內留 2% */
-  padding: 21% 14% 16%;
+  /* 面板:左右各 12% 寬、上 190/750 高、下 140/750 高,換成卡片寬度的比例再各往內留 2%。
+     不能寫百分比:padding 的 % 是相對「外層」(撐滿視窗的遮罩)的寬度,不是卡片本身 ——
+     電腦上會變成 300px 的內距,把卡片撐成直的、名字被擠掉(2026-10-01 使用者回報) */
+  padding: calc(var(--card-w) * .21) calc(var(--card-w) * .14) calc(var(--card-w) * .16);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   position: relative;

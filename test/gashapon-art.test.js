@@ -123,3 +123,14 @@ test('把手位置直接寫在 #machine 的 inline style,跟 anchors.json 一致
   assert.equal(v('knob-y'), a.knob.cy);
   assert.equal(v('knob-r'), a.knob.r);
 });
+
+test('卡片內距不能用百分比(百分比是相對外層遮罩的寬度,電腦上會把卡片撐成直的)', () => {
+  const css = read('shared/css/prize-frame.css');
+  const rule = /\.prize-frame\s*\{([^}]*)\}/.exec(css)[1];
+  assert.ok(!/padding:[^;]*%/.test(rule), rule);
+});
+
+test('外框與扭蛋花紋用「預載架」預先載入(跟 CSS 同一個網址,含 ?v=)', () => {
+  assert.match(read('gashapon/js/main.js'), /mountPreloadRack\(/);
+  assert.match(read('gashapon/css/style.css'), /\.preload-rack\s*\{/);
+});

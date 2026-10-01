@@ -14,7 +14,7 @@ import { setEnabled, unlock, sfx } from '../../shared/js/sound.js';
 import { loadPrefs, savePrefs } from '../../shared/js/prefs.js';
 import { mountMascots } from '../../shared/js/mascot.js';
 import { loadAnchors, anchorVars, DEFAULT_ANCHORS } from './machine-art.js';
-import { PATTERN_URLS, preloadImages } from './patterns.js';
+import { mountPreloadRack } from './patterns.js';
 
 const $ = id => document.getElementById(id);
 
@@ -45,8 +45,8 @@ function applyAnchors(a) {
 }
 applyAnchors(DEFAULT_ANCHORS);
 loadAnchors().then(applyAnchors);
-// 花紋貼圖先下載好,第一次升階時才不會慢半拍才出現(沒載到也只是素面,不擋抽獎)
-preloadImages(PATTERN_URLS);
+// 揭曉會用到的圖(扭蛋花紋、外框)先下載好,第一次揭曉時才不會畫出半張圖
+mountPreloadRack();
 
 const revealer = createRevealer({
   machine: $('machine'),

@@ -441,3 +441,16 @@ body {
 
 .btn--draw { font-size: 22px; min-height: 56px; padding: 12px 36px; }
 }
+
+/* 預載架(2026-10-01):每個稀有度的外框與扭蛋各放一個看不到的元素,
+   瀏覽器用跟 CSS 完全相同的網址(含 ?v=)先把圖下載好,揭曉時才不會畫出半張圖 */
+.preload-rack {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}

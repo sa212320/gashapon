@@ -104,17 +104,6 @@ test('render:正常時兩個都能按', () => {
   assert.equal(els.knob.disabled, false);
 });
 
-import { PATTERN_URLS, preloadImages } from '../gashapon/js/patterns.js';
-
-test('PATTERN_URLS:每個稀有度一張花紋貼圖', () => {
-  assert.equal(PATTERN_URLS.length, 5);
-  assert.ok(PATTERN_URLS.includes('img/pattern-UR.webp'));
-});
-
-test('preloadImages:全部成功 → true;有一張失敗 → false,不丟例外', async () => {
-  assert.equal(await preloadImages(['a', 'b'], () => Promise.resolve()), true);
-  assert.equal(await preloadImages(['a', 'b'], u => (u === 'b' ? Promise.reject(new Error('404')) : Promise.resolve())), false);
-});
 
 import { particleCount } from '../gashapon/js/particles.js';
 
