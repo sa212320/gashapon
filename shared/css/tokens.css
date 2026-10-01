@@ -31,6 +31,10 @@
 
 * { box-sizing: border-box; }
 
+/* 手機連點不能觸發「點兩下放大」(2026-10-02 使用者回報:連點蛋、按鈕整頁就放大)。
+   manipulation 只關掉雙擊放大跟點擊延遲,雙指縮放照樣可以 —— 不要用 user-scalable=no */
+html { touch-action: manipulation; }
+
 /* 作者端的 display 會蓋掉 hidden 屬性的 UA 樣式,所以要明講一次 */
 [hidden] { display: none !important; }
 

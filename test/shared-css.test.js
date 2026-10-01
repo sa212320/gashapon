@@ -34,3 +34,13 @@ test('角落圖示、剩餘膠囊、稀有度標籤、shimmer 都在 shared/', (
   assert.ok(frame.includes('.preload-rack'));
   assert.ok(!style.includes('.preload-rack {'));
 });
+
+// 手機連點會觸發「點兩下放大」(2026-10-02 使用者回報):小孩連點蛋、按鈕,整頁就放大了。
+// touch-action: manipulation 只關掉雙擊放大,雙指縮放照樣可以(無障礙)。全站共用。
+test('全站關掉雙擊放大(保留雙指縮放)', () => {
+  const tokens = read('shared/css/tokens.css');
+  assert.match(tokens, /html\s*\{[^}]*touch-action:\s*manipulation/);
+  for (const page of ['index.html', 'gashapon/index.html', 'gashapon3d/index.html']) {
+    assert.ok(!/user-scalable\s*=\s*no|maximum-scale\s*=\s*1/.test(read(page)), `${page} 不能用 user-scalable=no 擋縮放`);
+  }
+});
