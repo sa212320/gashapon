@@ -28,6 +28,8 @@
 
 > **模型修訂 2(2026-10-01,使用者確認)**:卡片外框也改成全部由程式畫 —— CSS 色帶(UR 用 `--rainbow`)+ 四角白色 SVG 雪花 `flake-{N,R,SR,SSR,UR}.svg`(不吃稀有度色,一階比一階華麗)+ 上緣 SVG 積雪 `snow-cap.svg`,由 `tools/mascot-gen/flakes.py` 產生。取代生成的 `frame-{…}` 九宮格與 `shared/js/tint.js`。
 
+> **模型修訂 3(2026-10-01,使用者確認)**:卡片外框改成 5 張 ComfyUI 生成的**彩色**冰雪整張框 `shared/img/frames/frame-{N,R,SR,SSR,UR}.webp`(不分稀有度顏色,只靠冰晶多寡與冰晶冠等裝飾逐級華麗);卡片固定 4:3,名字自動縮字(`gashapon/js/fit-text.js`,18–44px),「再抽一次」移到卡片正下方。取代模型修訂 2 的 CSS 色帶與 SVG 雪花。
+
 **最可能做錯的三個(以下都是錯的)**
 
 1. 「圓頂裡的蛋要依剩餘數量或稀有度畫」—— 錯,那是靜態插畫,抽完了也長一樣

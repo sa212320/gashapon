@@ -281,24 +281,64 @@ def cmd_frames(args):
     # 揭曉卡片外框(2026-10-01 第三版):彩色整張框,卡片固定比例、字自動縮,不需要九宮格
     cfg = load_cfg()
     for r in (args.only.split(',') if args.only else RARITIES):
-        generate(f'{cfg["frame_style"]}, {cfg["frame_base"]}, {cfg["frames"][r]}', cfg['negative'], 1024, 768, f'frame-{r}')
+        seeds = [int(v) for v in args.seeds.split(',')] if args.seeds else SEEDS
+        style = cfg.get(f'frame_style_{r}', cfg['frame_style'])   # N 用不帶冰晶的畫風描述,跟 R 才拉得開
+        neg = cfg['negative'] + (', ice crystals, crystal clusters, crown' if r == 'N' else '')
+        generate(f'{style}, {cfg["frame_base"]}, {cfg["frames"][r]}', neg, 1024, 768, f'frame-{r}', seeds)
 
 
 def cmd_frames_i2i(args):
     """以挑好的一張框為底,用圖生圖衍生 5 個等級,讓底框一致、只在裝飾上逐級變華麗。
     越高階 denoise 越大(加得出新裝飾,但也越可能跑掉)。輸出 out/gashapon/frame-i2i/<rarity>-s<n>.png。"""
     cfg = load_cfg()
-    base = OUT / args.base
-    name = comfy.upload(base.read_bytes(), f'gashapon_frame_base_{base.parent.name}_{base.stem}.png')
+    # base 可以是一張(5 階都從它衍生),或含 {r} 的樣板(每階從自己那張衍生,例如 frame-{r}/s2.png)
+    names = {}
+    for r in RARITIES:
+        base = OUT / args.base.format(r=r)
+        names[r] = comfy.upload(base.read_bytes(), f'gashapon_frame_base_{base.parent.name}_{base.stem}.png')
     denoise = dict(zip(RARITIES, [float(v) for v in args.denoise.split(',')]))
     d = OUT / 'frame-i2i'
     d.mkdir(parents=True, exist_ok=True)
     for r in RARITIES:
         prompt = f'{cfg["frame_style"]}, {cfg["frame_base"]}, {cfg["frames"][r]}'
         for n, seed in enumerate(SEEDS[:args.seeds], 1):
-            imgs = comfy.run(comfy.graph_i2i(name, prompt, cfg['negative'], seed, f'gashapon_frame_i2i_{r}_s{n}', denoise[r]))
+            imgs = comfy.run(comfy.graph_i2i(names[r], prompt, cfg['negative'], seed, f'gashapon_frame_i2i_{r}_s{n}', denoise[r]))
             (d / f'{r}-s{n}.png').write_bytes(comfy.fetch(imgs[0]))
             print(f'i2i {r} s{n} denoise={denoise[r]}', flush=True)
+
+
+def cmd_build_frames(args):
+    """彩色整張外框:去背、裁到內容、統一縮成 4:3。另外量中間奶油色面板的位置,
+    印出 5 張裡最保守(面板最小)的內距百分比,給 prize-frame.css 的 padding 用。
+    挑選紀錄可以指定 dir(為了讓遞進清楚,有的等級是用別的等級的候選圖)。"""
+    picks = load_cfg().get('picks', {})
+    missing = [r for r in RARITIES if f'frame-{r}' not in picks]
+    if missing:
+        sys.exit(f'還沒 pick:{", ".join("frame-" + r for r in missing)}')
+    dest = ROOT / 'shared' / 'img' / 'frames'
+    dest.mkdir(parents=True, exist_ok=True)
+    css = ROOT / 'shared' / 'css' / 'prize-frame.css'
+    insets = []
+    for r in RARITIES:
+        p = picks[f'frame-{r}']
+        full, _ = cutout(OUT / p.get('dir', f'frame-{r}') / f's{p["n"]}.png')
+        im = Image.fromarray(full).resize((880, 660), Image.LANCZOS)
+        a = np.asarray(im).astype(int)
+        h, w = a.shape[:2]
+        # 面板:從中心往四個方向走,碰到跟中心顏色差很多的地方就是面板邊
+        c = a[h // 2, w // 2, :3]
+        far = lambda y, x: np.abs(a[y, x, :3] - c).sum() > 60
+        top = next(y for y in range(h // 2, 0, -1) if far(y, w // 2))
+        bottom = next(y for y in range(h // 2, h) if far(y, w // 2))
+        left = next(x for x in range(w // 2, 0, -1) if far(h // 2, x))
+        right = next(x for x in range(w // 2, w) if far(h // 2, x))
+        insets.append((top / h, (w - right) / w, (h - bottom) / h, left / w))
+        path = dest / f'frame-{r}.webp'
+        webp(im, path)
+        if css.exists():
+            restamp(css, f'../img/frames/frame-{r}.webp', path)
+        print(r, 'panel inset top/right/bottom/left = ' + ' '.join(f'{v:.3f}' for v in insets[-1]))
+    print('max inset', ' '.join(f'{max(i[k] for i in insets):.3f}' for k in range(4)))
 
 
 def review_frames():
@@ -340,7 +380,7 @@ def cmd_build_patterns(args):
 COMMANDS = {'machine': cmd_machine, 'review': cmd_review, 'pick': cmd_pick, 'build-machine': cmd_build_machine,
             'shells': cmd_shells, 'build-shells': cmd_build_shells,
             'patterns': cmd_patterns, 'build-patterns': cmd_build_patterns,
-            'frames': cmd_frames, 'frames-i2i': cmd_frames_i2i}
+            'frames': cmd_frames, 'build-frames': cmd_build_frames, 'frames-i2i': cmd_frames_i2i}
 
 
 def main():
@@ -354,7 +394,8 @@ def main():
     sub.add_parser('build-machine')
     sh = sub.add_parser('shells'); sh.add_argument('--separate', action='store_true'); sh.add_argument('--only', help='逗號分隔的稀有度,例如 SSR,UR')
     sub.add_parser('build-shells')
-    fr = sub.add_parser('frames'); fr.add_argument('--only', help='逗號分隔的稀有度')
+    fr = sub.add_parser('frames'); fr.add_argument('--only', help='逗號分隔的稀有度'); fr.add_argument('--seeds', help='逗號分隔,例如 22,44,66')
+    sub.add_parser('build-frames')
     fi = sub.add_parser('frames-i2i'); fi.add_argument('base', help='相對於 out/gashapon,例如 frame-SR/s2.png')
     fi.add_argument('--denoise', default='0.35,0.45,0.52,0.6,0.68', help='N,R,SR,SSR,UR 的改動幅度'); fi.add_argument('--seeds', type=int, default=2)
     pt = sub.add_parser('patterns'); pt.add_argument('--only', help='逗號分隔的稀有度')

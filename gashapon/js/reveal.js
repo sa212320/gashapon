@@ -4,6 +4,7 @@ import { RARITIES, RARITY_META } from './constants.js';
 import { sfx } from '../../shared/js/sound.js';
 import { outletPoint } from './machine-art.js';
 import { particleCount } from './particles.js';
+import { fitText } from './fit-text.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -224,6 +225,8 @@ export function createRevealer(els) {
       els.cardName.textContent = step.prize?.name ?? '';
       els.cardBadge.textContent = RARITY_META[step.rarity].label;
       els.cardBadge.dataset.rarity = step.rarity;
+      // 卡片是固定大小的外框圖,名字太長就縮字(要在卡片顯示之後量)
+      fitText(els.cardName, els.cardName.parentElement, { max: 44, min: 18 });
       await animate(els.card,
         [{ transform: 'scale(.6) translateY(20px)', opacity: 0 }, { transform: 'scale(1) translateY(0)', opacity: 1 }],
         DURATION.show, { easing: 'cubic-bezier(.34,1.5,.64,1)' });

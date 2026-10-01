@@ -30,6 +30,26 @@
     },
     "pattern-UR": {
       "n": 1
+    },
+    "frame-N": {
+      "n": 2,
+      "dir": "frame-N"
+    },
+    "frame-R": {
+      "n": 1,
+      "dir": "frame-SR"
+    },
+    "frame-SR": {
+      "n": 2,
+      "dir": "frame-R"
+    },
+    "frame-SSR": {
+      "n": 2,
+      "dir": "frame-SSR"
+    },
+    "frame-UR": {
+      "n": 2,
+      "dir": "frame-UR"
     }
   },
   "style_forest_r6": "flat 2D cartoon illustration, cute chibi style, flat colors, thick dark brown outlines, cozy snowy winter forest theme, icy blue lavender white and warm wood palette, sparkling snowflakes, clean simple shapes",
@@ -51,13 +71,14 @@
     "SSR": "a square flat decorative pattern swatch filling the whole picture edge to edge, snowflake and ice crystal theme, one large ornate detailed snowflake in the center, dense small snowflakes all over, an ornate ice crystal patterned band running horizontally across the middle, small sparkles, no border, no frame around the edges",
     "UR": "a square flat decorative pattern swatch filling the whole picture edge to edge, snowflake and ice crystal theme, one large intricate ornate snowflake crystal in the center, surrounded by many small snowflakes and sparkles, an ornate ice crystal patterned band running horizontally across the middle, the most luxurious and detailed, no border, no frame around the edges"
   },
-  "frame_style": "flat 2D cartoon illustration, cute chibi style, flat colors, thick dark brown outlines, magical frozen ice palace theme, icy blue lavender and white palette",
+  "frame_style": "flat 2D cartoon illustration, cute chibi style, flat colors, thick dark brown outlines, magical frozen ice palace theme, icy blue lavender and white palette, sparkling translucent ice crystals",
   "frame_base": "a single horizontal rectangular decorative frame seen straight on, landscape 4:3 proportions, the frame is made of shiny ice and snow, the center is a large plain flat empty light cream panel with nothing on it, the frame alone with nothing else around it, isolated on a solid flat bright pure green #00FF00 background",
   "frames": {
-    "N": "a simple thin icy blue frame with rounded corners and a little snow on the top edge",
-    "R": "an icy blue frame with fluffy snow piled along the top edge and a small snowflake at each corner",
-    "SR": "an icy blue frame with fluffy snow piled along the top edge, small icicles hanging along the bottom edge, and ice crystals at each corner",
-    "SSR": "an ornate icy blue frame with fluffy snow on top, ornate ice crystal clusters at each corner, a snowflake ornament at the top center, icicles along the bottom and little sparkles",
-    "UR": "the most luxurious ornate icy blue and lavender frame, a big sparkling ice crystal crown at the top center, ornate snowflakes at all four corners, frosty filigree along all edges, icicles along the bottom and many glittering sparkles"
-  }
+    "N": "a plain simple thin icy blue frame with a little snow on the top edge, no ice crystals at all, no decorations, the simplest frame",
+    "R": "an icy blue frame with fluffy snow piled along the top edge, small ice crystal clusters at each corner and a few small ice crystals along the edges",
+    "SR": "an icy blue frame with fluffy snow on the top edge, an ice crystal cluster at the top center and ice crystal clusters at all four corners, small icicles hanging along the bottom edge, and small snowflakes dotted along all edges",
+    "SSR": "an ornate icy blue frame with fluffy snow on top, big ornate ice crystal clusters at each corner, a snowflake ornament at the top center, many ice crystals growing along all edges, icicles along the bottom and little sparkles",
+    "UR": "the most luxurious and grand ornate icy blue and lavender frame, a very large sparkling ice crystal crown at the top center, very large ice crystal clusters with snowflakes at all four corners, ice crystals densely covering all edges, a glowing gem at the bottom center, icicles along the bottom and many glittering sparkles, much bigger and fuller decorations than any other frame"
+  },
+  "frame_style_N": "flat 2D cartoon illustration, cute chibi style, flat colors, thick dark brown outlines, magical frozen ice palace theme, icy blue lavender and white palette"
 }
