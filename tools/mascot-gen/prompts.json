@@ -85,7 +85,13 @@
       "to": "watch",
       "round": 2,
       "length": 33,
-      "prompt": "the fox and the ermine keep looking up attentively, the ermine blinks with curiosity, the fox's ears twitch slightly, tiny motion only"
+      "prompt": "the fox and the ermine keep looking up attentively, the ermine blinks with curiosity, the fox's ears twitch slightly, tiny motion only",
+      "seeds": [
+        11,
+        22,
+        33
+      ],
+      "pick": 2
     },
     {
       "id": "cheer-loop",
@@ -94,7 +100,13 @@
       "to": "cheer",
       "round": 2,
       "length": 33,
-      "prompt": "the ermine keeps bouncing and cheering happily in the fox's arms, the fox keeps looking down at the ermine with gentle curved smiling eyes, the fox's tail keeps wagging"
+      "prompt": "the ermine keeps bouncing and cheering happily in the fox's arms, the fox keeps looking down at the ermine with gentle curved smiling eyes, the fox's tail keeps wagging",
+      "seeds": [
+        11,
+        22,
+        33
+      ],
+      "pick": 1
     },
     {
       "id": "aww-loop",
@@ -103,7 +115,13 @@
       "to": "aww",
       "round": 2,
       "length": 33,
-      "prompt": "the fox keeps its tail wrapped around the droopy ermine and slowly pats it, the ermine sniffles a little, the fox stays calm and tender"
+      "prompt": "the fox keeps its tail wrapped around the droopy ermine and slowly pats it, the ermine sniffles a little, the fox stays calm and tender",
+      "seeds": [
+        11,
+        22,
+        33
+      ],
+      "pick": 2
     },
     {
       "id": "empty-loop",
@@ -112,7 +130,13 @@
       "to": "empty",
       "round": 2,
       "length": 49,
-      "prompt": "the ermine keeps sleeping peacefully in the fox's arms, breathing slowly, the fox keeps its cheek resting on the ermine's head and looks down at it lovingly with soft open eyes, very small motion"
+      "prompt": "the ermine keeps sleeping peacefully in the fox's arms, breathing slowly, the fox keeps its cheek resting on the ermine's head and looks down at it lovingly with soft open eyes, very small motion",
+      "seeds": [
+        11,
+        22,
+        33
+      ],
+      "pick": 1
     },
     {
       "id": "watch-idle",
@@ -121,7 +145,13 @@
       "to": "idle",
       "round": 2,
       "length": 25,
-      "prompt": "the fox and the ermine lower their heads and relax back into the calm cozy hugging pose"
+      "prompt": "the fox and the ermine lower their heads and relax back into the calm cozy hugging pose",
+      "seeds": [
+        11,
+        22,
+        33
+      ],
+      "pick": 1
     },
     {
       "id": "cheer-idle",
@@ -130,7 +160,13 @@
       "to": "idle",
       "round": 2,
       "length": 25,
-      "prompt": "the ermine calms down and settles back into the fox's arms, the fox's tail slows down, back to the calm cozy hugging pose"
+      "prompt": "the ermine calms down and settles back into the fox's arms, the fox's tail slows down, back to the calm cozy hugging pose",
+      "seeds": [
+        11,
+        22,
+        33
+      ],
+      "pick": 1
     },
     {
       "id": "aww-idle",
@@ -139,7 +175,13 @@
       "to": "idle",
       "round": 2,
       "length": 25,
-      "prompt": "the ermine perks up again, the fox unwraps its tail, and they settle into the calm cozy hugging pose"
+      "prompt": "the ermine perks up again, the fox unwraps its tail, and they settle into the calm cozy hugging pose",
+      "seeds": [
+        11,
+        22,
+        33
+      ],
+      "pick": 1
     },
     {
       "id": "empty-idle",
@@ -148,7 +190,13 @@
       "to": "idle",
       "round": 2,
       "length": 25,
-      "prompt": "the ermine wakes up and rubs its eyes, the fox opens its eyes fully, and they settle into the calm cozy hugging pose"
+      "prompt": "the ermine wakes up and rubs its eyes, the fox opens its eyes fully, and they settle into the calm cozy hugging pose",
+      "seeds": [
+        11,
+        22,
+        33
+      ],
+      "pick": 1
     },
     {
       "id": "watch-cheer",
@@ -157,7 +205,13 @@
       "to": "cheer",
       "round": 2,
       "length": 17,
-      "prompt": "the little ermine suddenly jumps with joy and cheers in the fox's arms, the fox does not cheer, the fox looks down at the ermine with gently curved smiling eyes and its tail wags widely, quick reaction"
+      "prompt": "the little ermine suddenly jumps with joy and cheers in the fox's arms, the fox does not cheer, the fox looks down at the ermine with gently curved smiling eyes and its tail wags widely, quick reaction",
+      "seeds": [
+        11,
+        22,
+        33
+      ],
+      "pick": 2
     },
     {
       "id": "watch-aww",
@@ -166,7 +220,13 @@
       "to": "aww",
       "round": 2,
       "length": 17,
-      "prompt": "the little ermine suddenly droops its ears in disappointment, the fox curls its big tail around the ermine to comfort it, the fox stays calm and tender, quick reaction"
+      "prompt": "the little ermine suddenly droops its ears in disappointment, the fox curls its big tail around the ermine to comfort it, the fox stays calm and tender, quick reaction",
+      "seeds": [
+        11,
+        22,
+        33
+      ],
+      "pick": 1
     },
     {
       "id": "idle-ear",
@@ -175,7 +235,13 @@
       "to": "idle",
       "round": 2,
       "length": 25,
-      "prompt": "the fox twitches one ear quickly twice, then back to calm"
+      "prompt": "the fox twitches one ear quickly twice, then back to calm",
+      "seeds": [
+        11,
+        22,
+        33
+      ],
+      "pick": 3
     },
     {
       "id": "idle-nuzzle",
@@ -184,7 +250,13 @@
       "to": "idle",
       "round": 2,
       "length": 33,
-      "prompt": "the ermine nuzzles its head against the fox's chest affectionately, the fox looks down at it with a gentle smile, then back to calm"
+      "prompt": "the ermine nuzzles its head against the fox's chest affectionately, the fox looks down at it with a gentle smile, then back to calm",
+      "seeds": [
+        11,
+        22,
+        33
+      ],
+      "pick": 1
     },
     {
       "id": "idle-doze",
@@ -193,7 +265,13 @@
       "to": "idle",
       "round": 2,
       "length": 41,
-      "prompt": "the little ermine slowly nods off, its head dipping sleepily, the fox looks down at it tenderly, then the ermine wakes up with a small start"
+      "prompt": "the little ermine slowly nods off, its head dipping sleepily, the fox looks down at it tenderly, then the ermine wakes up with a small start",
+      "seeds": [
+        11,
+        22,
+        33
+      ],
+      "pick": 1
     }
   ]
 }
