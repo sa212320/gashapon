@@ -130,3 +130,16 @@ def fit_panel(rgba, box, canvas, target):
     out = Image.new('RGBA', canvas, (0, 0, 0, 0))
     out.paste(scaled, (round(tx0 - bx0 * sx), round(ty0 - by0 * sy)))
     return np.asarray(out)
+
+
+def compose_card(bg, machine, height_frac=0.82):
+    """首頁卡片:背景是 z_image 生的雪地,機台直接用扭蛋機頁那張 —— 兩邊保證是同一台。"""
+    from PIL import Image
+    out = bg.convert('RGB').copy()
+    h = round(out.height * height_frac)
+    w = round(machine.width * h / machine.height)
+    m = machine.convert('RGBA').resize((w, h), Image.LANCZOS)
+    x = (out.width - w) // 2
+    y = out.height - h - round(out.height * 0.04)
+    out.paste(m, (x, y), m)
+    return out

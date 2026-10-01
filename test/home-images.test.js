@@ -14,7 +14,7 @@ function refs() {
   const fromHtml = [...html.matchAll(/<img\b[^>]*\bsrc="([^"]+)"/g)].map(m => m[1]);
   // home.css 的 url() 相對於 css/,換算成相對於 repo 根目錄
   const fromCss = [...css.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)].map(m => join('css', m[1]));
-  return [...fromHtml, ...fromCss].filter(p => !/^(data:|https?:)/.test(p));
+  return [...fromHtml, ...fromCss].filter(p => !/^(data:|https?:)/.test(p)).map(p => p.split('?')[0]);
 }
 
 // 卡片插畫延到各模式的 issue(#2~#6)一起做,這一輪首頁只有標題木牌
@@ -24,4 +24,8 @@ test('首頁標題有用到木牌插畫', () => {
 
 test('首頁引用的每一張圖都存在', () => {
   for (const p of refs()) assert.ok(existsSync(join(root, p)), `找不到 ${p}`);
+});
+
+test('首頁的扭蛋機卡片用了插畫(機台跟扭蛋機頁同一張合成)', () => {
+  assert.ok(refs().some(p => p.endsWith('img/home/gashapon.webp')), refs().join('\n'));
 });

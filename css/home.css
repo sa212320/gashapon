@@ -21,18 +21,19 @@ body {
 
 /* 標題掛在一塊木牌上(生成圖,透明背景)。文字仍然是 HTML,不畫進圖裡 ——
    生圖模型畫中文字會錯,而且圖裡的字螢幕閱讀器讀不到、之後也改不了。
-   木牌上緣 ~25% 是積雪,文字要往下推,落在木板中間。 */
+   木牌上緣是積雪、下緣是冰柱(2026-10-01 冰雪版),木板本體的中心在 52% 高度,文字往下推一點落在正中間。 */
 .home-head h1 {
   display: inline-grid;
   place-items: center;
   --sign-w: clamp(240px, 62vw, 380px);
   width: var(--sign-w);
-  aspect-ratio: 766 / 400;            /* 跟 img/home/sign.webp 一樣 */
+  aspect-ratio: 800 / 394;            /* 跟 img/home/sign.webp 一樣 */
   /* 不能寫 padding-top: 7% —— padding 的百分比是相對「外層容器」的寬度,
      不是木牌本身,視窗越寬字被推得越低(1440 寬時字掉到木牌 75% 的高度)。 */
-  padding-top: calc(var(--sign-w) * .15);   /* 讓字落在積雪下方那塊木板的中間(約 65% 高度) */
+  /* 字是置中排的,木板中心比正中央低 2.2%:padding-top = 2 × 0.022 × 木牌高(0.4925 × 寬)≈ 寬 × .022 */
+  padding-top: calc(var(--sign-w) * .022);
   font-size: calc(var(--sign-w) * .1);   /* 字跟著木牌大小縮放 */
-  background: url("../img/home/sign.webp") center / contain no-repeat;
+  background: url("../img/home/sign.webp?v=7c822ad7") center / contain no-repeat;
 }
 
 .home-grid {
@@ -82,8 +83,15 @@ body {
 }
 
 /* 扭蛋機:上白下彩,跟膠囊造型呼應 */
-.card__art--gashapon {
-  background: linear-gradient(to bottom, #fff 50%, var(--coral) 50%);
+/* 有插畫的卡片(2026-10-01 起扭蛋機先換;其他模式跟著各自的素材 issue):4:3、撐滿卡片內緣 */
+.card__art--img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  border-radius: 14px;
+  border: 3px solid var(--ink);
+  object-fit: cover;
+  display: block;
 }
 
 /* 立體扭蛋機:加一顆高光,做出球體感 */

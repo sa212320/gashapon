@@ -21,6 +21,7 @@ from PIL import Image
 
 import comfy
 from post import key_border, keep_largest
+from gashapon_art import compose_card, content_hash, stamp, clear_green_fringe
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
@@ -137,8 +138,22 @@ def card_images(cfg):
 
 def cmd_build_cards(args):
     DEST.mkdir(parents=True, exist_ok=True)
-    for m, im in card_images(load_cfg()).items():
-        webp(im.resize((640, 480), Image.LANCZOS), DEST / f'{m}.webp')
+    cfg = load_cfg()
+    if args.only:
+        # 只輸出單張(各模式的卡片跟著自己的素材 issue 做,不必等 5 張都挑好)
+        if args.only not in cfg.get('picks', {}):
+            sys.exit(f'還沒 pick:{args.only}')
+        images = {args.only: Image.open(OUT / args.only / f's{cfg["picks"][args.only]}.png').convert('RGB')}
+    else:
+        images = card_images(cfg)
+    page = ROOT / 'index.html'
+    for m, im in images.items():
+        if m == 'gashapon':
+            # 機台用扭蛋機頁那張,不讓 z_image 另外畫一台
+            im = compose_card(im, Image.open(ROOT / 'gashapon' / 'img' / 'machine.webp'))
+        path = DEST / f'{m}.webp'
+        webp(im.resize((640, 480), Image.LANCZOS), path)
+        page.write_text(stamp(page.read_text(), f'img/home/{m}.webp', content_hash(path)))
     report()
 
 
@@ -149,10 +164,14 @@ def cmd_build_sign(args):
     DEST.mkdir(parents=True, exist_ok=True)
     sign = Image.open(OUT / 'sign' / f's{cfg["picks"]["sign"]}.png').convert('RGB')
     # z_image 不保證畫出純綠底,所以從邊緣往內填色去背,再清掉散落的小點
-    rgba = Image.fromarray(keep_largest(key_border(np.asarray(sign))))
+    # 腳下的綠色陰影比底色深、又連著木牌,key_border 吃不掉 → 再過一道 clear_green_fringe
+    rgba = Image.fromarray(keep_largest(clear_green_fringe(key_border(np.asarray(sign)))))
     rgba = rgba.crop(rgba.getbbox())          # 裁掉去背後四周的透明邊
     rgba.thumbnail((800, 400), Image.LANCZOS)
     webp(rgba, DEST / 'sign.webp')
+    print('sign size', rgba.size)
+    css = ROOT / 'css' / 'home.css'
+    css.write_text(stamp(css.read_text(), '../img/home/sign.webp', content_hash(DEST / 'sign.webp')))
     report()
 
 
@@ -169,7 +188,7 @@ def main():
     sub.add_parser('sign')
     sub.add_parser('review')
     p = sub.add_parser('pick'); p.add_argument('name', choices=['sheet', *MODES, 'sign']); p.add_argument('n', type=int)
-    sub.add_parser('build-cards')
+    bc = sub.add_parser('build-cards'); bc.add_argument('--only', choices=MODES)
     sub.add_parser('build-sign')
     args = ap.parse_args()
     {'sheet': cmd_sheet, 'cards': cmd_cards, 'sign': cmd_sign, 'review': cmd_review, 'pick': cmd_pick, 'build-cards': cmd_build_cards, 'build-sign': cmd_build_sign}[args.cmd](args)

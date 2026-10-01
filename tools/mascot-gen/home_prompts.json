@@ -1,16 +1,17 @@
 {
   "style": "flat 2D cartoon illustration, cute chibi style, flat colors, thick dark brown outlines, soft warm pastel colors, cozy snowy winter theme, clean simple shapes",
-  "negative": "text, letters, words, numbers, watermark, signature, people, person, animal, character, face, photorealistic, 3d render, gradient mesh, blurry",
+  "negative": "text, letters, words, numbers, watermark, signature, people, person, animal, character, face, photorealistic, 3d render, gradient mesh, blurry, christmas, holly, berries, ribbon, bear, cat, dog, creature, mascot, animal in the center",
   "cards": {
-    "gashapon": "a cute red capsule toy vending machine with a round glass dome full of colorful capsules, standing on soft snow, a few colorful capsules scattered on the snowy ground",
+    "gashapon": "an empty snowy landscape scene only: soft snowy ground, gentle snowy hills, a few snowy pine trees far in the back, pale icy blue sky, a few small colorful round capsule toys lying on the snow in the bottom corners, the whole middle of the picture is just empty flat snow, no animals, no characters, no creatures, no machine",
     "gashapon3d": "a large clear glass bowl full of many colorful round two-tone capsule toys tumbling around, on a snowy wooden table",
     "ichiban": "a fan of colorful lottery tickets with perforated edges spread on a cozy wooden desk, one ticket with its corner peeled open, a few snowflakes around",
     "ghostleg": "a ladder lottery drawn on a sheet of paper: several colorful vertical lines connected by short horizontal rungs, small wrapped gift boxes with ribbons at the bottom of the lines, snowy background",
     "smash": "a round frozen ice rink seen from above at an angle, colorful round curling stones sliding on the shiny ice, snowy pine trees around the rink"
   },
-  "sign": "a single wide wooden signboard plank, completely blank with nothing written on it, fluffy white snow piled on its top edge, one small sprig of holly leaves with red berries on each end, the signboard alone with nothing else around it, no shadow, isolated on a solid flat bright pure green #00FF00 background",
+  "sign": "a single wide wooden signboard plank, completely blank with nothing written on it, fluffy white snow piled on its top edge, a full row of shiny translucent pale blue icicles hanging down along the entire bottom edge of the board, pointed icicles of different lengths, a few small white snowflakes on the wood, the signboard alone with nothing else around it, no posts, no legs, no shadow, isolated on a solid flat bright pure green #00FF00 background",
   "sign_style": "flat 2D cartoon illustration, cute chibi style, flat colors, thick dark brown outlines",
   "picks": {
-    "sign": 2
+    "sign": 3,
+    "gashapon": 2
   }
 }

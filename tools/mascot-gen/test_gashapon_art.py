@@ -160,3 +160,17 @@ class Panel(unittest.TestCase):
             close = lambda px, rgb: all(abs(int(a) - b) <= 8 for a, b in zip(px[:3], rgb))
             self.assertTrue(close(out[325, 400], (255, 250, 235)), out[325, 400])   # 面板中心
             self.assertTrue(close(out[325, 80], (150, 200, 240)), out[325, 80])     # 面板左邊外面是框
+
+
+from gashapon_art import compose_card
+
+
+class ComposeCard(unittest.TestCase):
+    def test_machine_centered_at_bottom_and_scaled(self):
+        from PIL import Image
+        bg = Image.new('RGB', (400, 300), (0, 0, 255))
+        m = Image.new('RGBA', (30, 40), (255, 0, 0, 255))
+        out = compose_card(bg, m, 0.5)
+        self.assertEqual(out.size, (400, 300))
+        self.assertEqual(out.getpixel((200, 250)), (255, 0, 0))   # 機台在底部中間
+        self.assertEqual(out.getpixel((10, 10)), (0, 0, 255))     # 其他地方是背景
