@@ -164,30 +164,3 @@ def compose_card(bg, machine, height_frac=0.82):
     out.paste(m, (x, y), m)
     return out
 
-
-def crop_square_center(rgb, margin):
-    """盤底:模型把冰面畫成「有外框的一塊」,四邊裁掉 margin 再取中間正方形,只留冰面。"""
-    h, w = rgb.shape[:2]
-    y0, y1 = round(h * margin), round(h * (1 - margin))
-    x0, x1 = round(w * margin), round(w * (1 - margin))
-    s = min(y1 - y0, x1 - x0)
-    cy, cx = (y0 + y1) // 2, (x0 + x1) // 2
-    return rgb[cy - s // 2: cy - s // 2 + s, cx - s // 2: cx - s // 2 + s]
-
-
-def ink_rows(rgb, dark=90, frac=0.3):
-    """牆帶:深棕外框線佔滿一整列的地方就是帶子的上緣跟下緣。"""
-    lum = rgb[..., :3].astype(np.float32) @ np.array([0.299, 0.587, 0.114], np.float32)
-    rows = np.nonzero((lum < dark).mean(axis=1) >= frac)[0]
-    return int(rows[0]), int(rows[-1])
-
-
-def make_seamless(arr, overlap):
-    """左右無縫:把右端 overlap 欄交叉淡化到左端,再把右端切掉 —— 接起來時最右一欄的下一欄
-    就是最左一欄,兩欄在原圖裡本來就相鄰。"""
-    a = arr.astype(np.float32)
-    w = a.shape[1]
-    out = a[:, : w - overlap].copy()
-    t = np.linspace(0, 1, overlap, dtype=np.float32)[None, :, None]
-    out[:, :overlap] = a[:, w - overlap:] * (1 - t) + a[:, :overlap] * t
-    return np.clip(np.rint(out), 0, 255).astype(np.uint8)

@@ -7,8 +7,7 @@
 // 同一組幾何同時負責外觀跟「打開」—— 打開就是把兩個半球分開。
 import * as THREE from 'three';
 import { planarUV } from './skin-math.js';
-import { FLOOR_URL } from './tray-art.js';
-import { paintWall } from './ice-art.js';
+import { paintWall, paintFloor } from './ice-art.js';
 import { trayShake, SHAKE_SECONDS, bowlHeight, bowlSlope, bowlDepth, BOWL_RIM, BOWL_FLAT, BOWL_DEPTH } from './tray-motion.js';
 
 const R = 0.5;             // 蛋的半徑
@@ -219,8 +218,7 @@ export function createScene(canvas) {
 
   // 托盤大小跟著顆數走:全部的蛋都要擺得下,標題寫幾顆桌上就有幾顆。
   let TABLE = TABLE_BASE;
-  const loader = new THREE.TextureLoader();
-  const floorTex = loader.load(FLOOR_URL);
+  const floorTex = new THREE.CanvasTexture(paintFloor());
   floorTex.colorSpace = THREE.SRGBColorSpace;
   const wallTex = new THREE.CanvasTexture(paintWall());
   wallTex.colorSpace = THREE.SRGBColorSpace;
@@ -248,8 +246,15 @@ export function createScene(canvas) {
   // LatheGeometry 的 phi = 0 在 +z(朝鏡頭)那側:前半 = [-π/2, π/2],後半 = [π/2, 3π/2]。
   function wallHalf(phiStart, order) {
     const mat = new THREE.MeshBasicMaterial({ map: wallTex, side: THREE.DoubleSide, vertexColors: true });
+    // 前半圈的冰外壁微微透明,看得到碗裡的蛋 —— 冰塊的感覺(雪唇不透明)
+    const front = order > 0;
+    const iceMat = front ? mat.clone() : mat;
+    if (front) {
+      iceMat.transparent = true;
+      iceMat.opacity = 0.86;
+    }
     const lip = new THREE.Mesh(wallGeometry(phiStart, 0, 'lip'), mat);
-    const outer = new THREE.Mesh(wallGeometry(phiStart, 0, 'outer'), mat);
+    const outer = new THREE.Mesh(wallGeometry(phiStart, 0, 'outer'), iceMat);
     lip.renderOrder = order + 1;
     outer.renderOrder = order + 1;
     tray.add(lip, outer);

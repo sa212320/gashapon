@@ -18,11 +18,10 @@ function gashaponRefs() {
   for (const [css, base] of [['gashapon/css/style.css', 'gashapon/css'], ['shared/css/prize-frame.css', 'shared/css']]) {
     for (const m of read(css).matchAll(/url\(\s*["']?([^"')#]+)["']?\s*\)/g)) add(base, m[1]);
   }
-  for (const m of read('gashapon3d/js/tray-art.js').matchAll(/'(\.\.\/img\/[^'?]+\.webp\?v=[0-9a-f]{8})'/g)) add('gashapon3d/js', m[1]);
   return out;
 }
 
-test('preload.json 跟扭蛋機頁、立體扭蛋機托盤實際引用的圖一字不差(含 ?v=)', () => {
+test('preload.json 跟扭蛋機頁實際引用的圖一字不差(含 ?v=)', () => {
   const manifest = JSON.parse(read('gashapon/img/preload.json'));
   assert.deepEqual(new Set(manifest), gashaponRefs());
   for (const u of manifest) assert.ok(existsSync(join(root, u.split('?')[0])), u);
@@ -53,11 +52,4 @@ test('three.js 也預載(四個模式都用),而且檔案真的存在、跟 impo
   assert.ok(EXTRA_URLS.includes('vendor/three.module.min.js'));
   for (const u of EXTRA_URLS) assert.ok(existsSync(join(root, u)), u);
   assert.match(read('gashapon3d/index.html'), /"three":"\.\.\/vendor\/three\.module\.min\.js"/);
-});
-
-test('立體扭蛋機的盤底貼圖也在首頁預載清單裡(外壁是程式畫的,沒有圖檔)', () => {
-  const manifest = JSON.parse(read('gashapon/img/preload.json'));
-  for (const name of ['floor']) {
-    assert.ok(manifest.some(u => u.startsWith(`gashapon3d/img/${name}.webp?v=`)), `預載清單少了 ${name}`);
-  }
 });
