@@ -39,6 +39,7 @@
 - 中獎機率只看 `count`,`gacha.js` 的邏輯與 `buildRevealSteps` 不動
 - 稀有度色只從 `RARITY_META`(`gashapon/js/constants.js`)/ `--r-X-a`、`--r-X-b`(`shared/css/tokens.css`)來;UR 的 `color` 是哨兵值 `'rainbow'`,要上色時用 `edge`(`#8B5CF6`)
 - 素材網址一律帶內容雜湊 `?v=<sha1 前 8 碼>`,由 build 指令自動改寫引用處
+- 畫風(執行中修訂):**冰雪奇緣的感覺,不要聖誕** —— 冰藍、淡紫、白,雪花結晶、閃光、積雪與冰柱;提示詞不得出現 christmas / holly / berries;以 `gashapon_prompts.json` 的 `style` 為準
 - 生圖:z_image(`comfy.graph_t2i`)、3 個 seed `[11, 22, 33]`、綠底 `#00FF00`、去背用 `key_border` + `keep_largest`;畫風描述沿用 `home_prompts.json` 的 `style`
 - 使用者用中文就回繁體中文;程式碼、識別字、commit message 用英文(commit 格式照 repo:`feat(gashapon): ...`,內文可中文)
 - 每個 commit 結尾:
@@ -2026,6 +2027,19 @@ git commit -m "feat(home): gashapon card composed from the machine illustration"
 ```
 
 - [ ] **Step 10: 截圖驗收 → 🛑 停下來讓使用者看**(首頁 1440×900 與 390 寬)
+
+---
+
+### Task 16b: 首頁木牌改成冰雪版(執行中加入,見 spec)
+
+**Files:** Modify `tools/mascot-gen/home_prompts.json`、`img/home/sign.webp`、`css/home.css`(`.home-head h1` 的 `aspect-ratio`、`padding-top`)
+
+- [ ] **Step 1:** `home_prompts.json`:`sign` 換成 `"a single wide wooden signboard plank, completely blank with nothing written on it, fluffy white snow piled on its top edge, a few small pale blue icicles hanging from its bottom edge, a few small white snowflakes on the wood, frosty pale wood color, the signboard alone with nothing else around it, no shadow, isolated on a solid flat bright pure green #00FF00 background"`;`negative` 加 `, christmas, holly, berries, ribbon`
+- [ ] **Step 2:** `COMFY_URL=… home.py sign && home.py review`,Claude 先篩(有冬青、有字、不是木牌的淘汰)
+- [ ] **Step 3: 🛑 停下來請使用者挑**(回覆「sign 選 n」)
+- [ ] **Step 4:** `home.py pick sign <n> && home.py build-sign`;用 PIL 讀新圖寬高,更新 `css/home.css` 的 `aspect-ratio: <w> / <h>`;積雪下緣位置不同的話調 `padding-top` 的係數,讓字落在木板中間
+- [ ] **Step 5:** `node --test` 全綠(`home-images.test.js` 會檢查 sign.webp 存在),commit `feat(home): icy signboard without christmas holly`
+- [ ] **Step 6: 截圖驗收 → 🛑 停下來讓使用者看**(1440×900 與手機寬;確認字在木板中間、視窗變寬字不會掉)
 
 ---
 
