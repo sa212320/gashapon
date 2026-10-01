@@ -144,3 +144,4 @@ test('fitFontSize:怎樣都放不下就停在最小字,不會無限縮', () => {
   assert.equal(fitFontSize(s => { tried.push(s); return false; }, { max: 40, min: 18, step: 2 }), 18);
   assert.ok(Math.min(...tried) >= 18);
 });
+

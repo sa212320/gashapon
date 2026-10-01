@@ -7,6 +7,8 @@ import { particleCount } from './particles.js';
 import { fitText } from './fit-text.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+// 雪花 <symbol id="snowflake"> 自己有 viewBox;外層 svg 的 viewBox 要從 0 開始,
+// 不然 <use> 預設放在 (0,0) 會落在外層的正中央,整朵往右下偏半個身位。
 
 const DURATION = {
   turn: 1000, drop: 720, shake: 360, upgrade: 480, crack: 420, burst: 900, show: 320,
@@ -117,7 +119,7 @@ export function createRevealer(els) {
     for (let i = 0; i < amount; i++) {
       const flake = document.createElementNS(SVG_NS, 'svg');
       flake.setAttribute('class', 'particle particle--snow');
-      flake.setAttribute('viewBox', '-12 -12 24 24');
+      flake.setAttribute('viewBox', '0 0 24 24');
       const use = document.createElementNS(SVG_NS, 'use');
       use.setAttribute('href', '#snowflake');
       flake.appendChild(use);
