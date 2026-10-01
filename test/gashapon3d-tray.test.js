@@ -46,7 +46,7 @@ import { bowlHeight, bowlSlope, BOWL_FLAT, BOWL_RIM, BOWL_DEPTH } from '../gasha
 
 // 托盤改成碗(2026-10-02 使用者:「我以為會更像碗」):中間平、往外沿弧線翹起到碗口。
 // 物理用同一條曲線:蛋滾到碗邊會沿著斜面滑回中間(取代原本的「內凹回中力」假力)。
-test('bowlHeight:中間平的,碗口最高', () => {
+test('bowlHeight:中心最低,碗口最高', () => {
   assert.equal(bowlHeight(0), 0);
   assert.equal(bowlHeight(BOWL_FLAT), 0);
   assert.ok(Math.abs(bowlHeight(BOWL_RIM) - BOWL_DEPTH) < 1e-9);
@@ -62,7 +62,7 @@ test('bowlHeight:一路往外只升不降', () => {
   }
 });
 
-test('bowlSlope:平的地方是 0,碗邊越外越陡,跟高度的導數一致', () => {
+test('bowlSlope:碗底正中央是 0,越往外越陡,跟高度的導數一致', () => {
   assert.equal(bowlSlope(BOWL_FLAT * 0.5), 0);
   const a = bowlSlope(BOWL_FLAT + (BOWL_RIM - BOWL_FLAT) * 0.3);
   const b = bowlSlope(BOWL_FLAT + (BOWL_RIM - BOWL_FLAT) * 0.8);

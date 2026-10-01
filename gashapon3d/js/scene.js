@@ -175,7 +175,9 @@ function basinGeometry() {
     uv.setXY(i, x / (2 * BOWL_RIM) + 0.5, 0.5 - z / (2 * BOWL_RIM));
     const r = Math.hypot(x, z) / BOWL_RIM;
     const side = Math.max(0, x / BOWL_RIM);
-    shadeColor(col, i, (1 - 0.24 * r * r) * (1 - 0.06 * side));
+    // 碗壁越外越暗;遠側的碗壁斜面正對鏡頭,亮一點、近側背著鏡頭,暗一點 —— 凹面才看得出來
+    const facing = -z / BOWL_RIM * r;       // 遠側 +、近側 −
+    shadeColor(col, i, (1 - 0.34 * r * r) * (1 + 0.14 * facing) * (1 - 0.06 * side));
   }
   g.setAttribute('color', new THREE.BufferAttribute(col, 3));
   return g;
@@ -319,7 +321,7 @@ export function createScene(canvas) {
   // 補一顆:從桌子上方隨機一點掉進來,落地會彈幾下(物理照常算)
   function dropEgg(capsule) {
     const angle = rand(0, Math.PI * 2);
-    const dist = Math.sqrt(rand(0, 1)) * BOWL_FLAT * scaleK();
+    const dist = Math.sqrt(rand(0, 1)) * BOWL_RIM * 0.5 * scaleK();
     const e = makeEgg(capsule, Math.cos(angle) * dist, 3.2, Math.sin(angle) * dist);
     e.v.set(rand(-0.6, 0.6), -1, rand(-0.6, 0.6));
     layout();

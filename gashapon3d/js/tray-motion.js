@@ -35,10 +35,12 @@ export function trayShake(t) {
 
 // ---------- 碗的形狀(2026-10-02:托盤改成碗) ----------
 // 半徑都是托盤的「基準」單位(scene.js 的 TABLE_BASE = 3.4,實際大小再依顆數水平縮放)。
-// 中間 BOWL_FLAT 以內是平的盤底,往外到碗口 BOWL_RIM 沿拋物線翹起 BOWL_DEPTH。
+// 從中心開始整個碗底就是一道圓弧(拋物線)往上翹到碗口 BOWL_RIM、高 BOWL_DEPTH ——
+// 2026-10-02 使用者:「中間看起來不像碗,要圓弧凹進去」,原本中間 1.8 以內是平的。
+// BOWL_FLAT 留著當「平底半徑」的參數,現在是 0。
 // 用拋物線不用四分之一圓:圓弧在碗口是垂直的,斜率無限大,物理會一下把蛋彈飛。
 export const BOWL_RIM = 3.28;
-export const BOWL_FLAT = 1.8;
+export const BOWL_FLAT = 0;
 export const BOWL_DEPTH = 0.3;        // = 蛋高(1.0)× 0.3,使用者先選 0.3 看看
 
 export function bowlHeight(r) {
