@@ -417,8 +417,10 @@ export function createScene(canvas) {
         const px = e.group.position.x - pinned.group.position.x;
         const pz = e.group.position.z - pinned.group.position.z;
         const d = Math.hypot(px, pz) || 1e-4;
-        if (d < CLEAR) {
-          const k = (CLEAR - d) * 14 * dt;
+        // 鏡頭在 +z 那側:前面(靠鏡頭)的蛋會擋住特寫,讓開的範圍要大一倍
+        const clear = pz > 0 ? CLEAR * 1.9 : CLEAR;
+        if (d < clear) {
+          const k = (clear - d) * 14 * dt;
           e.v.x += (px / d) * k;
           e.v.z += (pz / d) * k;
         }
@@ -568,10 +570,14 @@ export function createScene(canvas) {
   // 落在背景的雪地上。用 setViewOffset 平移投影,不動鏡頭 —— 點擊判定跟粒子對位都跟著走。
   const VIEW_SHIFT = 0.12;
   let viewShift = VIEW_SHIFT;
+  // 取景框 = 舞台(canvas 的父元素)那一塊;canvas 本身撐滿視窗,多出來的(工具列那段)
+  // 就是取景框往下延伸的畫面 —— 碗的取景不會被工具列蓋住,特寫時下面也不會露白。
+  const frameH = () => canvas.parentElement?.clientHeight || canvas.clientHeight || 1;
   function applyViewShift() {
     const w = canvas.clientWidth || 1;
     const h = canvas.clientHeight || 1;
-    camera.setViewOffset(w, h, 0, -h * viewShift, w, h);
+    const fh = frameH();
+    camera.setViewOffset(w, fh, 0, -fh * viewShift, w, h);
     camera.updateProjectionMatrix();
   }
 
@@ -579,7 +585,7 @@ export function createScene(canvas) {
     const w = canvas.clientWidth || 1;
     const h = canvas.clientHeight || 1;
     renderer.setSize(w, h, false);
-    camera.aspect = w / h;
+    camera.aspect = w / frameH();
     applyViewShift();
     // 長寬比變了,取景就要重算 —— 不重下一次 look 之前整桌都是切掉的。
     // 演出中(推到近景)也要照當下的推近程度重算,不然轉手機會一下跳回整碗(2026-10-02 審查發現)
@@ -598,15 +604,17 @@ export function createScene(canvas) {
   function look(dist, height, targetY = 0) {
     lastView = [dist, height, targetY];
     const base = Math.hypot(dist, height) || 1;
-    const need = WALL_OUT * (TABLE / TABLE_BASE) * 1.08;   // 牆外緣 + 描邊
+    const need = WALL_OUT * (TABLE / TABLE_BASE) * 1.02;   // 碗外緣 + 描邊(2026-10-02:跟 2D 比太小,邊界收緊)
     // 垂直方向要放得下:蛋(約 1.1)+ 碗口高過盤面的那段 + 碗外壁往盤面下延伸的那段
     const tall = 1.1 + (RIM_Y - FLOOR_Y + LIP + (FLOOR_Y - WALL_FOOT)) * depthK;
     const vHalf = (camera.fov * Math.PI) / 360;
     const hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
+    // 寬度那一項乘 1.1(手機上碗撐到約九成寬;原本整式再乘平移的留白,手機上碗只佔 79% 寬,
+    // 跟 2D 比太小)。高度那一項照算,再為往下平移留空間 —— 平板上高度才是限制,收緊會伸到工具列後面
     const want = Math.max(
-      need / Math.tan(hHalf),
-      (need * (height / base) + tall * (dist / base)) / Math.tan(vHalf),
-    ) * 1.06 * (1 + 3 * viewShift);   // 往下平移之後下緣要多留的空間(內容只剩 0.5 − shift 的半高可用)
+      (need / Math.tan(hHalf)) * 1.1,
+      ((need * (height / base) + tall * (dist / base)) / Math.tan(vHalf)) * (1 + 2.2 * viewShift),
+    );
     const k = Math.max(1, want / base);   // 只退不進,寬螢幕維持原本的取景
     camera.position.set(0, height * k, dist * k);
     camera.lookAt(0, targetY, 0);

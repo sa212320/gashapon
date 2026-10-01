@@ -4,8 +4,12 @@ body { display: grid; grid-template-rows: 1fr auto; min-height: 100dvh; overflow
 
 .stage { position: relative; flex: 1; min-height: 0; }
 
-/* absolute inset:0 而不是 height:100% —— 百分比高度在 flex 版面裡常常只算到一半 */
-.scene { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+/* 3D 畫面撐滿整個視窗,畫在工具列、角落按鈕後面(2026-10-02:原本只畫在舞台那一塊,
+   特寫時下面工具列那段跟左右兩邊露出背景的白雪,一條硬邊)。取景仍然以舞台為準
+   (scene.js 用舞台的高度當取景框,多出來的工具列那段是畫面往下延伸)。 */
+.scene { position: fixed; inset: 0; display: block; width: 100vw; height: 100dvh; }
+/* canvas 是 fixed(定位元素),工具列要定位 + z-index 才會畫在它上面 */
+.toolbar { position: relative; z-index: 1; }
 
 .empty-state {
   position: absolute;
