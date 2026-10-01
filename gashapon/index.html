@@ -15,6 +15,10 @@
 <body>
 
 <a class="home-link home-link--corner" href="../" aria-label="回首頁"><svg class="icon" aria-hidden="true"><use href="../shared/img/icons.svg#home"/></svg></a>
+<div class="corner-tools">
+  <button class="icon-btn" id="soundBtn" type="button" aria-label="音效開關"><svg class="icon" aria-hidden="true"><use id="soundIcon" href="../shared/img/icons.svg#sound-on"/></svg></button>
+  <button class="icon-btn" id="settingsBtn" type="button" aria-label="設定"><svg class="icon" aria-hidden="true"><use href="../shared/img/icons.svg#settings"/></svg></button>
+</div>
 
 <!-- 雪花粒子的形狀(reveal.js 的 spawnParticles 用 <use href="#snowflake"> 引用) -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -58,12 +62,10 @@
 </main>
 
 <footer class="toolbar">
-  <button class="icon-btn" id="soundBtn" type="button" aria-label="音效開關"><svg class="icon" aria-hidden="true"><use id="soundIcon" href="../shared/img/icons.svg#sound-on"/></svg></button>
   <div class="draw-group">
     <p class="remain-tag" id="remainTag"></p>
     <button class="btn btn--draw" id="drawBtn" type="button">轉!</button>
   </div>
-  <button class="icon-btn" id="settingsBtn" type="button" aria-label="設定"><svg class="icon" aria-hidden="true"><use href="../shared/img/icons.svg#settings"/></svg></button>
 </footer>
 
 <dialog class="dialog" id="settingsDialog">

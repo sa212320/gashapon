@@ -103,3 +103,13 @@ test('SVG 檔的註解裡不能有 --(不合法的 XML,整個檔案會被瀏覽�
     for (const [, body] of read(f).matchAll(/<!--([\s\S]*?)-->/g)) assert.ok(!body.includes('--'), `${f} 的註解有 --`);
   }
 });
+
+test('音效、設定移到右上角;工具列只剩「剩 X 顆」和「轉!」', () => {
+  const html = read('gashapon/index.html');
+  const toolbar = html.slice(html.indexOf('<footer class="toolbar">'), html.indexOf('</footer>'));
+  assert.ok(!/id="soundBtn"|id="settingsBtn"/.test(toolbar), '工具列裡不該再有音效/設定');
+  assert.match(toolbar, /id="drawBtn"/);
+  const corner = html.slice(html.indexOf('<div class="corner-tools"'), html.indexOf('</div>', html.indexOf('<div class="corner-tools"')));
+  assert.match(corner, /id="soundBtn"/);
+  assert.match(corner, /id="settingsBtn"/);
+});
