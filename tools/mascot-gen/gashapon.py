@@ -19,7 +19,7 @@ from PIL import Image
 
 import comfy
 from post import key_border, keep_largest
-from gashapon_art import anchors_from_pick, cut_disk, content_hash, stamp, clear_green_fringe
+from gashapon_art import anchors_from_pick, cut_disk, content_hash, stamp, clear_green_fringe, to_tint_gray, split_at, split_cells, square_about_seam
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
@@ -28,6 +28,8 @@ CFG = HERE / 'gashapon_prompts.json'
 IMG = ROOT / 'gashapon' / 'img'
 SEEDS = [11, 22, 33]
 MACHINE_W, MACHINE_H = 768, 1024
+RARITIES = ['N', 'R', 'SR', 'SSR', 'UR']
+GREEN = ', isolated on a solid flat bright pure green #00FF00 background'
 
 
 def load_cfg():
@@ -146,8 +148,27 @@ def review_machine_dir(d):
     return section(name, figs)
 
 
-# 之後的 task 會往這個清單加 review_shells、review_frames
-REVIEW_SECTIONS = [review_machine]
+def review_shells():
+    out = []
+    d = OUT / 'shells-sheet'
+    figs = []
+    for f in sorted(d.glob('s*.png')) if d.exists() else []:
+        n = f.stem[1:]
+        figs.append(figure('shells-sheet', f, 960, [f'點第 {i} 顆的上下分界線' for i in range(1, 6)],
+                           f"`pick shells-sheet {n} --seams ${{pts.map(p => p[1]).join(',')}}`", lines=True))
+    out.append(section('shells-sheet', figs))
+    for r in RARITIES:
+        d = OUT / f'shell-{r}'
+        figs = []
+        for f in sorted(d.glob('s*.png')) if d.exists() else []:
+            n = f.stem[1:]
+            figs.append(figure(f'shell-{r}', f, 280, ['點上下分界線'], f"`pick shell-{r} {n} --seams ${{pts[0][1]}}`", lines=True))
+        out.append(section(f'shell-{r}', figs))
+    return '\n'.join(out)
+
+
+# 之後的 task 會往這個清單加 review_frames
+REVIEW_SECTIONS = [review_machine, review_shells]
 
 
 def cmd_review(args):
@@ -206,7 +227,48 @@ def cmd_build_machine(args):
     print(json.dumps(anchors))
 
 
-COMMANDS = {'machine': cmd_machine, 'review': cmd_review, 'pick': cmd_pick, 'build-machine': cmd_build_machine}
+def cmd_shells(args):
+    cfg = load_cfg()
+    if args.separate:
+        for r in RARITIES:
+            generate(f'{cfg["shell_style"]}, {cfg["shells"][r]}{GREEN}', cfg['negative'], 768, 768, f'shell-{r}')
+    else:
+        generate(f'{cfg["shell_style"]}, {cfg["shells_sheet"]}', cfg['negative'], 2560, 512, 'shells-sheet')
+
+
+def shell_sources(cfg):
+    """回傳 {rarity: (rgb ndarray, seam_y)}。拼圖有被挑中就切 5 格,否則用各自挑中的那張。"""
+    picks = cfg.get('picks', {})
+    if 'shells-sheet' in picks:
+        p = picks['shells-sheet']
+        rgb = np.asarray(Image.open(OUT / 'shells-sheet' / f's{p["n"]}.png').convert('RGB'))
+        return dict(zip(RARITIES, zip(split_cells(rgb, 5), p['seams'])))
+    missing = [r for r in RARITIES if f'shell-{r}' not in picks]
+    if missing:
+        sys.exit(f'還沒 pick:{", ".join("shell-" + r for r in missing)}')
+    out = {}
+    for r in RARITIES:
+        p = picks[f'shell-{r}']
+        out[r] = (np.asarray(Image.open(OUT / f'shell-{r}' / f's{p["n"]}.png').convert('RGB')), p['seams'][0])
+    return out
+
+
+def cmd_build_shells(args):
+    css = ROOT / 'gashapon' / 'css' / 'style.css'
+    for r, (rgb, seam) in shell_sources(load_cfg()).items():
+        rgba = keep_largest(clear_green_fringe(key_border(rgb)))
+        x0, y0, x1, y1 = Image.fromarray(rgba).getbbox()
+        gray, mid = square_about_seam(to_tint_gray(rgba[y0:y1, x0:x1]), seam - y0)
+        for half, part in zip(['top', 'bottom'], split_at(gray, mid)):
+            im = Image.fromarray(part).resize((256, 128), Image.LANCZOS)
+            path = IMG / f'shell-{r}-{half}.webp'
+            webp(im, path)
+            restamp(css, f'../img/shell-{r}-{half}.webp', path)
+    print('shells done')
+
+
+COMMANDS = {'machine': cmd_machine, 'review': cmd_review, 'pick': cmd_pick, 'build-machine': cmd_build_machine,
+            'shells': cmd_shells, 'build-shells': cmd_build_shells}
 
 
 def main():
@@ -218,6 +280,8 @@ def main():
     p.add_argument('name'); p.add_argument('n', type=int)
     p.add_argument('--knob'); p.add_argument('--outlet'); p.add_argument('--seams')
     sub.add_parser('build-machine')
+    sh = sub.add_parser('shells'); sh.add_argument('--separate', action='store_true')
+    sub.add_parser('build-shells')
     args = ap.parse_args()
     COMMANDS[args.cmd](args)
 

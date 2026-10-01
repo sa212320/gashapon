@@ -76,3 +76,16 @@ def split_at(rgba, y):
 def split_cells(rgb, n):
     w = rgb.shape[1] // n
     return [rgb[:, i * w:(i + 1) * w] for i in range(n)]
+
+
+def square_about_seam(rgba, seam):
+    """把殼補成正方形,而且分界線剛好在正中間。CSS 把上下兩半各自鋪成「寬 × 一半高」,
+    殼不是正圓(UR 有翅膀)或分界線不在中間的話,不補的話會被拉歪。回傳 (圖, 新的分界線 y)。"""
+    h, w = rgba.shape[:2]
+    half = max(seam, h - seam)
+    side = max(w, 2 * half)
+    out = np.zeros((side, side, 4), rgba.dtype)
+    top = side // 2 - seam
+    left = (side - w) // 2
+    out[top:top + h, left:left + w] = rgba
+    return out, side // 2

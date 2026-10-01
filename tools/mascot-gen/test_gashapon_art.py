@@ -98,3 +98,27 @@ class Split(unittest.TestCase):
     def test_split_cells(self):
         cells = split_cells(np.zeros((10, 50, 3), np.uint8), 5)
         self.assertEqual([c.shape[1] for c in cells], [10] * 5)
+
+
+from gashapon_art import square_about_seam
+
+
+class SquareAboutSeam(unittest.TestCase):
+    def test_seam_lands_in_the_middle_of_a_square(self):
+        a = np.full((30, 20, 4), 255, np.uint8)   # 高 30、寬 20,分界線在 y=10(上面 10、下面 20)
+        out, seam = square_about_seam(a, 10)
+        self.assertEqual(out.shape[0], out.shape[1])
+        self.assertEqual(seam, out.shape[0] // 2)
+        self.assertEqual(out.shape[0], 40)          # 下半 20 → 整張 40
+
+    def test_wide_shell_keeps_full_width(self):
+        a = np.full((20, 50, 4), 255, np.uint8)   # 翅膀讓殼變寬
+        out, seam = square_about_seam(a, 10)
+        self.assertEqual(out.shape[:2], (50, 50))
+        self.assertEqual(seam, 25)
+
+    def test_padding_is_transparent_and_content_kept(self):
+        a = np.full((30, 20, 4), 200, np.uint8)
+        out, seam = square_about_seam(a, 10)
+        self.assertEqual(out[0, 0, 3], 0)
+        self.assertEqual(int(out[seam, out.shape[1] // 2, 3]), 200)
