@@ -1,4 +1,4 @@
-"""立體扭蛋機的托盤素材後製(盤底冰面、冰牆側面帶)。圖已在 2026-10-01 生好並選定,這裡只後製。
+"""立體扭蛋機的托盤素材後製(盤底冰面;碗外壁改成程式畫,見 gashapon3d/js/ice-art.js)。圖已在 2026-10-01 生好並選定,這裡只後製。
   PY=tools/mascot-gen/.venv/bin/python
   $PY tools/mascot-gen/gashapon3d.py build-tray
 """
@@ -9,13 +9,13 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from gashapon_art import crop_square_center, ink_rows, make_seamless, content_hash, stamp
+from gashapon_art import crop_square_center, content_hash, stamp
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = Path(__file__).resolve().parent / 'out' / 'gashapon3d'
 IMG = ROOT / 'gashapon3d' / 'img'
 ART = ROOT / 'gashapon3d' / 'js' / 'tray-art.js'
-PICKS = {'floor': 2, 'band': 2}   # 使用者 2026-10-01 選定
+PICKS = {'floor': 2}   # 使用者 2026-10-01 選定;冰牆帶(band)後來改成程式畫(gashapon3d/js/ice-art.js)
 
 
 def webp(img, path, q=82):
@@ -31,20 +31,11 @@ def build_tray():
     floor = Image.fromarray(crop_square_center(floor, 0.12)).resize((1024, 1024), Image.LANCZOS)
     webp(floor, IMG / 'floor.webp')
 
-    band = np.asarray(Image.open(OUT / 'band' / f's{PICKS["band"]}.png').convert('RGB'))
-    top, bottom = ink_rows(band)
-    w = band.shape[1]
-    band = band[top:bottom + 1, round(w * 0.06): round(w * 0.94)]   # 裁掉兩端的圓角外框
-    band = make_seamless(band, overlap=round(band.shape[1] * 0.08))
-    im = Image.fromarray(band)
-    im = im.resize((1024, round(1024 * im.height / im.width)), Image.LANCZOS)
-    webp(im, IMG / 'wall.webp')
-
     text = ART.read_text()
-    for name in ('floor', 'wall'):
+    for name in ('floor',):
         text = stamp(text, f'../img/{name}.webp', content_hash(IMG / f'{name}.webp'))
     ART.write_text(text)
-    for name in ('floor', 'wall'):
+    for name in ('floor',):
         print(name, (IMG / f'{name}.webp').stat().st_size // 1024, 'KB')
     # 雜湊變了,首頁的預載清單要跟著重產(預先載入 ①)
     from gashapon import write_preload_manifest

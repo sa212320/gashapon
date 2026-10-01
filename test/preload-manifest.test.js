@@ -55,9 +55,9 @@ test('three.js 也預載(四個模式都用),而且檔案真的存在、跟 impo
   assert.match(read('gashapon3d/index.html'), /"three":"\.\.\/vendor\/three\.module\.min\.js"/);
 });
 
-test('立體扭蛋機的托盤貼圖也在首頁預載清單裡', () => {
+test('立體扭蛋機的盤底貼圖也在首頁預載清單裡(外壁是程式畫的,沒有圖檔)', () => {
   const manifest = JSON.parse(read('gashapon/img/preload.json'));
-  for (const name of ['floor', 'wall']) {
+  for (const name of ['floor']) {
     assert.ok(manifest.some(u => u.startsWith(`gashapon3d/img/${name}.webp?v=`)), `預載清單少了 ${name}`);
   }
 });

@@ -7,7 +7,8 @@
 // 同一組幾何同時負責外觀跟「打開」—— 打開就是把兩個半球分開。
 import * as THREE from 'three';
 import { planarUV } from './skin-math.js';
-import { FLOOR_URL, WALL_URL } from './tray-art.js';
+import { FLOOR_URL } from './tray-art.js';
+import { paintWall } from './ice-art.js';
 import { trayShake, SHAKE_SECONDS, bowlHeight, bowlSlope, bowlDepth, BOWL_RIM, BOWL_FLAT, BOWL_DEPTH } from './tray-motion.js';
 
 const R = 0.5;             // 蛋的半徑
@@ -79,9 +80,9 @@ const BOWL_FILL = 0.85;
 export const FOCUS_Y = 1.2;
 const FLOOR_Y = -R;
 const RIM_Y = FLOOR_Y + BOWL_DEPTH;
-const WALL_OUT = BOWL_RIM + 0.16;          // 碗唇外緣(使用者要薄一點;唇太寬整個碗看起來都是白的雪)
-const WALL_FOOT = FLOOR_Y - 0.25;          // 碗底(比盤面低一截,看得出碗的厚度)
-const LIP = 0.16;                          // 碗唇圓弧的高度
+const WALL_OUT = BOWL_RIM + 0.26;          // 碗唇外緣:一圈蓬鬆的厚雪(像首頁卡片 s2)
+const WALL_FOOT = FLOOR_Y - 0.5;           // 碗底(比盤面低一截:外側的冰要看得到,像 s2 的冰盤側面)
+const LIP = 0.2;                           // 碗唇圓弧的高度
 
 // 碗唇 + 外壁的剖面:唇內緣 → 圓弧唇 → 唇外緣 → 外壁往下往內收 → 碗底
 function wallProfile(grow = 0) {
@@ -108,20 +109,19 @@ function wallProfile(grow = 0) {
 const N_LIP = 11;
 function wallLook(j, n) {
   if (j < N_LIP) {
-    // 碗口也是冰(2026-10-02 使用者選 A:原本的雪唇在拿掉滴雪線之後變成一圈突兀的白邊)。
-    // 唇頂是最亮的一條,看得出碗口的厚度
+    // 碗口是一圈厚雪(貼圖最上面的白);朝內最亮、朝外暗一階
     const t = j / (N_LIP - 1);                // 唇:朝內 0 → 朝外 1
-    return { v: 0.42, shade: 1.12 - 0.2 * Math.abs(t - 0.4) };
+    return { v: 0.95, shade: 1 - 0.12 * t };
   }
   // 外壁只用貼圖的下半段(冰),不放滴雪的波浪線(使用者 2026-10-02);
   // 最底下那條雪跟外框線也不用
   const k = j - N_LIP;                                 // 0 唇下、1 冰上段、2 冰下段、3 碗底
-  // 貼圖裡乾淨的冰在 v 0.17–0.47(0.6–0.7 是滴雪線、0.13 以下是底部的雪,2026-10-02 量過)
+  // 外壁(ice-art.js 畫的):最上面是雪,往下滴到 SNOW_EDGE_V 附近,下面是冰
   return [
-    { v: 0.46, shade: 0.92 },
-    { v: 0.38, shade: 0.86 },
-    { v: 0.28, shade: 0.78 },
-    { v: 0.18, shade: 0.68 },
+    { v: 0.80, shade: 0.95 },
+    { v: 0.50, shade: 0.92 },
+    { v: 0.28, shade: 0.86 },
+    { v: 0.04, shade: 0.78 },
   ][k];
 }
 
@@ -222,7 +222,7 @@ export function createScene(canvas) {
   const loader = new THREE.TextureLoader();
   const floorTex = loader.load(FLOOR_URL);
   floorTex.colorSpace = THREE.SRGBColorSpace;
-  const wallTex = loader.load(WALL_URL);
+  const wallTex = new THREE.CanvasTexture(paintWall());
   wallTex.colorSpace = THREE.SRGBColorSpace;
   wallTex.wrapS = THREE.RepeatWrapping;
   wallTex.repeat.set(5, 1);    // 每半圈 5 段;太多段的話波浪的深棕線會擠成一圈灰色鍊條
@@ -558,12 +558,24 @@ export function createScene(canvas) {
     });
   }
 
+  // 畫面整個往下平移(比例 = 畫面高度):canvas 是透明的,後面是 2D 的雪景,
+  // 碗擺在正中間會疊在天空跟遠山上,看起來像浮在半空(2026-10-02 使用者)。往下移才會
+  // 落在背景的雪地上。用 setViewOffset 平移投影,不動鏡頭 —— 點擊判定跟粒子對位都跟著走。
+  const VIEW_SHIFT = 0.12;
+  let viewShift = VIEW_SHIFT;
+  function applyViewShift() {
+    const w = canvas.clientWidth || 1;
+    const h = canvas.clientHeight || 1;
+    camera.setViewOffset(w, h, 0, -h * viewShift, w, h);
+    camera.updateProjectionMatrix();
+  }
+
   function resize() {
     const w = canvas.clientWidth || 1;
     const h = canvas.clientHeight || 1;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
-    camera.updateProjectionMatrix();
+    applyViewShift();
     // 長寬比變了,取景就要重算 —— 不重下一次 look 之前整桌都是切掉的
     look(...lastView);
   }
@@ -580,13 +592,14 @@ export function createScene(canvas) {
     lastView = [dist, height, targetY];
     const base = Math.hypot(dist, height) || 1;
     const need = WALL_OUT * (TABLE / TABLE_BASE) * 1.08;   // 牆外緣 + 描邊
-    const tall = 1.1;            // 蛋大概這麼高
+    // 垂直方向要放得下:蛋(約 1.1)+ 碗口高過盤面的那段 + 碗外壁往盤面下延伸的那段
+    const tall = 1.1 + (RIM_Y - FLOOR_Y + LIP + (FLOOR_Y - WALL_FOOT)) * depthK;
     const vHalf = (camera.fov * Math.PI) / 360;
     const hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
     const want = Math.max(
       need / Math.tan(hHalf),
       (need * (height / base) + tall * (dist / base)) / Math.tan(vHalf),
-    ) * 1.06;
+    ) * 1.06 * (1 + 3 * viewShift);   // 往下平移之後下緣要多留的空間(內容只剩 0.5 − shift 的半高可用)
     const k = Math.max(1, want / base);   // 只退不進,寬螢幕維持原本的取景
     camera.position.set(0, height * k, dist * k);
     camera.lookAt(0, targetY, 0);
@@ -596,6 +609,8 @@ export function createScene(canvas) {
   // 平常看整碗。仰角壓低到約 36 度(原本約 48 度):從太高的地方往下看,只看得到碗口一圈,
   // 看不出碗的形狀跟厚度。
   function homeView() {
+    viewShift = VIEW_SHIFT;
+    applyViewShift();
     look(TABLE * 1.95, TABLE * 1.42);
   }
 
@@ -616,6 +631,9 @@ export function createScene(canvas) {
     CLOSE.set(0, FOCUS_Y + 2.4 * fit, 3.9 * fit);
     camera.position.lerpVectors(HOME, CLOSE, k);
     camera.lookAt(0, FOCUS_Y * k, 0);
+    // 推到近景時平移歸零:被點開的那顆要在畫面正中間(卡片、粒子都對著中間)
+    viewShift = VIEW_SHIFT * (1 - k);
+    applyViewShift();
   }
 
   const AIM = new THREE.Object3D();
