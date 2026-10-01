@@ -1309,14 +1309,16 @@ git commit -m "feat(gashapon3d-art): ice floor and seamless snow wall band for t
 
 - [ ] **Step 1: 托盤群組**
 
-把現在的 `table` mesh 換成一個 `tray` 群組,`setEggs` 裡改成 `tray.scale.set(s, 1, s)`(`s = TABLE / TABLE_BASE`;**只縮水平**,牆高不跟著顆數變,不然 40 顆時牆會比蛋高):
+把現在的 `table` mesh 換成一個 `tray` 群組,`setEggs` 裡改成 `tray.scale.set(s, 1, s)`(`s = TABLE / TABLE_BASE`;**只縮水平**)。牆高**直接由蛋高算**(`EGG_H × WALL_RATIO`),跟顆數無關 —— 蛋的大小固定,牆就永遠是蛋的同一個比例:
 
 ```js
 import { FLOOR_URL, WALL_URL } from './tray-art.js';
 
 const WALL_IN = TABLE_BASE - 0.12;    // 牆內壁(基準半徑)
 const WALL_OUT = TABLE_BASE + 0.18;   // 牆外壁
-const WALL_TOP = -R + R * 0.6;        // 牆比蛋矮(約 0.6R)
+const EGG_H = R * 2;                  // 蛋的高度
+const WALL_RATIO = 0.3;               // 牆高 = 蛋高 × 這個比例(要調牆高只改這裡)
+const WALL_TOP = -R + EGG_H * WALL_RATIO;
 const FLOOR_Y = -R;
 
 // 冰牆的剖面:內壁底 → 內壁頂 → 圓弧上緣 → 外壁頂 → 外壁底(比桌面低一點,看得出厚度)
@@ -1398,7 +1400,7 @@ Run: `node --test` → PASS
 
 - [ ] **Step 5: 實機驗收(Review Focus 5)**
 
-1. 獎項 3 顆、20 顆、40 顆各看一次:牆高不變、蛋不穿牆、按「搖動」蛋撞牆反彈
+1. 獎項 3 顆、20 顆、40 顆各看一次:牆高永遠約是蛋高的三成、蛋不穿牆、按「搖動」蛋撞牆反彈
 2. 390 寬:整圈牆都在畫面內
 3. 點開一顆:前半牆擋住蛋下半部的地方沒有描邊穿過去
 4. Network:`floor.webp`、`wall.webp` 在頁面載入時就抓了;先開首頁再進來是快取命中
