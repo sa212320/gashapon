@@ -68,7 +68,10 @@ body::before {
        下半部維持單一顏色才能保證不管接在哪裡都沒有接縫。 */
   background-repeat: no-repeat, no-repeat;
   background-position: center bottom, center;
-  background-size: 100% auto, cover;
+  /* 遠景圖至少跟視窗一樣高(1600×933 → 寬 = 高 × 1.715):視窗比圖片方的時候(筆電 1440×900),
+     原本「寬度撐滿」高度不夠,上面露出一條比圖片天空深的漸層,看起來像一條 header(2026-10-01)。
+     手機直式時 100% 比較大,照舊寬度撐滿、上面接天空。 */
+  background-size: max(100%, 171.5vh) auto, cover;
 }
 
 /* ---------- buttons ---------- */

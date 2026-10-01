@@ -65,7 +65,7 @@ body {
    吉祥物寬度跟 shared/css/mascot.css 的 .mascots 一樣。 */
 .machine {
   --a: var(--machine-aspect, .5867);
-  --mascot-w: clamp(140px, 28vh, 300px);
+  --mascot-w: clamp(160px, 38vh, 420px);
   position: relative;
   width: min(92cqh * var(--a), 100cqw);
   aspect-ratio: var(--a);

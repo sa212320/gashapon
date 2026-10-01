@@ -11,8 +11,9 @@
   position: fixed;
   right: 16px;
   bottom: 16px;
-  /* 2026-10-01 使用者覺得太小,放大一級(原本 clamp(96px, 15vh, 180px)) */
-  width: clamp(140px, 28vh, 300px);
+  /* 2026-10-01 使用者覺得太小,放大兩次(clamp(96px, 15vh, 180px) → clamp(140px, 28vh, 300px) → 現在)。
+     改這裡要一起改 gashapon/css/style.css 的 .machine --mascot-w,機台靠它避開吉祥物 */
+  width: clamp(160px, 38vh, 420px);
   aspect-ratio: var(--mascot-aspect, 10 / 9);
   pointer-events: none;
   /* 排在所有頁面內容後面:按鈕、卡片、揭曉面板都疊在牠上面,不會被擋住
