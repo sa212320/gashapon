@@ -37,11 +37,44 @@
 .prize-frame[data-rarity="R"]::before   { border-image-source: url(../img/frames/frame-R.webp?v=e1a7557b);   filter: url(#tint-R); }
 .prize-frame[data-rarity="SR"]::before  { border-image-source: url(../img/frames/frame-SR.webp?v=13815b0e);  filter: url(#tint-SR); }
 .prize-frame[data-rarity="SSR"]::before { border-image-source: url(../img/frames/frame-SSR.webp?v=0ade8268); filter: url(#tint-SSR); }
-/* UR 轉色:整個框一起輪流換色(使用者 2026-10-01 確認)。filter 清單裡有 url() 就不能內插
-   (會直接跳格),所以動畫一個註冊過型別的自訂屬性 --frame-hue,filter 讀它。 */
+/* UR:外框跟 UR 標籤一樣是彩虹漸層(使用者 2026-10-01)。濾鏡一次只能上一種顏色,所以 UR 多一層
+   .prize-frame__rainbow 鋪彩虹,用外框圖的形狀裁出來(-webkit-mask-box-image = 九宮格遮罩,
+   Chrome / Safari 支援);灰階外框不上色、用 multiply 疊在上面,留住深色線條與雪花細節。 */
+.prize-frame__rainbow { display: none; }
+.prize-frame[data-rarity="UR"] .prize-frame__rainbow {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: var(--rainbow);
+  -webkit-mask-box-image: url(../img/frames/frame-UR.webp?v=28b63475) 25% / var(--frame-w) stretch;
+  animation: frame-shimmer 3.2s linear infinite;
+  pointer-events: none;
+}
+.prize-frame[data-rarity="UR"]::before {
+  z-index: 1;
+  border-image-source: url(../img/frames/frame-UR.webp?v=28b63475);
+  mix-blend-mode: multiply;
+}
+.prize-frame > :not(.prize-frame__rainbow) { position: relative; z-index: 2; }
+
+/* 不支援九宮格遮罩的瀏覽器(Firefox):不能露出一整塊彩虹長方形,退回單色濾鏡輪流換色。
+   filter 清單裡有 url() 就不能內插,所以動畫一個註冊過型別的自訂屬性 --frame-hue。 */
 @property --frame-hue { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
-.prize-frame[data-rarity="UR"]::before  { border-image-source: url(../img/frames/frame-UR.webp?v=28b63475);  filter: url(#tint-UR) hue-rotate(var(--frame-hue)); animation: frame-rainbow 3.2s linear infinite; }
+@supports not (-webkit-mask-box-image: none) {
+  .prize-frame[data-rarity="UR"] .prize-frame__rainbow { display: none; }
+  .prize-frame[data-rarity="UR"]::before {
+    mix-blend-mode: normal;
+    filter: url(#tint-UR) hue-rotate(var(--frame-hue));
+    animation: frame-rainbow 3.2s linear infinite;
+  }
+}
 
 @keyframes frame-rainbow {
   to { --frame-hue: 360deg; }
+}
+
+/* 跟 UR 標籤的 shimmer 一樣;這支是共用檔,不能依賴扭蛋機自己的 animations.css */
+@keyframes frame-shimmer {
+  to { filter: hue-rotate(360deg) saturate(1.15); }
 }

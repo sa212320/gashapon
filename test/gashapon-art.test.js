@@ -60,6 +60,8 @@ test('5 張外框都存在,prize-frame.css 每個稀有度都有圖和濾鏡', (
   const css = read('shared/css/prize-frame.css');
   for (const r of RARITIES) {
     assert.ok(existsSync(join(root, `shared/img/frames/frame-${r}.webp`)), r);
+    // UR 是彩虹漸層,不走單色濾鏡(見下面那條測試)
+    if (r === 'UR') continue;
     assert.match(css, new RegExp(`\\[data-rarity="${r}"\\][^{]*\\{[^}]*frame-${r}\\.webp\\?v=[0-9a-f]{8}[^}]*url\\(#tint-${r}\\)`), r);
   }
 });
@@ -74,4 +76,13 @@ test('扭蛋機的揭曉卡片用了 prize-frame,也引用了 prize-frame.css', 
   const html = read('gashapon/index.html');
   assert.match(html, /class="prize-card prize-frame"/);
   assert.match(html, /href="\.\.\/shared\/css\/prize-frame\.css"/);
+});
+
+test('UR 外框跟 UR 標籤一樣是彩虹漸層:多一層 rainbow,用外框形狀裁出來', () => {
+  const css = read('shared/css/prize-frame.css');
+  assert.match(read('gashapon/index.html'), /class="prize-frame__rainbow"/);
+  assert.match(css, /\.prize-frame__rainbow\s*\{[^}]*background:\s*var\(--rainbow\)/);
+  assert.match(css, /-webkit-mask-box-image:\s*url\(\.\.\/img\/frames\/frame-UR\.webp\?v=[0-9a-f]{8}\)/);
+  // 不支援九宮格遮罩的瀏覽器(Firefox)不能露出一整塊彩虹長方形
+  assert.match(css, /@supports\s+not\s+\(-webkit-mask-box-image:/);
 });
