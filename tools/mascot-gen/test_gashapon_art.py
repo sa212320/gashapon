@@ -122,3 +122,25 @@ class SquareAboutSeam(unittest.TestCase):
         out, seam = square_about_seam(a, 10)
         self.assertEqual(out[0, 0, 3], 0)
         self.assertEqual(int(out[seam, out.shape[1] // 2, 3]), 200)
+
+
+from gashapon_art import normalize_edges
+
+
+class NormalizeEdges(unittest.TestCase):
+    def test_top_edge_middle_is_uniform_copy_of_center_column(self):
+        a = np.random.default_rng(0).integers(0, 255, (40, 40, 4), dtype=np.uint8)
+        out = normalize_edges(a, 0.25)
+        band = out[:10, 10:30]
+        self.assertTrue((band == out[:10, 20:21]).all())
+
+    def test_corners_untouched(self):
+        a = np.random.default_rng(1).integers(0, 255, (40, 40, 4), dtype=np.uint8)
+        out = normalize_edges(a, 0.25)
+        self.assertTrue((out[:10, :10] == a[:10, :10]).all())
+        self.assertTrue((out[30:, 30:] == a[30:, 30:]).all())
+
+    def test_left_edge_middle_is_uniform_copy_of_center_row(self):
+        a = np.random.default_rng(2).integers(0, 255, (40, 40, 4), dtype=np.uint8)
+        out = normalize_edges(a, 0.25)
+        self.assertTrue((out[10:30, :10] == out[20:21, :10]).all())

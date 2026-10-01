@@ -18,14 +18,15 @@ import numpy as np
 from PIL import Image
 
 import comfy
-from post import key_border, keep_largest
-from gashapon_art import anchors_from_pick, cut_disk, content_hash, stamp, clear_green_fringe, to_tint_gray, split_at, split_cells, square_about_seam
+from post import key_border, keep_largest, key_green
+from gashapon_art import anchors_from_pick, cut_disk, content_hash, stamp, clear_green_fringe, to_tint_gray, split_at, split_cells, square_about_seam, normalize_edges
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 OUT = HERE / 'out' / 'gashapon'
 CFG = HERE / 'gashapon_prompts.json'
 IMG = ROOT / 'gashapon' / 'img'
+FRAMES = ROOT / 'shared' / 'img' / 'frames'
 SEEDS = [11, 22, 33]
 MACHINE_W, MACHINE_H = 768, 1024
 RARITIES = ['N', 'R', 'SR', 'SSR', 'UR']
@@ -167,8 +168,18 @@ def review_shells():
     return '\n'.join(out)
 
 
-# 之後的 task 會往這個清單加 review_frames
-REVIEW_SECTIONS = [review_machine, review_shells]
+def review_frames():
+    out = []
+    for key in [*RARITIES, 'one']:
+        d = OUT / f'frame-{key}'
+        figs = []
+        for f in sorted(d.glob('s*.png')) if d.exists() else []:
+            figs.append(figure(f'frame-{key}', f, 280, [], f"`pick frame-{key} {f.stem[1:]}`"))
+        out.append(section(f'frame-{key}', figs))
+    return '\n'.join(out)
+
+
+REVIEW_SECTIONS = [review_machine, review_shells, review_frames]
 
 
 def cmd_review(args):
@@ -267,8 +278,40 @@ def cmd_build_shells(args):
     print('shells done')
 
 
+def cmd_frames(args):
+    cfg = load_cfg()
+    items = {'one': cfg['frame_one']} if args.one else cfg['frames']
+    for key, deco in items.items():
+        generate(f'{cfg["frame_style"]}, {cfg["frame_base"]}, {deco}{GREEN}', cfg['negative'], 1024, 1024, f'frame-{key}')
+
+
+def cmd_build_frames(args):
+    picks = load_cfg().get('picks', {})
+    # 退路(Q13):九宮格分別生不出來時只挑一款,5 個稀有度共用、只靠濾鏡換色
+    one = 'frame-one' in picks
+    src = {r: picks['frame-one'] for r in RARITIES} if one else {r: picks.get(f'frame-{r}') for r in RARITIES}
+    missing = [r for r, p in src.items() if not p]
+    if missing:
+        sys.exit(f'還沒 pick:{", ".join("frame-" + r for r in missing)}')
+    FRAMES.mkdir(parents=True, exist_ok=True)
+    css = ROOT / 'shared' / 'css' / 'prize-frame.css'
+    for r, p in src.items():
+        name = 'frame-one' if one else f'frame-{r}'
+        # 外框中間是鏤空的:key_border 從邊緣往內填色碰不到框內的綠底,所以用純綠去背對整張做
+        rgb = np.asarray(Image.open(OUT / name / f's{p["n"]}.png').convert('RGB'))
+        rgba = keep_largest(key_green(rgb))
+        x0, y0, x1, y1 = Image.fromarray(rgba).getbbox()
+        im = Image.fromarray(normalize_edges(to_tint_gray(rgba[y0:y1, x0:x1]))).resize((512, 512), Image.LANCZOS)
+        path = FRAMES / f'frame-{r}.webp'
+        webp(im, path)
+        if css.exists():
+            restamp(css, f'../img/frames/frame-{r}.webp', path)
+    print('frames done')
+
+
 COMMANDS = {'machine': cmd_machine, 'review': cmd_review, 'pick': cmd_pick, 'build-machine': cmd_build_machine,
-            'shells': cmd_shells, 'build-shells': cmd_build_shells}
+            'shells': cmd_shells, 'build-shells': cmd_build_shells,
+            'frames': cmd_frames, 'build-frames': cmd_build_frames}
 
 
 def main():
@@ -282,6 +325,8 @@ def main():
     sub.add_parser('build-machine')
     sh = sub.add_parser('shells'); sh.add_argument('--separate', action='store_true')
     sub.add_parser('build-shells')
+    fr = sub.add_parser('frames'); fr.add_argument('--one', action='store_true')
+    sub.add_parser('build-frames')
     args = ap.parse_args()
     COMMANDS[args.cmd](args)
 

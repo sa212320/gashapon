@@ -22,10 +22,20 @@
   "shell_style": "flat 2D cartoon illustration, cute chibi style, thick dark brown outlines, grayscale only, white and light gray, no colors",
   "shells_sheet": "five round capsule toys in one row with wide green gaps between them, all the same size, each capsule seen from the front with a horizontal seam line across its middle, the decoration gets fancier from left to right: 1 plain with no pattern, 2 diagonal stripes, 3 small snowflakes, 4 a little ice crystal crown on top and a thick ornate band, 5 small wings on both sides and sparkles, isolated on a solid flat bright pure green #00FF00 background",
   "shells": {
-    "N": "one round capsule toy seen from the front with a horizontal seam line across its middle, plain with no pattern",
-    "R": "one round capsule toy seen from the front with a horizontal seam line across its middle, diagonal stripes",
-    "SR": "one round capsule toy seen from the front with a horizontal seam line across its middle, small snowflakes all over",
-    "SSR": "one round capsule toy seen from the front with a horizontal seam line across its middle, a little ice crystal crown on top and a thick ornate band",
-    "UR": "one round capsule toy seen from the front with a horizontal seam line across its middle, small wings on both sides and sparkles"
-  }
+    "N": "one perfectly round ball-shaped capsule toy with a circular outline, seen from the front, a horizontal seam line exactly across its middle, the capsule fills the picture, plain with no pattern",
+    "R": "one perfectly round ball-shaped capsule toy with a circular outline, seen from the front, a horizontal seam line exactly across its middle, the capsule fills the picture, bold diagonal stripes across the whole capsule",
+    "SR": "one perfectly round ball-shaped capsule toy with a circular outline, seen from the front, a horizontal seam line exactly across its middle, the capsule fills the picture, many small snowflakes all over the capsule",
+    "SSR": "one perfectly round ball-shaped capsule toy with a circular outline, seen from the front, a horizontal seam line exactly across its middle, the capsule fills the picture, a small ice crystal crown sitting on top and a thick ornate band along the seam",
+    "UR": "one perfectly round ball-shaped capsule toy with a circular outline, seen from the front, a horizontal seam line exactly across its middle, the capsule fills the picture, a small feathered wing on each side and little sparkles"
+  },
+  "frame_style": "flat 2D cartoon illustration, cute style, thick dark brown outlines, grayscale only, white and light gray, no colors",
+  "frame_base": "a square decorative picture frame seen straight on, the frame is a band about one eighth of the width, the inside of the frame is completely empty and filled with the background, the four straight sides are plain simple bands without pattern, decorations only at the four corners",
+  "frames": {
+    "N": "plain rounded corners with no decoration",
+    "R": "a small snowflake at each corner",
+    "SR": "a small ice crystal cluster at each corner",
+    "SSR": "a small ice crystal crown at each corner with a dotted inner line",
+    "UR": "small wings and sparkles at each corner with a dotted inner line"
+  },
+  "frame_one": "a small snowflake at each corner"
 }
