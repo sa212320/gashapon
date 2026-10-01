@@ -1,0 +1,12 @@
+{
+  "style": "flat 2D cartoon illustration, cute chibi style, flat colors, thick dark brown outlines, soft warm pastel colors, cozy snowy winter theme, clean simple shapes",
+  "negative": "text, letters, words, numbers, watermark, signature, people, person, animal, character, face, photorealistic, 3d render, gradient mesh, blurry",
+  "cards": {
+    "gashapon": "a cute red capsule toy vending machine with a round glass dome full of colorful capsules, standing on soft snow, a few colorful capsules scattered on the snowy ground",
+    "gashapon3d": "a large clear glass bowl full of many colorful round two-tone capsule toys tumbling around, on a snowy wooden table",
+    "ichiban": "a fan of colorful lottery tickets with perforated edges spread on a cozy wooden desk, one ticket with its corner peeled open, a few snowflakes around",
+    "ghostleg": "a ladder lottery drawn on a sheet of paper: several colorful vertical lines connected by short horizontal rungs, small wrapped gift boxes with ribbons at the bottom of the lines, snowy background",
+    "smash": "a round frozen ice rink seen from above at an angle, colorful round curling stones sliding on the shiny ice, snowy pine trees around the rink"
+  },
+  "sign": "a single wide wooden signboard plank, completely blank with nothing written on it, fluffy snow piled on its top edge, small pine branches and red berries on both ends, centered, on a solid pure green background"
+}

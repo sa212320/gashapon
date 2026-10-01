@@ -70,3 +70,20 @@ def run(g, timeout=900):
 def fetch(img):
     q = urllib.parse.urlencode({'filename': img['filename'], 'subfolder': img['subfolder'], 'type': img['type']})
     return urllib.request.urlopen(f'{HOST}/view?{q}').read()
+
+
+def graph_t2i(prompt, negative, width, height, seed, prefix, steps=9):
+    """z_image turbo 文字生圖(Lumina2 架構:qwen_3_4b 文字編碼、ae VAE、AuraFlow 取樣)。
+    turbo 版用 cfg 1,負面提示詞其實不起作用,這裡仍照接,換成非 turbo 版時才有效。"""
+    return {
+        '1': {'class_type': 'UNETLoader', 'inputs': {'unet_name': 'z_image_turbo_bf16.safetensors', 'weight_dtype': 'default'}},
+        '2': {'class_type': 'CLIPLoader', 'inputs': {'clip_name': 'qwen_3_4b.safetensors', 'type': 'lumina2', 'device': 'default'}},
+        '3': {'class_type': 'VAELoader', 'inputs': {'vae_name': 'ae.safetensors'}},
+        '4': {'class_type': 'ModelSamplingAuraFlow', 'inputs': {'model': ['1', 0], 'shift': 3.0}},
+        '5': {'class_type': 'CLIPTextEncode', 'inputs': {'clip': ['2', 0], 'text': prompt}},
+        '6': {'class_type': 'CLIPTextEncode', 'inputs': {'clip': ['2', 0], 'text': negative}},
+        '7': {'class_type': 'EmptySD3LatentImage', 'inputs': {'width': width, 'height': height, 'batch_size': 1}},
+        '8': {'class_type': 'KSampler', 'inputs': {'model': ['4', 0], 'seed': seed, 'steps': steps, 'cfg': 1.0, 'sampler_name': 'res_multistep', 'scheduler': 'simple', 'positive': ['5', 0], 'negative': ['6', 0], 'latent_image': ['7', 0], 'denoise': 1.0}},
+        '9': {'class_type': 'VAEDecode', 'inputs': {'samples': ['8', 0], 'vae': ['3', 0]}},
+        '10': {'class_type': 'SaveImage', 'inputs': {'images': ['9', 0], 'filename_prefix': prefix}},
+    }
