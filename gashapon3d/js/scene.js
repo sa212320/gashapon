@@ -109,13 +109,15 @@ function wallLook(j, n) {
     const t = j / (N_LIP - 1);                // 唇:朝內 0 → 朝外 1
     return { v: 0.88, shade: 1 - 0.14 * t };
   }
-  // 外壁(貼圖由上往下:滴雪線 → 冰;不用貼圖最底下那條雪跟外框線)
-  const k = j - N_LIP;                                 // 0 滴雪、1 冰上段、2 冰下段、3 碗底
+  // 外壁只用貼圖的下半段(冰),不放滴雪的波浪線(使用者 2026-10-02);
+  // 最底下那條雪跟外框線也不用
+  const k = j - N_LIP;                                 // 0 唇下、1 冰上段、2 冰下段、3 碗底
+  // 貼圖裡乾淨的冰在 v 0.17–0.47(0.6–0.7 是滴雪線、0.13 以下是底部的雪,2026-10-02 量過)
   return [
-    { v: 0.80, shade: 0.92 },
-    { v: 0.55, shade: 0.86 },
-    { v: 0.32, shade: 0.78 },
-    { v: 0.14, shade: 0.68 },
+    { v: 0.46, shade: 0.92 },
+    { v: 0.38, shade: 0.86 },
+    { v: 0.28, shade: 0.78 },
+    { v: 0.18, shade: 0.68 },
   ][k];
 }
 
@@ -125,14 +127,22 @@ function shadeColor(col, i, k) {
   col[i * 3 + 2] = k;                          // 暗面偏冷,不要變成髒灰
 }
 
-function wallGeometry(phiStart, grow = 0) {
-  const pts = wallProfile(grow);
+// part:'lip' 只要唇、'outer' 只要外壁、'all' 整條(描邊用)。
+// 唇跟外壁分成兩個 mesh:同一個 mesh 的話,唇最後一點(雪)跟外壁第一點(冰)之間的貼圖會內插過
+// 滴雪那段,外壁頂端就多一條波浪線(2026-10-02 使用者要外壁只用冰)。
+function wallGeometry(phiStart, grow = 0, part = 'all') {
+  const all = wallProfile(grow);
+  const from = part === 'outer' ? N_LIP - 1 : 0;
+  const to = part === 'lip' ? N_LIP : all.length;
+  const pts = all.slice(from, to);
   const g = new THREE.LatheGeometry(pts, 96, phiStart, Math.PI);
   const uv = g.attributes.uv;
   const pos = g.attributes.position;
   const col = new Float32Array(uv.count * 3);
   for (let i = 0; i < uv.count; i++) {
-    const look = wallLook(i % pts.length, pts.length);
+    const j = from + (i % pts.length);
+    // 外壁的第一點跟唇的最後一點是同一個位置:在外壁那個 mesh 裡它要用冰的段落
+    const look = part === 'outer' && j === N_LIP - 1 ? wallLook(N_LIP, all.length) : wallLook(j, all.length);
     uv.setY(i, look.v);
     const side = Math.max(0, pos.getX(i) / WALL_OUT);   // 右半邊 0 → 1
     shadeColor(col, i, look.shade * (1 - 0.1 * side));
@@ -231,15 +241,18 @@ export function createScene(canvas) {
   // 蛋的描邊不做深度測試(見 shell() 的說明),前半牆要是先畫,蛋的描邊會穿過牆畫在牆上。
   // LatheGeometry 的 phi = 0 在 +z(朝鏡頭)那側:前半 = [-π/2, π/2],後半 = [π/2, 3π/2]。
   function wallHalf(phiStart, order) {
-    const fill = new THREE.Mesh(wallGeometry(phiStart),
-      new THREE.MeshBasicMaterial({ map: wallTex, side: THREE.DoubleSide, vertexColors: true }));
+    const mat = new THREE.MeshBasicMaterial({ map: wallTex, side: THREE.DoubleSide, vertexColors: true });
+    const lip = new THREE.Mesh(wallGeometry(phiStart, 0, 'lip'), mat);
+    const outer = new THREE.Mesh(wallGeometry(phiStart, 0, 'outer'), mat);
+    lip.renderOrder = order + 1;
+    outer.renderOrder = order + 1;
+    tray.add(lip, outer);
     // 描邊用 FrontSide:剖面的點序讓這圈牆的正面朝內,BackSide 會把整圈牆蓋成一片深棕
     // (跟 dome() 的點序是同一個坑)
     const edge = new THREE.Mesh(wallGeometry(phiStart, 0.05),
       new THREE.MeshBasicMaterial({ color: INK, side: THREE.FrontSide }));
     edge.renderOrder = order;
-    fill.renderOrder = order + 1;
-    tray.add(edge, fill);
+    tray.add(edge);
   }
   wallHalf(Math.PI / 2, -20);
   wallHalf(-Math.PI / 2, 100000);
