@@ -6,6 +6,8 @@
 import { store, seedState } from './store.js';
 import { openCapsule, tableBatch, refillSetup3d, remaining3d, buildPool3d, remainLabel, nextForTable } from './model.js';
 import { createScene } from './scene.js';
+import { loadSkins, applySkin, tickSkins } from './skin.js';
+import { createRevealFx, particleCount } from '../../shared/js/reveal-fx.js';
 import { RARITIES, RARITY_META } from '../../gashapon/js/constants.js';
 import { createPrize } from '../../gashapon/js/state.js';
 import { cssUrl, waitForImage } from '../../gashapon/js/image-ready.js';
@@ -29,6 +31,16 @@ setEnabled(prefs.soundOn);
 const scene = createScene($('scene'));
 const ask = createAsk({ dialog: $('askDialog'), text: $('askText'), yes: $('askYes'), no: $('askNo') });
 const mascots = mountMascots();
+const fx = createRevealFx({ aura: $('aura'), particles: $('particles') });
+// 花紋在進頁面時就載好(順便暖快取)。載不到也不擋抽獎:殼停在原本的純色,演出照走
+loadSkins().then(ok => { if (!ok) console.warn('[gashapon3d] 花紋沒載到,升級只會閃光不換殼'); });
+
+// 特效層釘在蛋投影到螢幕上的那一點。每次觸發都重取 —— 演出中可能被改過視窗大小。
+function aimFx(egg) {
+  const p = scene.screenPos(egg);
+  $('fx').style.setProperty('--fx-x', `${p.x}px`);
+  $('fx').style.setProperty('--fx-y', `${p.y}px`);
+}
 
 // 只有高階才值得讓牠們衝過來。每抽一次就衝一次的話,那個動作三次之後
 // 就不特別了,而且會變成干擾 —— 普通結果在角落換個表情就好。
@@ -44,6 +56,7 @@ function loop(now) {
   if (!playing) scene.step(dt);
   // 影子每一格都要更新,連演出期間也是 —— 不然被抽中那顆飛起來,影子會留在原地。
   scene.layout();
+  tickSkins(now);
   scene.render();
   requestAnimationFrame(loop);
 }
@@ -99,44 +112,64 @@ async function play(result, egg) {
   $('prizeCard').hidden = true;
   try {
     const from = egg.group.position.clone();
+    const q0 = egg.group.quaternion.clone();
+    let qUp = q0;
 
     for (const step of result.revealSteps) {
       if (step.type === 'drop') {
         sfx.drop();
-        // 被點到的那顆飛到桌子中央、鏡頭同時推近。其他蛋讓開一點。
-        await tween(480, k => {
+        // 飛到桌子中央、鏡頭推近,同時轉正(上半朝上、正面朝鏡頭),後面換上的花紋才是正的
+        await tween(600, k => {
           egg.group.position.set(from.x * (1 - k), k * 0.9, from.z * (1 - k));
           egg.group.scale.setScalar(1 + k * 0.25);
           scene.focusView(k);
+          scene.upright(egg, k, q0);
         });
+        qUp = egg.group.quaternion.clone();
       } else if (step.type === 'shake') {
         sfx.shake?.(step.tension ?? 0);
-        await tween(300, k => {
-          egg.group.rotation.z = Math.sin(k * Math.PI * 6) * 0.22 * (1 - k);
-        });
+        // 在畫面平面裡左右晃,幅度跟 2D 一樣一階比一階大(7 + tension × 5 度)
+        const swing = ((7 + (step.tension ?? 0) * 5) * Math.PI) / 180;
+        await tween(360, k => scene.wobble(egg, Math.sin(k * Math.PI * 4) * swing * (1 - k * 0.3), qUp));
+        egg.group.quaternion.copy(qUp);
       } else if (step.type === 'upgrade') {
-        sfx.upgrade(Math.max(0, RARITIES.indexOf(step.to) - 1));
-        // 蛋殼是隨機色,升階不能靠改殼色表示 —— 用「彈一下 + 變亮」代替。
-        await tween(260, k => {
-          const pop = 1.32 + Math.sin(k * Math.PI) * 0.18;
-          egg.group.scale.setScalar(pop);
-        });
+        // 升一階 = 殼換成該稀有度的外觀(第一次是從隨機純色直接換 R)+ 雪花 + 光暈 + 彈一下,同 2D
+        const level = Math.max(0, RARITIES.indexOf(step.to) - 1);
+        sfx.upgrade(level);
+        applySkin(egg, step.to);
+        aimFx(egg);
+        fx.spawnParticles(step.to, particleCount('upgrade', level + 1), { near: true });
+        const glow = fx.flashAura(step.to, 2.6 + level * 0.5);
+        await tween(480, k => egg.group.scale.setScalar(1.25 + Math.sin(k * Math.PI) * 0.28));
+        await glow;
       } else if (step.type === 'crack') {
         sfx.crack();
         // 打開就是把上下兩個半球分開 —— 這顆蛋本來就是兩個半球拼的。
+        // 上半最多傾斜 38 度(同 2D 的 rotate(-38deg)):翻過頭會看到半球的圓形底面,
+        // 看起來像一整顆球(2026-10-02 使用者看截圖問「上面怎麼變成圓的」)
         await tween(420, k => {
           egg.top.position.y = k * 0.85;
-          egg.top.rotation.x = -k * 0.5;
+          egg.top.rotation.z = k * 0.33;
           egg.bottom.position.y = -k * 0.25;
         });
       } else if (step.type === 'burst') {
-        sfx.burst(Math.max(0, RARITIES.indexOf(step.rarity) - 1));
+        const level = Math.max(0, RARITIES.indexOf(step.rarity));
+        sfx.burst(Math.max(0, level - 1));
+        aimFx(egg);
+        fx.spawnParticles(step.rarity, particleCount('burst', level));
+        const glow = fx.flashAura(step.rarity, 3.4 + level * 0.8);
+        // 不再讓整顆繞 y 轉:背面是鏡像的花紋,轉過來會看到反的
+        // 兩半繼續飛開、一邊縮小消失(同 2D 的 opacity → 0)
         await tween(380, k => {
           egg.top.position.y = 0.85 + k * 1.4;
-          egg.top.rotation.x = -0.5 - k * 1.6;
-          egg.bottom.position.y = -0.25 - k * 0.5;
-          egg.group.rotation.y += 0.04;
+          egg.top.rotation.z = 0.33 + k * 0.33;
+          egg.bottom.position.y = -0.25 - k * 0.6;
+          egg.bottom.rotation.z = -k * 0.35;
+          const fade = 1 - k;
+          egg.top.scale.setScalar(fade);
+          egg.bottom.scale.setScalar(fade);
         });
+        await glow;
       } else if (step.type === 'show') {
         const card = $('prizeCard');
         card.dataset.rarity = step.rarity;

@@ -49,3 +49,12 @@
   place-items: center;
   pointer-events: none;
 }
+/* 定位點是 0×0,子元素要自己以它為中心(不然會從那一點往右下長出去)。
+   雪花容器給一個跟光暈一樣大的框,雪花從框的正中央噴出 */
+.fx > * {
+  position: absolute;
+  left: 0;
+  top: 0;
+  translate: -50% -50%;
+}
+.fx .particles { width: min(42vw, 150px); aspect-ratio: 1; }

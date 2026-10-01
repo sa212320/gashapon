@@ -42,6 +42,9 @@
   overflow: hidden;
 }
 .prize-frame .prize-card__name {
+  /* <p> 預設上下各 1em 外距:44px 的字會被往下推到框外(立體扭蛋機 2026-10-02 撞到) */
+  margin: 0;
+  text-align: center;
   max-width: 100%;
   line-height: 1.2;
   overflow-wrap: anywhere;
