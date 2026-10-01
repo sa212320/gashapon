@@ -2,6 +2,7 @@
 // 不做任何隨機、不決定任何結果。
 import { RARITIES, RARITY_META } from './constants.js';
 import { sfx } from '../../shared/js/sound.js';
+import { outletPoint } from './machine-art.js';
 
 const DURATION = {
   turn: 1000, drop: 720, shake: 360, upgrade: 480, crack: 420, burst: 900, show: 320,
@@ -57,13 +58,14 @@ export function createRevealer(els) {
     });
   }
 
-  // 蛋是從扭蛋機的出蛋口滾出來的,所以要現場量出口相對於畫面正中央的位移
+  // 蛋是從扭蛋機的出蛋口滾出來的。出蛋口的位置來自 anchors.json(插畫上量出來的),
+  // 乘上機台當下的實際位置,換成相對於畫面正中央那顆蛋的位移。
   function slotOffset() {
-    const machine = els.machine.getBoundingClientRect();
+    const out = outletPoint(els.machine.getBoundingClientRect(), els.getAnchors());
     const capsule = els.capsule.getBoundingClientRect();
     return {
-      x: (machine.left + machine.width / 2) - (capsule.left + capsule.width / 2),
-      y: (machine.top + machine.height * 0.84) - (capsule.top + capsule.height / 2),
+      x: out.x - (capsule.left + capsule.width / 2),
+      y: out.y - (capsule.top + capsule.height / 2),
     };
   }
 
@@ -125,34 +127,21 @@ export function createRevealer(els) {
   }
 
   const stepHandlers = {
-    // 轉把手:把手轉一圈、機身晃一下、圓頂裡的蛋被攪動。
-    // 這段畫面不變暗,因為重點就是要看扭蛋機本體。
+    // 轉把手:把手轉一圈,機身先壓扁、彈回、再左右晃。機台沒有臉(2026-10-01 決定),
+    // 圓頂裡的蛋是插畫的一部分,跟著機身一起晃。這段畫面不變暗,重點就是看機台。
     async turn() {
       sfx.crank();
       await Promise.all([
-        // 用力轉的時候瞇一下眼睛
-        ...els.eyes.map(eye => animate(eye, [
-          { transform: 'scaleY(1)' },
-          { transform: 'scaleY(.25)', offset: .25 },
-          { transform: 'scaleY(.25)', offset: .75 },
-          { transform: 'scaleY(1)' },
-        ], DURATION.turn, { easing: 'ease-in-out', fill: 'none' })),
         animate(els.knob,
           [{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }],
           DURATION.turn, { easing: 'cubic-bezier(.45,0,.2,1)', fill: 'none' }),
         animate(els.machine, [
-          { transform: 'rotate(0deg) translateY(0)' },
-          { transform: 'rotate(-1.8deg) translateY(-4px)' },
-          { transform: 'rotate(1.8deg) translateY(2px)' },
-          { transform: 'rotate(-1.1deg) translateY(-2px)' },
-          { transform: 'rotate(0deg) translateY(0)' },
-        ], DURATION.turn, { easing: 'ease-in-out', fill: 'none' }),
-        animate(els.capsuleGroup, [
-          { transform: 'translate(0,0) rotate(0deg)' },
-          { transform: 'translate(4px,3px) rotate(3deg)' },
-          { transform: 'translate(-4px,1px) rotate(-3deg)' },
-          { transform: 'translate(3px,4px) rotate(2deg)' },
-          { transform: 'translate(0,0) rotate(0deg)' },
+          { transform: 'scale(1, 1) rotate(0deg)' },
+          { transform: 'scale(1.04, .94) rotate(0deg)', offset: .18 },
+          { transform: 'scale(.97, 1.04) rotate(0deg)', offset: .36 },
+          { transform: 'scale(1, 1) rotate(-1.8deg)', offset: .55 },
+          { transform: 'scale(1, 1) rotate(1.8deg)', offset: .75 },
+          { transform: 'scale(1, 1) rotate(0deg)' },
         ], DURATION.turn, { easing: 'ease-in-out', fill: 'none' }),
       ]);
       sfx.clunk();

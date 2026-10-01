@@ -13,6 +13,7 @@ import { createAsk } from '../../shared/js/ask.js';
 import { setEnabled, unlock, sfx } from '../../shared/js/sound.js';
 import { loadPrefs, savePrefs } from '../../shared/js/prefs.js';
 import { mountMascots } from '../../shared/js/mascot.js';
+import { loadAnchors, anchorVars, DEFAULT_ANCHORS } from './machine-art.js';
 
 const $ = id => document.getElementById(id);
 
@@ -27,20 +28,27 @@ setEnabled(prefs.soundOn);
 requestPersistence();
 
 const view = createMachineView({
-  machineName: $('machineName'),
-  remaining: $('remaining'),
-  capsuleGroup: $('capsuleGroup'),
+  remainTag: $('remainTag'),
   emptyState: $('emptyState'),
   drawBtn: $('drawBtn'),
+  knob: $('knob'),
   soundBtn: $('soundBtn'),
   soundIcon: $('soundIcon'),
 });
 
+// 錨點先用內建預設值,讀到 anchors.json 再換掉。讀不到也不擋抽獎。
+let anchors = DEFAULT_ANCHORS;
+function applyAnchors(a) {
+  anchors = a;
+  for (const [k, v] of Object.entries(anchorVars(a))) $('machine').style.setProperty(k, v);
+}
+applyAnchors(DEFAULT_ANCHORS);
+loadAnchors().then(applyAnchors);
+
 const revealer = createRevealer({
   machine: $('machine'),
   knob: $('knob'),
-  eyes: [...document.querySelectorAll('.eye')],
-  capsuleGroup: $('capsuleGroup'),
+  getAnchors: () => anchors,
   dim: $('dim'),
   capsule: $('capsule'),
   top: $('capsuleTop'),
@@ -138,6 +146,8 @@ async function doDraw({ turn = true } = {}) {
 }
 
 $('drawBtn').addEventListener('click', () => doDraw());
+// 點把手跟按「轉!」一樣(小孩會直接去戳機台上看起來能轉的東西)
+$('knob').addEventListener('click', () => doDraw());
 
 // 小孩切去別的 App 時瀏覽器會暫停動畫,演出等於停在半路。
 // 直接快轉到結果,切回來就看得到抽到什麼。

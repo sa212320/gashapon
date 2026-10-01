@@ -6,25 +6,17 @@ html, body {
 body {
   min-height: 100dvh;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: 1fr auto;
   overflow: hidden;
 }
 
-/* ---------- topbar ---------- */
-.topbar {
-  position: relative;
-  padding: max(14px, env(safe-area-inset-top)) 18px 6px;
-  text-align: center;
-}
-.machine-name {
-  margin: 0;
-  font-size: clamp(22px, 5.5vw, 30px);
-  letter-spacing: .04em;
-}
-.remaining {
-  margin: 4px 0 0;
-  font-size: 15px;
-  color: #9A8778;
+/* 標題拔掉了(2026-10-01),← 改成浮在左上角,不佔版面 */
+.home-link--corner {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  left: max(8px, env(safe-area-inset-left));
+  transform: none;
+  z-index: 5;
 }
 
 /* ---------- stage ---------- */
@@ -32,45 +24,54 @@ body {
   position: relative;
   display: grid;
   place-items: center;
-  padding: 8px 18px;
+  padding: 8px 16px;
   min-height: 0;
+  /* 機台的大小跟著舞台算:用容器查詢單位,不是 vh —— 工具列高度在不同裝置不一樣 */
+  container-type: size;
 }
+
+/* 機台是一張插畫(2026-10-01 起),撐滿舞台高度。寬度上限:筆電上要避開右下角的吉祥物
+   (左右各留一個吉祥物寬,機台置中才不會撞到);手機上吉祥物排在內容後面(z-index -2),不限。
+   吉祥物寬度跟 shared/css/mascot.css 的 .mascots 一樣。 */
 .machine {
-  width: min(78vw, 46vh, 330px);
-  height: auto;
-  overflow: visible;
+  --a: var(--machine-aspect, .5867);
+  --mascot-w: clamp(140px, 28vh, 300px);
+  position: relative;
+  width: min(92cqh * var(--a), 100cqw);
+  aspect-ratio: var(--a);
+  transform-origin: 50% 100%;
   animation: idle-bob 3.6s ease-in-out infinite;
 }
-.machine__shadow { fill: rgba(87, 66, 57, .11); }
-.machine__foot { fill: var(--coral-deep); stroke: var(--ink); stroke-width: 7; }
-.machine__body { fill: var(--coral); stroke: var(--ink); stroke-width: 7; }
-.machine__panel { fill: #FFF1DC; stroke: var(--ink); stroke-width: 6; }
-.machine__blush { fill: var(--blush); opacity: .75; }
-
-.eye { transform-box: fill-box; transform-origin: center; animation: blink 4.4s ease-in-out infinite; }
-.eye--right { animation-delay: .08s; }
-.eye__ball { fill: var(--ink); }
-.eye__shine { fill: #fff; }
-
-.sparkle {
-  fill: var(--sun);
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: twinkle 2.6s ease-in-out infinite;
+@media (min-width: 601px) {
+  .machine { width: min(92cqh * var(--a), 100cqw - 2 * var(--mascot-w)); }
 }
-.sparkle--b { fill: var(--blush); animation-delay: .7s; }
-.sparkle--c { fill: var(--mint); animation-delay: 1.3s; }
-.sparkle--d { fill: var(--blush); animation-delay: 1.9s; }
-.machine__dome { fill: #FFFEFA; }
-.machine__dome-glass { fill: rgba(255,255,255,.2); stroke: var(--ink); stroke-width: 7; }
-.machine__shine { fill: rgba(255,255,255,.65); }
-.machine__rim { fill: var(--sun); stroke: var(--ink); stroke-width: 7; }
-#knob { transform-box: fill-box; transform-origin: center; }
-.machine__capsules { transform-box: fill-box; transform-origin: center; }
-.machine__knob-base { fill: var(--cream); stroke: var(--ink); stroke-width: 6; }
-.machine__knob-bar { fill: var(--ink); }
-.machine__slot { fill: #45352E; }
-.machine__capsules circle { stroke: rgba(74,59,52,.55); stroke-width: 2.5; }
+.machine__body {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* 把手:一個圓形按鈕疊在插畫上原本把手的位置。點它跟按「轉!」一樣。
+   位置用 translate 置中、旋轉用 transform —— 兩個是獨立屬性,轉的時候不會把置中蓋掉。 */
+.machine__knob {
+  position: absolute;
+  left: calc(var(--knob-x, .5) * 100%);
+  top: calc(var(--knob-y, .6) * 100%);
+  width: calc(var(--knob-r, .12) * 200%);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.machine__knob img { display: block; width: 100%; height: 100%; pointer-events: none; }
+.machine__knob:disabled { cursor: default; }
+.machine__knob:focus-visible { outline: 4px solid var(--sun); outline-offset: 4px; }
 
 /* ---------- overlay / capsule ---------- */
 .overlay {
@@ -234,6 +235,17 @@ body {
   padding: 10px 18px max(18px, env(safe-area-inset-bottom));
 }
 
+.draw-group { display: grid; justify-items: center; gap: 6px; }
+.remain-tag {
+  margin: 0;
+  padding: 4px 14px;
+  border-radius: 999px;
+  border: 3px solid var(--ink);
+  background: var(--cream);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
 .btn--draw {
   font-size: 30px;
   letter-spacing: .06em;
@@ -340,6 +352,16 @@ body {
 }
 
 @media (max-height: 560px) {
-  .machine { width: min(52vw, 40vh, 240px); }
-  .btn--draw { font-size: 22px; min-height: 56px; padding: 12px 36px; }
+  .draw-group { display: grid; justify-items: center; gap: 6px; }
+.remain-tag {
+  margin: 0;
+  padding: 4px 14px;
+  border-radius: 999px;
+  border: 3px solid var(--ink);
+  background: var(--cream);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.btn--draw { font-size: 22px; min-height: 56px; padding: 12px 36px; }
 }
