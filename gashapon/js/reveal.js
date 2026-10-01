@@ -225,7 +225,8 @@ export function createRevealer(els) {
       els.card.hidden = false;
       els.card.dataset.rarity = step.rarity;
       els.cardName.textContent = step.prize?.name ?? '';
-      els.cardBadge.textContent = RARITY_META[step.rarity].label;
+      // 標籤顯示稀有度代號(N / R / SR / SSR / UR),使用者 2026-10-01 指定
+      els.cardBadge.textContent = step.rarity;
       els.cardBadge.dataset.rarity = step.rarity;
       // 卡片是固定大小的外框圖,名字太長就縮字(要在卡片顯示之後量)
       fitText(els.cardName, els.cardName.parentElement, { max: 44, min: 18 });
