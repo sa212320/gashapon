@@ -73,6 +73,8 @@ const SEAM_MAT = new THREE.MeshBasicMaterial({ color: INK });
 // (bowlHeight,物理用同一條曲線),碗口一圈積雪的厚唇,外壁往下往內收,底下一圈影子。
 // 深度直接由蛋高算(BOWL_DEPTH = 蛋高 × 0.3),跟顆數無關 —— 碗只在水平方向跟著顆數縮放。
 const EGG_H = R * 2;
+// 碗的大小 = √顆數 × BOWL_FILL(越小越滿)
+const BOWL_FILL = 0.85;
 // 被點開的那顆飛到桌子中央上方這個高度(main.js 的 drop 用 FOCUS_Y)
 export const FOCUS_Y = 1.2;
 const FLOOR_Y = -R;
@@ -327,7 +329,9 @@ export function createScene(canvas) {
   function setEggs(capsules) {
     clear();
     // 面積要夠放下所有的蛋(再留一半的空隙),不然它們會擠成一坨互相卡住。
-    TABLE = Math.max(2.6, Math.min(7.2, Math.sqrt(capsules.length) * 1.15));
+    // 2026-10-02 使用者:「希望球感覺比較滿一點」→ 係數 1.15 → 0.85。平的盤底剛好裝滿,
+    // 多出來的蛋會靠在碗壁的斜坡上,看起來是一碗滿滿的蛋。
+    TABLE = Math.max(2.2, Math.min(6, Math.sqrt(capsules.length) * BOWL_FILL));
     // 水平跟著顆數縮放;深度另外算(碗口半徑 × 0.15,最少蛋高 × 0.3)。
     // 垂直縮放以盤面為基準(盤面高度不動,蛋才剛好貼著盤底)
     depthK = bowlDepth(BOWL_RIM * scaleK()) / BOWL_DEPTH;
