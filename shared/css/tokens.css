@@ -42,6 +42,9 @@ html {
   -webkit-touch-callout: none;          /* 長按不跳出「拷貝/查詢」選單 */
   -webkit-tap-highlight-color: transparent;
 }
+/* iOS Safari 判斷雙擊放大時看的是被點的那個元素本身,只寫在 html 上擋不住(使用者實機:
+   連點「搖動」還是會放大),每個元素都要寫;JS 那層(no-zoom.js)再補一道 */
+*, *::before, *::after { touch-action: pan-x pan-y; }
 /* 設定裡要打獎項名字:輸入框還是要能選字、能編輯 */
 input, textarea, select {
   -webkit-user-select: text;

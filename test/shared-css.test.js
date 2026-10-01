@@ -45,7 +45,7 @@ test('全站不能縮放:viewport 鎖住、CSS 只留捲動、iOS 的縮放手�
   for (const page of PAGES) {
     const html = read(page);
     assert.match(html, /name="viewport"[^>]*maximum-scale=1[^>]*user-scalable=no/, `${page} 的 viewport 沒鎖縮放`);
-    assert.match(html, /<script src="(\.\.\/)?shared\/js\/no-zoom\.js"><\/script>/, `${page} 沒載 no-zoom.js`);
+    assert.match(html, /<script src="(\.\.\/)?shared\/js\/no-zoom\.js(\?v=[0-9a-f]{8})?"><\/script>/, `${page} 沒載 no-zoom.js`);
   }
   assert.match(read('shared/js/no-zoom.js'), /gesturestart/);
 });
