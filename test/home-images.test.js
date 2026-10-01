@@ -17,9 +17,11 @@ function refs() {
   return [...fromHtml, ...fromCss].filter(p => !/^(data:|https?:)/.test(p)).map(p => p.split('?')[0]);
 }
 
-// 卡片插畫延到各模式的 issue(#2~#6)一起做,這一輪首頁只有標題木牌
-test('首頁標題有用到木牌插畫', () => {
-  assert.ok(refs().some(p => p.endsWith('img/home/sign.webp')), refs().join('\n'));
+// 2026-10-01 使用者決定拿掉首頁的木牌標題,首頁直接從卡片開始;h1 只留給螢幕閱讀器
+test('首頁沒有木牌標題,但保留一個隱藏的 h1', () => {
+  const html = readFileSync(join(root, 'index.html'), 'utf8');
+  assert.ok(!refs().some(p => p.endsWith('img/home/sign.webp')), '木牌不用了');
+  assert.match(html, /<h1 class="sr-only">抽獎小工具<\/h1>/);
 });
 
 test('首頁引用的每一張圖都存在', () => {

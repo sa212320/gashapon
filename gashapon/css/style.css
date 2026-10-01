@@ -44,10 +44,19 @@ body {
 .corner-tools .icon-btn {
   width: 46px;
   height: 46px;
+  /* iOS(WebKit)的 <button> 預設內距比較大,46px 的按鈕裝 26px 圖示會被擠偏,
+     喇叭的聲波凸出到圓框外面變成一塊白角(使用者 iPhone 截圖,2026-10-01)。
+     內距歸零、grid 置中、關掉預設外觀,再用 overflow: hidden 讓任何超出的東西都被圓框裁掉 */
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
   border-width: 4px;
   box-shadow: 0 4px 0 var(--ink);
 }
-.corner-tools .icon { width: 26px; height: 26px; }
+.corner-tools .icon { width: 26px; height: 26px; margin: 0; overflow: hidden; }
 
 /* ---------- stage ---------- */
 .stage {
