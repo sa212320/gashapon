@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { planarUV } from './skin-math.js';
 import { paintWall, paintFloor } from './ice-art.js';
-import { trayShake, SHAKE_SECONDS, bowlHeight, bowlSlope, bowlDepth, BOWL_RIM, BOWL_FLAT, BOWL_DEPTH } from './tray-motion.js';
+import { trayShake, shakeDirection, SHAKE_SECONDS, bowlHeight, bowlSlope, bowlDepth, BOWL_RIM, BOWL_FLAT, BOWL_DEPTH } from './tray-motion.js';
 
 const R = 0.5;             // 蛋的半徑
 const TABLE_BASE = 3.4;    // 桌面幾何的基準半徑(實際大小靠 scale 跟著顆數變)
@@ -370,6 +370,7 @@ export function createScene(canvas) {
   // 被點開的那顆飛到中央時,周圍這個半徑內的蛋會被推開
   const CLEAR = R * 4.6;
 
+  let shakeDir = { x: 1, z: 0 };   // 這一次搖的方向(每次隨機,見 shakeDirection)
   let shakeT = -1;            // 搖動開始後經過的秒數;< 0 = 沒在搖
   let pinned = null;          // 演出中的那顆:不參與物理,其他蛋要讓開
 
@@ -381,7 +382,7 @@ export function createScene(canvas) {
     if (shakeT >= 0) {
       shakeT += dt;
       const m = trayShake(shakeT);
-      stage.position.set(m.x, m.y, 0);
+      stage.position.set(m.x * shakeDir.x, m.y, m.x * shakeDir.z);
       ax = m.ax;
       ay = m.ay;
       if (shakeT >= SHAKE_SECONDS) shakeT = -1;
@@ -409,7 +410,9 @@ export function createScene(canvas) {
         e.v.z -= pz0 * CENTER_PULL * dt;
       }
       // 慣性力:在空中完全不受托盤影響;貼著盤底時被摩擦帶走 GRIP 那一份
-      e.v.x -= ax * (onTable ? 1 - GRIP : 1) * dt;
+      const slip = (onTable ? 1 - GRIP : 1) * dt;
+      e.v.x -= ax * shakeDir.x * slip;
+      e.v.z -= ax * shakeDir.z * slip;
       // 托盤往上加速 = 盤底把蛋往上頂(等效重力變大);往下加速超過重力,蛋就離開盤底
       e.v.y += (GRAVITY - ay) * dt;
       if (pinned) {
@@ -511,8 +514,14 @@ export function createScene(canvas) {
 
   // 搖動 = 真的搖托盤(2026-10-02 使用者:「我以為是真的搖動托盤,然後算出上面球要怎麼動」)。
   // 托盤左右來回、每甩一下往上頂一下(tray-motion.js),球怎麼動全部由 step() 的物理算。
+  // 一次只搖一下:搖的途中再按不算(2026-10-02 使用者連點「搖動」,每一下都從頭搖、疊加起來把蛋
+  // 甩出碗外,而且只跑到第一個半擺、推力全往同一邊)。搖完一整輪托盤停回原位、推力互相抵銷。
+  // 回傳這一下有沒有算數(main.js 只在算數時才放音效)。
   function shake() {
+    if (shakeT >= 0) return false;
     shakeT = 0;
+    shakeDir = shakeDirection();
+    return true;
   }
 
   // 演出中的那顆:釘住不參與物理,其他蛋從它下面讓開

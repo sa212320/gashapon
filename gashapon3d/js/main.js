@@ -276,7 +276,7 @@ function drawForMe() {
 }
 
 $('turnBtn').addEventListener('click', drawForMe);
-$('shakeBtn').addEventListener('click', () => { if (!playing) { scene.shake(); sfx.shake?.(2); } });
+$('shakeBtn').addEventListener('click', () => { if (!playing && scene.shake()) sfx.shake?.(2); });
 $('scene').addEventListener('click', e => {
   // 獎項卡還開著的話,這一下只負責把它收掉,不要順手開下一顆
   if (playing || dismissPrize()) return;

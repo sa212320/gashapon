@@ -60,3 +60,10 @@ export function bowlSlope(r) {
 export function bowlDepth(rimRadius) {
   return Math.max(0.3, rimRadius * 0.16);
 }
+
+// 每次搖動的方向(水平面上的單位向量)。連點「搖動」時每一下都從頭開始、只跑到第一個半擺,
+// 方向固定的話每一下都往同一邊推,球全擠到一邊(2026-10-02 使用者回報),所以每次隨機。
+export function shakeDirection(rng = Math.random) {
+  const a = rng() * Math.PI * 2;
+  return { x: Math.cos(a), z: Math.sin(a) };
+}

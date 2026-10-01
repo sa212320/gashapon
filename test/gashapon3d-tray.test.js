@@ -82,3 +82,33 @@ test('bowlDepth:半徑 × 0.16,最少蛋高 × 0.3', () => {
   assert.ok(Math.abs(bowlDepth(6) - 0.96) < 1e-9);
   assert.ok(bowlDepth(7) > bowlDepth(6));
 });
+
+import { shakeDirection } from '../gashapon3d/js/tray-motion.js';
+
+// 連點「搖動」時每一下都從頭開始搖,只會跑到第一個半擺 —— 方向固定的話每一下都往同一邊推,
+// 球全擠到右邊(2026-10-02 使用者回報)。每次搖的方向隨機,連點就是隨機推,不會偏一邊。
+test('shakeDirection:單位向量,方向跟著亂數走、各方向都有', () => {
+  const dirs = [0, 0.25, 0.5, 0.75].map(r => shakeDirection(() => r));
+  for (const d of dirs) assert.ok(Math.abs(Math.hypot(d.x, d.z) - 1) < 1e-9);
+  assert.ok(dirs.some(d => d.x > 0.5) && dirs.some(d => d.x < -0.5));
+  assert.ok(dirs.some(d => d.z > 0.5) && dirs.some(d => d.z < -0.5));
+});
+
+test('連點很多次(每次只跑前 0.1 秒):隨機方向的推力加起來不會偏一邊', () => {
+  let s = 1;
+  const rng = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+  let vx = 0;
+  let vz = 0;
+  for (let i = 0; i < 400; i++) {
+    const d = shakeDirection(rng);
+    for (let t = 0; t < 0.1; t += 0.005) {
+      const a = trayShake(t).ax;
+      vx -= a * d.x * 0.005;
+      vz -= a * d.z * 0.005;
+    }
+  }
+  // 固定方向的話這裡會是 400 下同號累加;隨機方向就只剩隨機漫步的量級
+  let one = 0;
+  for (let t = 0; t < 0.1; t += 0.005) one += trayShake(t).ax * 0.005;
+  assert.ok(Math.hypot(vx, vz) < Math.abs(one) * 400 * 0.25, `${Math.hypot(vx, vz)} vs 固定方向 ${Math.abs(one) * 400}`);
+});
