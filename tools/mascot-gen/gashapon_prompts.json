@@ -50,5 +50,14 @@
     "SR": "a square flat decorative pattern swatch filling the whole picture edge to edge, snowflake and ice crystal theme, one medium-sized detailed snowflake in the center, many small snowflakes scattered evenly around it, one thin frosty band running horizontally across the middle, no border, no frame around the edges",
     "SSR": "a square flat decorative pattern swatch filling the whole picture edge to edge, snowflake and ice crystal theme, one large ornate detailed snowflake in the center, dense small snowflakes all over, an ornate ice crystal patterned band running horizontally across the middle, small sparkles, no border, no frame around the edges",
     "UR": "a square flat decorative pattern swatch filling the whole picture edge to edge, snowflake and ice crystal theme, one large intricate ornate snowflake crystal in the center, surrounded by many small snowflakes and sparkles, an ornate ice crystal patterned band running horizontally across the middle, the most luxurious and detailed, no border, no frame around the edges"
+  },
+  "frame_style": "flat 2D cartoon illustration, cute chibi style, flat colors, thick dark brown outlines, magical frozen ice palace theme, icy blue lavender and white palette",
+  "frame_base": "a single horizontal rectangular decorative frame seen straight on, landscape 4:3 proportions, the frame is made of shiny ice and snow, the center is a large plain flat empty light cream panel with nothing on it, the frame alone with nothing else around it, isolated on a solid flat bright pure green #00FF00 background",
+  "frames": {
+    "N": "a simple thin icy blue frame with rounded corners and a little snow on the top edge",
+    "R": "an icy blue frame with fluffy snow piled along the top edge and a small snowflake at each corner",
+    "SR": "an icy blue frame with fluffy snow piled along the top edge, small icicles hanging along the bottom edge, and ice crystals at each corner",
+    "SSR": "an ornate icy blue frame with fluffy snow on top, ornate ice crystal clusters at each corner, a snowflake ornament at the top center, icicles along the bottom and little sparkles",
+    "UR": "the most luxurious ornate icy blue and lavender frame, a big sparkling ice crystal crown at the top center, ornate snowflakes at all four corners, frosty filigree along all edges, icicles along the bottom and many glittering sparkles"
   }
 }

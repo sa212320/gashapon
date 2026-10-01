@@ -87,3 +87,21 @@ def graph_t2i(prompt, negative, width, height, seed, prefix, steps=9):
         '9': {'class_type': 'VAEDecode', 'inputs': {'samples': ['8', 0], 'vae': ['3', 0]}},
         '10': {'class_type': 'SaveImage', 'inputs': {'images': ['9', 0], 'filename_prefix': prefix}},
     }
+
+
+def graph_i2i(image_name, prompt, negative, seed, prefix, denoise, steps=9):
+    """z_image 圖生圖:以已上傳的 image_name 為起點,denoise 決定改動幅度(越大改越多)。
+    用來讓一組素材共用同一個底(例如 5 個等級的外框),只在細節上逐級變化。"""
+    return {
+        '1': {'class_type': 'UNETLoader', 'inputs': {'unet_name': 'z_image_turbo_bf16.safetensors', 'weight_dtype': 'default'}},
+        '2': {'class_type': 'CLIPLoader', 'inputs': {'clip_name': 'qwen_3_4b.safetensors', 'type': 'lumina2', 'device': 'default'}},
+        '3': {'class_type': 'VAELoader', 'inputs': {'vae_name': 'ae.safetensors'}},
+        '4': {'class_type': 'ModelSamplingAuraFlow', 'inputs': {'model': ['1', 0], 'shift': 3.0}},
+        '5': {'class_type': 'CLIPTextEncode', 'inputs': {'clip': ['2', 0], 'text': prompt}},
+        '6': {'class_type': 'CLIPTextEncode', 'inputs': {'clip': ['2', 0], 'text': negative}},
+        '7': {'class_type': 'LoadImage', 'inputs': {'image': image_name}},
+        '11': {'class_type': 'VAEEncode', 'inputs': {'pixels': ['7', 0], 'vae': ['3', 0]}},
+        '8': {'class_type': 'KSampler', 'inputs': {'model': ['4', 0], 'seed': seed, 'steps': steps, 'cfg': 1.0, 'sampler_name': 'res_multistep', 'scheduler': 'simple', 'positive': ['5', 0], 'negative': ['6', 0], 'latent_image': ['11', 0], 'denoise': denoise}},
+        '9': {'class_type': 'VAEDecode', 'inputs': {'samples': ['8', 0], 'vae': ['3', 0]}},
+        '10': {'class_type': 'SaveImage', 'inputs': {'images': ['9', 0], 'filename_prefix': prefix}},
+    }

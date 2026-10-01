@@ -277,6 +277,42 @@ def cmd_build_shells(args):
     print('shells done')
 
 
+def cmd_frames(args):
+    # 揭曉卡片外框(2026-10-01 第三版):彩色整張框,卡片固定比例、字自動縮,不需要九宮格
+    cfg = load_cfg()
+    for r in (args.only.split(',') if args.only else RARITIES):
+        generate(f'{cfg["frame_style"]}, {cfg["frame_base"]}, {cfg["frames"][r]}', cfg['negative'], 1024, 768, f'frame-{r}')
+
+
+def cmd_frames_i2i(args):
+    """以挑好的一張框為底,用圖生圖衍生 5 個等級,讓底框一致、只在裝飾上逐級變華麗。
+    越高階 denoise 越大(加得出新裝飾,但也越可能跑掉)。輸出 out/gashapon/frame-i2i/<rarity>-s<n>.png。"""
+    cfg = load_cfg()
+    base = OUT / args.base
+    name = comfy.upload(base.read_bytes(), f'gashapon_frame_base_{base.parent.name}_{base.stem}.png')
+    denoise = dict(zip(RARITIES, [float(v) for v in args.denoise.split(',')]))
+    d = OUT / 'frame-i2i'
+    d.mkdir(parents=True, exist_ok=True)
+    for r in RARITIES:
+        prompt = f'{cfg["frame_style"]}, {cfg["frame_base"]}, {cfg["frames"][r]}'
+        for n, seed in enumerate(SEEDS[:args.seeds], 1):
+            imgs = comfy.run(comfy.graph_i2i(name, prompt, cfg['negative'], seed, f'gashapon_frame_i2i_{r}_s{n}', denoise[r]))
+            (d / f'{r}-s{n}.png').write_bytes(comfy.fetch(imgs[0]))
+            print(f'i2i {r} s{n} denoise={denoise[r]}', flush=True)
+
+
+def review_frames():
+    out = []
+    for r in RARITIES:
+        d = OUT / f'frame-{r}'
+        figs = [figure(f'frame-{r}', f, 300, [], f"`pick frame-{r} {f.stem[1:]}`") for f in sorted(d.glob('s*.png'))] if d.exists() else []
+        out.append(section(f'frame-{r}', figs))
+    return '\n'.join(out)
+
+
+REVIEW_SECTIONS.append(review_frames)
+
+
 def cmd_patterns(args):
     # 扭蛋殼的花紋貼圖(2026-10-01 模型修訂):球由 CSS 畫,這裡只生方形灰階貼圖,白底不用去背
     cfg = load_cfg()
@@ -303,7 +339,8 @@ def cmd_build_patterns(args):
 
 COMMANDS = {'machine': cmd_machine, 'review': cmd_review, 'pick': cmd_pick, 'build-machine': cmd_build_machine,
             'shells': cmd_shells, 'build-shells': cmd_build_shells,
-            'patterns': cmd_patterns, 'build-patterns': cmd_build_patterns}
+            'patterns': cmd_patterns, 'build-patterns': cmd_build_patterns,
+            'frames': cmd_frames, 'frames-i2i': cmd_frames_i2i}
 
 
 def main():
@@ -317,6 +354,9 @@ def main():
     sub.add_parser('build-machine')
     sh = sub.add_parser('shells'); sh.add_argument('--separate', action='store_true'); sh.add_argument('--only', help='逗號分隔的稀有度,例如 SSR,UR')
     sub.add_parser('build-shells')
+    fr = sub.add_parser('frames'); fr.add_argument('--only', help='逗號分隔的稀有度')
+    fi = sub.add_parser('frames-i2i'); fi.add_argument('base', help='相對於 out/gashapon,例如 frame-SR/s2.png')
+    fi.add_argument('--denoise', default='0.35,0.45,0.52,0.6,0.68', help='N,R,SR,SSR,UR 的改動幅度'); fi.add_argument('--seeds', type=int, default=2)
     pt = sub.add_parser('patterns'); pt.add_argument('--only', help='逗號分隔的稀有度')
     sub.add_parser('build-patterns')
     args = ap.parse_args()
