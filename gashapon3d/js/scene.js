@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { planarUV } from './skin-math.js';
 import { FLOOR_URL, WALL_URL } from './tray-art.js';
-import { trayShake, SHAKE_SECONDS } from './tray-motion.js';
+import { trayShake, SHAKE_SECONDS, bowlHeight, bowlSlope, bowlDepth, BOWL_RIM, BOWL_FLAT, BOWL_DEPTH } from './tray-motion.js';
 
 const R = 0.5;             // 蛋的半徑
 const TABLE_BASE = 3.4;    // 桌面幾何的基準半徑(實際大小靠 scale 跟著顆數變)
@@ -69,66 +69,61 @@ for (const g of [TOP_GEO, BOTTOM_GEO]) {
 const SEAM_GEO = new THREE.TorusGeometry(R * 1.005, R * 0.05, 8, 64).rotateX(Math.PI / 2);
 const SEAM_MAT = new THREE.MeshBasicMaterial({ color: INK });
 
-// 冰雪托盤(2026-10-02):盤底是俯視冰面貼圖,外圍一圈有厚度的冰牆(像首頁卡片那樣)。
-// 牆高直接由蛋高算,跟顆數無關 —— 托盤只在水平方向跟著顆數縮放,牆永遠是蛋的同一個比例。
+// 冰雪碗(2026-10-02:使用者「我以為會更像碗」):中間平的冰面,往外沿拋物線翹到碗口
+// (bowlHeight,物理用同一條曲線),碗口一圈積雪的厚唇,外壁往下往內收,底下一圈影子。
+// 深度直接由蛋高算(BOWL_DEPTH = 蛋高 × 0.3),跟顆數無關 —— 碗只在水平方向跟著顆數縮放。
 const EGG_H = R * 2;
 // 被點開的那顆飛到桌子中央上方這個高度(main.js 的 drop 用 FOCUS_Y)
 export const FOCUS_Y = 1.2;
-const WALL_RATIO = 0.3;                    // 牆高 = 蛋高 × 這個比例(要調牆高只改這裡)
 const FLOOR_Y = -R;
-const WALL_TOP = FLOOR_Y + EGG_H * WALL_RATIO;
-const WALL_IN = TABLE_BASE - 0.12;         // 牆內壁(基準半徑)
-const WALL_OUT = TABLE_BASE + 0.4;         // 牆外壁
-const WALL_FOOT = FLOOR_Y - 0.18;          // 外壁往下多一截,看得出托盤的厚度
-const LIP = (WALL_OUT - WALL_IN) * 0.35;   // 上緣圓弧的高度
+const RIM_Y = FLOOR_Y + BOWL_DEPTH;
+const WALL_OUT = BOWL_RIM + 0.16;          // 碗唇外緣(使用者要薄一點;唇太寬整個碗看起來都是白的雪)
+const WALL_FOOT = FLOOR_Y - 0.4;           // 碗底(比盤面低一大截:外壁的冰要看得到)
+const LIP = 0.16;                          // 碗唇圓弧的高度
 
-// 剖面:內壁底 → 內壁頂 → 圓弧上緣 → 外壁頂 → 外壁底
+// 碗唇 + 外壁的剖面:唇內緣 → 圓弧唇 → 唇外緣 → 外壁往下往內收 → 碗底
 function wallProfile(grow = 0) {
-  const pts = [new THREE.Vector2(WALL_IN - grow, FLOOR_Y)];
-  pts.push(new THREE.Vector2(WALL_IN - grow, WALL_TOP));
-  const cx = (WALL_IN + WALL_OUT) / 2;
-  const rx = (WALL_OUT - WALL_IN) / 2 + grow;
-  for (let i = 1; i < 10; i++) {
+  const pts = [];
+  const cx = (BOWL_RIM + WALL_OUT) / 2;
+  const rx = (WALL_OUT - BOWL_RIM) / 2 + grow;
+  for (let i = 0; i <= 10; i++) {
     const a = Math.PI - (i / 10) * Math.PI;
-    pts.push(new THREE.Vector2(cx + Math.cos(a) * rx, WALL_TOP + Math.sin(a) * (LIP + grow)));
+    pts.push(new THREE.Vector2(cx + Math.cos(a) * rx, RIM_Y + Math.sin(a) * (LIP + grow)));
   }
-  pts.push(new THREE.Vector2(WALL_OUT + grow, WALL_TOP));
-  pts.push(new THREE.Vector2(WALL_OUT + grow, WALL_FOOT - grow));
+  // 外壁:直的(使用者:「冰牆要直的,不要有弧度」),唇下面先是一圈滴雪,接著是冰,直直到碗底
+  const x = WALL_OUT + grow;
+  pts.push(new THREE.Vector2(x, RIM_Y - 0.06));
+  pts.push(new THREE.Vector2(x, FLOOR_Y + BOWL_DEPTH * 0.2));
+  pts.push(new THREE.Vector2(x, FLOOR_Y - 0.2));
+  pts.push(new THREE.Vector2(x, WALL_FOOT - grow));
   return pts;
 }
 
-// 牆帶貼圖(上雪、中間一條波浪滴雪線、下面冰)依剖面上的位置挑段落貼:
-//   上緣圓弧 → 只用白色雪的那段(鏡頭往下看時看到的大多是上緣,貼到外框線或滴雪線
-//              會排成一圈灰色鍊條,2026-10-02 實機看到)
-//   外壁     → 從滴雪線一路到冰,側面看得到雪往下滴
-//   內壁     → 只用冰
-// LatheGeometry 的頂點是「每一段 × 剖面上每一點」排的,剖面第 j 點的 v 由這張表決定。
-const WALL_V = (() => {
-  const n = wallProfile().length;           // 0 內壁底、1 內壁頂、2…n-3 上緣、n-2 外壁頂、n-1 外壁底
-  return Array.from({ length: n }, (_, j) => {
-    if (j === 0) return 0.30;
-    if (j === 1) return 0.60;
-    if (j === n - 2) return 0.80;
-    if (j === n - 1) return 0.04;
-    return 0.88;
-  });
-})();
+// 牆帶貼圖(上雪、中間一條波浪滴雪線、下面冰)依剖面上的位置挑段落貼:碗唇只用白雪那段
+// (鏡頭看到的大多是唇,貼到外框線或滴雪線會排成一圈灰色鍊條),外壁從滴雪線一路到冰。
+// 明暗是畫出來的(頂點色,不打光):唇朝內最亮、朝外暗一階,外壁往下越暗;右半邊整圈再暗一點
+// (光從左上來,同 2D 扭蛋殼右側的月牙暗面)。
+const N_LIP = 11;
+function wallLook(j, n) {
+  if (j < N_LIP) {
+    const t = j / (N_LIP - 1);                // 唇:朝內 0 → 朝外 1
+    return { v: 0.88, shade: 1 - 0.14 * t };
+  }
+  // 外壁(貼圖由上往下:滴雪線 → 冰;不用貼圖最底下那條雪跟外框線)
+  const k = j - N_LIP;                                 // 0 滴雪、1 冰上段、2 冰下段、3 碗底
+  return [
+    { v: 0.80, shade: 0.92 },
+    { v: 0.55, shade: 0.86 },
+    { v: 0.32, shade: 0.78 },
+    { v: 0.14, shade: 0.68 },
+  ][k];
+}
 
-// 畫出來的明暗(2026-10-02:沒有光源時托盤看起來是平的一片,使用者「我以為會更像碗」)。
-// 不打光、維持平塗,跟扭蛋殼的月牙暗面同一招:用頂點色把貼圖壓暗。
-//   剖面:內壁越往下越暗(牆擋住的感覺)、上緣朝內那側最亮、朝外那側跟外壁暗一階
-//   左右:光從左上來,右半邊整圈再暗一點(同 2D 扭蛋殼右側的暗面)
-const WALL_SHADE = (() => {
-  const n = wallProfile().length;
-  return Array.from({ length: n }, (_, j) => {
-    if (j === 0) return 0.72;                 // 內壁底
-    if (j === 1) return 0.84;                 // 內壁頂
-    if (j === n - 1) return 0.70;             // 外壁底
-    if (j === n - 2) return 0.80;             // 外壁頂
-    const t = (j - 2) / (n - 5);              // 上緣:朝內 0 → 朝外 1
-    return 1 - 0.14 * t;
-  });
-})();
+function shadeColor(col, i, k) {
+  col[i * 3] = k * 0.96;
+  col[i * 3 + 1] = k * 0.98;
+  col[i * 3 + 2] = k;                          // 暗面偏冷,不要變成髒灰
+}
 
 function wallGeometry(phiStart, grow = 0) {
   const pts = wallProfile(grow);
@@ -137,28 +132,36 @@ function wallGeometry(phiStart, grow = 0) {
   const pos = g.attributes.position;
   const col = new Float32Array(uv.count * 3);
   for (let i = 0; i < uv.count; i++) {
-    uv.setY(i, WALL_V[i % pts.length]);
+    const look = wallLook(i % pts.length, pts.length);
+    uv.setY(i, look.v);
     const side = Math.max(0, pos.getX(i) / WALL_OUT);   // 右半邊 0 → 1
-    const k = WALL_SHADE[i % pts.length] * (1 - 0.1 * side);
-    col[i * 3] = k * 0.96;
-    col[i * 3 + 1] = k * 0.98;
-    col[i * 3 + 2] = k;                               // 暗面偏冷,不要變成髒灰
+    shadeColor(col, i, look.shade * (1 - 0.1 * side));
   }
   g.setAttribute('color', new THREE.BufferAttribute(col, 3));
   return g;
 }
 
-// 盤底:中央最亮,往牆邊漸暗 —— 看起來是凹下去的
-function floorGeometry() {
-  const g = new THREE.RingGeometry(0, WALL_IN, 64, 6);
+// 碗裡的冰面:平的盤底加上翹起來的碗壁,同一張冰面貼圖從正上方投影上去(碗壁跟盤底接得起來)。
+// 明暗:中間最亮,越往碗邊越暗 —— 看起來是凹下去的。
+function basinGeometry() {
+  const pts = [];
+  const N = 24;
+  for (let i = 0; i <= N; i++) {
+    const r = (i / N) * BOWL_RIM;
+    pts.push(new THREE.Vector2(r, FLOOR_Y + bowlHeight(r)));
+  }
+  // 點序由內往外:正面朝上(跟 dome() 的坑同一件事,反了的話從上面看是空的)
+  const g = new THREE.LatheGeometry(pts.reverse(), 96);
   const pos = g.attributes.position;
+  const uv = g.attributes.uv;
   const col = new Float32Array(pos.count * 3);
   for (let i = 0; i < pos.count; i++) {
-    const r = Math.hypot(pos.getX(i), pos.getY(i)) / WALL_IN;
-    const k = 1 - 0.22 * r * r;
-    col[i * 3] = k * 0.94;
-    col[i * 3 + 1] = k * 0.97;
-    col[i * 3 + 2] = k;
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    uv.setXY(i, x / (2 * BOWL_RIM) + 0.5, 0.5 - z / (2 * BOWL_RIM));
+    const r = Math.hypot(x, z) / BOWL_RIM;
+    const side = Math.max(0, x / BOWL_RIM);
+    shadeColor(col, i, (1 - 0.24 * r * r) * (1 - 0.06 * side));
   }
   g.setAttribute('color', new THREE.BufferAttribute(col, 3));
   return g;
@@ -219,10 +222,8 @@ export function createScene(canvas) {
   groundShadow.renderOrder = -40;
   tray.add(groundShadow);
 
-  const floor = new THREE.Mesh(floorGeometry(),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, map: floorTex, vertexColors: true }));
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.y = FLOOR_Y;
+  const floor = new THREE.Mesh(basinGeometry(),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, map: floorTex, vertexColors: true, side: THREE.DoubleSide }));
   floor.renderOrder = -30;
   tray.add(floor);
 
@@ -244,7 +245,12 @@ export function createScene(canvas) {
   wallHalf(-Math.PI / 2, 100000);
 
   // 牆內壁(實際半徑):蛋的活動範圍、散開的範圍都以它為準
-  const inner = () => WALL_IN * (TABLE / TABLE_BASE);
+  const scaleK = () => TABLE / TABLE_BASE;
+  const inner = () => BOWL_RIM * scaleK();
+  // 碗的深度跟著碗的大小走(bowlDepth):幾何是用 BOWL_DEPTH 建的,垂直方向再縮放 depthK
+  let depthK = 1;
+  // 蛋在水平位置 (x, z) 時,蛋心最低能到多高(貼著碗面)
+  const ground = (x, z) => bowlHeight(Math.hypot(x, z) / scaleK()) * depthK;
 
   const raycaster = new THREE.Raycaster();
   let eggs = [];
@@ -296,7 +302,7 @@ export function createScene(canvas) {
   // 補一顆:從桌子上方隨機一點掉進來,落地會彈幾下(物理照常算)
   function dropEgg(capsule) {
     const angle = rand(0, Math.PI * 2);
-    const dist = Math.sqrt(rand(0, 1)) * (inner() - R * 1.2);
+    const dist = Math.sqrt(rand(0, 1)) * BOWL_FLAT * scaleK();
     const e = makeEgg(capsule, Math.cos(angle) * dist, 3.2, Math.sin(angle) * dist);
     e.v.set(rand(-0.6, 0.6), -1, rand(-0.6, 0.6));
     layout();
@@ -309,12 +315,15 @@ export function createScene(canvas) {
     clear();
     // 面積要夠放下所有的蛋(再留一半的空隙),不然它們會擠成一坨互相卡住。
     TABLE = Math.max(2.6, Math.min(7.2, Math.sqrt(capsules.length) * 1.15));
-    // 只縮水平:牆高由蛋高決定,不跟著顆數變(不然 40 顆時牆會比蛋高)
-    tray.scale.set(TABLE / TABLE_BASE, 1, TABLE / TABLE_BASE);
+    // 水平跟著顆數縮放;深度另外算(碗口半徑 × 0.15,最少蛋高 × 0.3)。
+    // 垂直縮放以盤面為基準(盤面高度不動,蛋才剛好貼著盤底)
+    depthK = bowlDepth(BOWL_RIM * scaleK()) / BOWL_DEPTH;
+    tray.scale.set(scaleK(), depthK, scaleK());
+    tray.position.y = FLOOR_Y * (1 - depthK);
     capsules.forEach((c, i) => {
       // 散在桌上,不要疊在正中央
       const angle = (i / capsules.length) * Math.PI * 2 + rand(-0.35, 0.35);
-      const dist = Math.sqrt(rand(0.05, 1)) * (inner() - R * 1.2);
+      const dist = Math.sqrt(rand(0.05, 1)) * (inner() - R * 1.6);
       const e = makeEgg(c, Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
       e.v.set(rand(-1.6, 1.6), rand(0, 2.2), rand(-1.6, 1.6));
     });
@@ -329,7 +338,7 @@ export function createScene(canvas) {
   const REST = 0.35;          // 彈到這個速度以下就當它停在桌上了
   // 托盤內凹的回中力。太強的話放著不動時所有蛋會擠成中間一團,被點開的那顆飛到中央時
   // 下半部會被前面的蛋擋住(2026-10-02);太弱的話搖完會排成一圈貼著牆。
-  const CENTER_PULL = 0.22;
+  const CENTER_PULL = 0.04;   // 碗壁的斜坡已經會把蛋拉回中間,這裡只留一點點
   // 冰面很滑:托盤加速時,貼在盤底的蛋只被帶走一小部分,大部分是「留在原地、被牆撞回來」
   const GRIP = 0.2;
   // 被點開的那顆飛到中央時,周圍這個半徑內的蛋會被推開
@@ -354,15 +363,24 @@ export function createScene(canvas) {
 
     for (const e of eggs) {
       if (e === pinned) continue;
-      // 水平摩擦只在貼著桌面時才有 —— 在空中被「摩擦」減速看起來很怪。
-      const onTable = e.group.position.y <= 0.001;
+      // 水平摩擦只在貼著碗面時才有 —— 在空中被「摩擦」減速看起來很怪。
+      const px0 = e.group.position.x;
+      const pz0 = e.group.position.z;
+      const onTable = e.group.position.y <= ground(px0, pz0) + 0.001;
       if (onTable) {
         e.v.x *= DAMPING;
         e.v.z *= DAMPING;
-        // 桌面當成微微內凹的托盤。沒有這一點的話,撞牆反彈會把所有蛋推到外圈,
-        // 搖完會排成一個圓環貼著桌緣 —— 那不像一盤蛋,像跑道。
-        e.v.x -= e.group.position.x * CENTER_PULL * dt;
-        e.v.z -= e.group.position.z * CENTER_PULL * dt;
+        // 碗壁的斜坡:重力沿著斜面的分量把蛋拉回中間(碗壁翹起來的地方才有;盤底是平的)。
+        // 這取代了原本「托盤微微內凹」的假回中力 —— 沒有它的話撞牆反彈會把蛋全推到外圈。
+        const d0 = Math.hypot(px0, pz0);
+        if (d0 > 1e-4) {
+          const slope = (bowlSlope(d0 / scaleK()) * depthK) / scaleK();
+          const a = (GRAVITY * slope) / (1 + slope * slope);   // GRAVITY < 0 → 往內
+          e.v.x += (px0 / d0) * a * dt;
+          e.v.z += (pz0 / d0) * a * dt;
+        }
+        e.v.x -= px0 * CENTER_PULL * dt;
+        e.v.z -= pz0 * CENTER_PULL * dt;
       }
       // 慣性力:在空中完全不受托盤影響;貼著盤底時被摩擦帶走 GRIP 那一份
       e.v.x -= ax * (onTable ? 1 - GRIP : 1) * dt;
@@ -384,9 +402,10 @@ export function createScene(canvas) {
       e.group.position.y += e.v.y * dt;
       e.group.position.z += e.v.z * dt;
 
-      // 地板。蛋的中心在 y=0 時剛好貼著桌面(桌面在 -R)。
-      if (e.group.position.y < 0) {
-        e.group.position.y = 0;
+      // 碗面。蛋心在 ground() 時剛好貼著碗面(盤底在 -R,所以平的地方是 y = 0)。
+      const floorY = ground(e.group.position.x, e.group.position.z);
+      if (e.group.position.y < floorY) {
+        e.group.position.y = floorY;
         if (e.v.y < -REST) {
           e.v.y = -e.v.y * FLOOR_BOUNCE;
         } else {
@@ -401,12 +420,12 @@ export function createScene(canvas) {
         AXIS.set(e.v.z, 0, -e.v.x).normalize();
         // 在空中不是「滾」,是翻 —— 所以離地時角速度不再跟半徑綁在一起,
         // 讓它保持一個比較慢的翻轉,落地才回到真正的滾動。
-        const spin = e.group.position.y > 0.02 ? 2.2 : speed / R;
+        const spin = e.group.position.y > floorY + 0.02 ? 2.2 : speed / R;
         e.group.rotateOnWorldAxis(AXIS, spin * dt);
       }
 
       const d = Math.hypot(e.group.position.x, e.group.position.z);
-      const max = inner() - R * 1.05;   // 牆內壁再留一顆蛋的半徑
+      const max = inner() - R * 0.9;    // 碗口內緣再留將近一顆蛋的半徑
       if (d > max) {
         const nx = e.group.position.x / d;
         const nz = e.group.position.z / d;
@@ -442,10 +461,10 @@ export function createScene(canvas) {
         const nz = dz / dist;
         const push = overlap / 2;
         a.group.position.x -= nx * push;
-        a.group.position.y = Math.max(0, a.group.position.y - ny * push);
+        a.group.position.y = Math.max(ground(a.group.position.x, a.group.position.z), a.group.position.y - ny * push);
         a.group.position.z -= nz * push;
         b.group.position.x += nx * push;
-        b.group.position.y = Math.max(0, b.group.position.y + ny * push);
+        b.group.position.y = Math.max(ground(b.group.position.x, b.group.position.z), b.group.position.y + ny * push);
         b.group.position.z += nz * push;
 
         const along = (b.v.x - a.v.x) * nx + (b.v.y - a.v.y) * ny + (b.v.z - a.v.z) * nz;
@@ -478,8 +497,9 @@ export function createScene(canvas) {
   // 不然被抽中的蛋會把影子留在原地。
   function layout() {
     for (const e of eggs) {
-      const lift = Math.max(0, e.group.position.y);
-      e.shadow.position.set(e.group.position.x, -R + 0.012, e.group.position.z);
+      const g = ground(e.group.position.x, e.group.position.z);
+      const lift = Math.max(0, e.group.position.y - g);
+      e.shadow.position.set(e.group.position.x, -R + g + 0.012, e.group.position.z);
       // 飛越高,影子越大越淡 —— 這是唯一能看出「它離開桌面了」的線索。
       e.shadow.scale.setScalar(1 + lift * 0.5);
       e.shadow.material.opacity = 0.2 / (1 + lift * 1.6);
@@ -552,8 +572,10 @@ export function createScene(canvas) {
   }
 
   // 平常看整桌。
+  // 平常看整碗。仰角壓低到約 36 度(原本約 48 度):從太高的地方往下看,只看得到碗口一圈,
+  // 看不出碗的形狀跟厚度。
   function homeView() {
-    look(TABLE * 1.62, TABLE * 1.82);
+    look(TABLE * 1.95, TABLE * 1.42);
   }
 
   // 點開一顆時推近。k: 0(整桌)→ 1(看那一顆)。
@@ -565,7 +587,7 @@ export function createScene(canvas) {
   const HOME = new THREE.Vector3();
   const CLOSE = new THREE.Vector3();
   function focusView(k) {
-    look(TABLE * 1.62, TABLE * 1.82);
+    homeView();
     HOME.copy(camera.position);
     const vHalf = (camera.fov * Math.PI) / 360;
     const hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);

@@ -41,3 +41,44 @@ test('trayShake:加速度 = 位移的二階導數', () => {
     assert.ok(Math.abs(numY - trayShake(t).ay) < Math.max(0.5, Math.abs(numY) * 0.01), `t=${t}: ${numY} vs ${trayShake(t).ay}`);
   }
 });
+
+import { bowlHeight, bowlSlope, BOWL_FLAT, BOWL_RIM, BOWL_DEPTH } from '../gashapon3d/js/tray-motion.js';
+
+// 托盤改成碗(2026-10-02 使用者:「我以為會更像碗」):中間平、往外沿弧線翹起到碗口。
+// 物理用同一條曲線:蛋滾到碗邊會沿著斜面滑回中間(取代原本的「內凹回中力」假力)。
+test('bowlHeight:中間平的,碗口最高', () => {
+  assert.equal(bowlHeight(0), 0);
+  assert.equal(bowlHeight(BOWL_FLAT), 0);
+  assert.ok(Math.abs(bowlHeight(BOWL_RIM) - BOWL_DEPTH) < 1e-9);
+  assert.equal(bowlHeight(BOWL_RIM + 1), BOWL_DEPTH);
+});
+
+test('bowlHeight:一路往外只升不降', () => {
+  let prev = -1;
+  for (let r = 0; r <= BOWL_RIM; r += 0.01) {
+    const h = bowlHeight(r);
+    assert.ok(h >= prev - 1e-12, `r=${r}`);
+    prev = h;
+  }
+});
+
+test('bowlSlope:平的地方是 0,碗邊越外越陡,跟高度的導數一致', () => {
+  assert.equal(bowlSlope(BOWL_FLAT * 0.5), 0);
+  const a = bowlSlope(BOWL_FLAT + (BOWL_RIM - BOWL_FLAT) * 0.3);
+  const b = bowlSlope(BOWL_FLAT + (BOWL_RIM - BOWL_FLAT) * 0.8);
+  assert.ok(a > 0 && b > a);
+  const r = BOWL_FLAT + (BOWL_RIM - BOWL_FLAT) * 0.5;
+  const num = (bowlHeight(r + 1e-5) - bowlHeight(r - 1e-5)) / 2e-5;
+  assert.ok(Math.abs(num - bowlSlope(r)) < 1e-4);
+});
+
+import { bowlDepth } from '../gashapon3d/js/tray-motion.js';
+
+// 碗的深度跟著碗的大小走(2026-10-02 使用者選 A):蛋多、碗大的時候也要看起來像碗,
+// 不是一片盤子;但再小也至少有蛋高的 0.3 倍。
+// 2026-10-02 使用者看過 0.15 的版本後要「高一點」→ 0.22
+test('bowlDepth:半徑 × 0.22,最少蛋高 × 0.3', () => {
+  assert.equal(bowlDepth(1), 0.3);
+  assert.ok(Math.abs(bowlDepth(6) - 1.32) < 1e-9);
+  assert.ok(bowlDepth(7) > bowlDepth(6));
+});

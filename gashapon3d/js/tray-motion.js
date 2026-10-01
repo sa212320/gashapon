@@ -32,3 +32,29 @@ export function trayShake(t) {
 
   return { x, y, ax, ay };
 }
+
+// ---------- 碗的形狀(2026-10-02:托盤改成碗) ----------
+// 半徑都是托盤的「基準」單位(scene.js 的 TABLE_BASE = 3.4,實際大小再依顆數水平縮放)。
+// 中間 BOWL_FLAT 以內是平的盤底,往外到碗口 BOWL_RIM 沿拋物線翹起 BOWL_DEPTH。
+// 用拋物線不用四分之一圓:圓弧在碗口是垂直的,斜率無限大,物理會一下把蛋彈飛。
+export const BOWL_RIM = 3.28;
+export const BOWL_FLAT = 1.8;
+export const BOWL_DEPTH = 0.3;        // = 蛋高(1.0)× 0.3,使用者先選 0.3 看看
+
+export function bowlHeight(r) {
+  if (r <= BOWL_FLAT) return 0;
+  const u = Math.min(1, (r - BOWL_FLAT) / (BOWL_RIM - BOWL_FLAT));
+  return BOWL_DEPTH * u * u;
+}
+
+export function bowlSlope(r) {
+  if (r <= BOWL_FLAT || r >= BOWL_RIM) return r >= BOWL_RIM ? (2 * BOWL_DEPTH) / (BOWL_RIM - BOWL_FLAT) : 0;
+  const w = BOWL_RIM - BOWL_FLAT;
+  return (2 * BOWL_DEPTH * (r - BOWL_FLAT)) / (w * w);
+}
+
+// 碗實際的深度(場景單位):碗口半徑 × 0.22,最少蛋高(1.0)× 0.3(0.15 看過,使用者要再高一點)。
+// 只看蛋高的話,30 顆蛋時碗寬 12 顆蛋、深 0.3 顆,從遠處看是一片盤子(2026-10-02)。
+export function bowlDepth(rimRadius) {
+  return Math.max(0.3, rimRadius * 0.22);
+}
