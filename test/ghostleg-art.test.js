@@ -100,3 +100,12 @@ test('結果卡的名字和獎項不截斷(不用 ellipsis,長的就換行)', ()
     assert.ok(!/ellipsis|nowrap/.test(rule), `${sel}: ${rule}`);
   }
 });
+
+// 2026-10-02 使用者:「下方小狐狸露出來了」—— 畫布只蓋到開始鈕上方,特寫時冰板蓋滿畫布,
+// 吉祥物(在畫布後面)只剩下半身從底下那條露出來。跟立體扭蛋機一樣讓畫布撐滿視窗。
+test('3D 畫布和大字名牌層撐滿整個視窗(position: fixed; inset: 0)', () => {
+  const css = readFileSync(new URL('../ghostleg/css/ghostleg.css', import.meta.url), 'utf8');
+  const rule = sel => css.slice(css.indexOf(`${sel} {`), css.indexOf('}', css.indexOf(`${sel} {`)));
+  assert.match(rule('.track'), /position: fixed; inset: 0/);
+  assert.match(rule('.name-layer'), /position: fixed; inset: 0/);
+});
