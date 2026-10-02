@@ -2,7 +2,7 @@
 // 計算都在 ribbon.js / labels.js / prize-motion.js / camera-script.js(node 測得到),這裡只負責變成網格。
 import * as THREE from 'three';
 import { snowWidth, snowRim, ribbonWidth, offsetRoute, roundCorners, cutAt, stripData } from './ribbon.js';
-import { tagLift, tagFontSize, SNOW_H, BASE_H, STANDEE_H, TAG_H, standeeFoot } from './labels.js';
+import { tagLift, tagFontSize, SNOW_H, BASE_H, BASE_R, STANDEE_H, TAG_H, standeeFoot } from './labels.js';
 import { animalCanvas, textColorFor } from './tint.js';
 import { boardWidth } from './camera-script.js';
 
@@ -78,7 +78,7 @@ export function ribbonGeometry(route, dist, laneWidth) {
 // 桌遊立牌:動物(原色,billboard)站在戰棋底座上 —— 加厚、上窄下寬的斜邊圓座,底座是玩家色、底下一圈深棕
 export function buildStandee(player, laneWidth, image) {
   const g = new THREE.Group();
-  const r = laneWidth * 0.32;
+  const r = laneWidth * BASE_R;
   const baseH = laneWidth * BASE_H;
   const rimDisk = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.16, r * 1.16, baseH * 0.35, 32), new THREE.MeshBasicMaterial({ color: INK }));
   rimDisk.position.y = SNOW_H + baseH * 0.175;
@@ -97,7 +97,7 @@ export function buildStandee(player, laneWidth, image) {
   return g;
 }
 
-// 名牌:玩家色底、字色依對比挑;人多時相鄰一高一低(tagLift)
+// 名牌:玩家色底、字色依對比挑;放在底座正前方,人多時相鄰一前一後(tagLift → tagPlace)
 export function buildNameTag(player, laneWidth, lane, lanes) {
   const c = document.createElement('canvas');
   c.width = 300;
@@ -117,7 +117,7 @@ export function buildNameTag(player, laneWidth, lane, lanes) {
   ctx.fillStyle = textColorFor(player.color);
   ctx.fillText(player.name, 150, 37, 260);
   const s = sprite(canvasTexture(c), laneWidth * 1.3, laneWidth * TAG_H);
-  s.userData.lift = tagLift(lane, lanes) * laneWidth * 0.34;
+  s.userData.stagger = tagLift(lane, lanes);
   s.renderOrder = 10;   // 名字永遠畫在最上層:亂飛的獎品、別人的立牌都不能蓋住它
   return s;
 }

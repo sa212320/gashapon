@@ -129,17 +129,20 @@ test('雪路外框也跟著車道寬縮放:40 人時不會比雪路本身還粗'
   assert.ok(snowRim(0.34) * 2 < snowWidth(0.34));
 });
 
-import { standeeTop, tagY, TAG_H } from '../ghostleg/js/labels.js';
+import { tagPlace, TAG_H, BASE_H, BASE_R, standeeFoot } from '../ghostleg/js/labels.js';
 
-test('名牌不擋到棋子:名牌底緣一定高於立牌頭頂(6 人與 40 人)', () => {
+// 2026-10-02 使用者:「還是名字直接在下方啊」—— 名牌放在戰棋底座正前方,像公仔底座前面的名條。
+test('名牌在底座正前方:高度跟底座差不多,而且在底座外緣的前面', () => {
   for (const w of [1, 0.34]) {
-    for (const lift of [0, w * 0.34]) {
-      const bottom = tagY(w, lift) - (TAG_H * w) / 2;
-      assert.ok(bottom > standeeTop(w), `w=${w} lift=${lift}: 名牌底 ${bottom.toFixed(3)} ≤ 頭頂 ${standeeTop(w).toFixed(3)}`);
-    }
+    const t = tagPlace(w, 0);
+    assert.ok(t.y - (TAG_H * w) / 2 <= standeeFoot(w), '名牌頂不能高過動物的腳太多(不然又擋到棋子)');
+    assert.ok(t.y + (TAG_H * w) / 2 <= standeeFoot(w) + TAG_H * w, '名牌整塊在腳的高度附近');
+    assert.ok(t.z >= BASE_R * w * 1.16, '名牌在底座外緣的前面');
   }
 });
 
-test('名牌離頭頂至少 0.15 個車道寬(鏡頭往下看,垂直間距在畫面上會被壓扁)', () => {
-  for (const w of [1, 0.34]) assert.ok(tagY(w) - (TAG_H * w) / 2 - standeeTop(w) >= 0.15 * w - 1e-9);
+test('人多時名牌一前一後錯開(不是一高一低,高了會擋到棋子)', () => {
+  const w = 0.34;
+  assert.ok(tagPlace(w, 1).z > tagPlace(w, 0).z + TAG_H * w * 0.9);
+  assert.equal(tagPlace(w, 1).y, tagPlace(w, 0).y);
 });
