@@ -72,3 +72,12 @@ test('一番賞、爬格子不顯示人數 / 張數小字(使用者:「小字沒
     assert.ok(!/remainTag/.test(read(`${mode}/js/main.js`)), mode);
   }
 });
+
+// 2026-10-02 使用者:「一番賞開場動畫出問題了」—— body 是 auto 1fr auto 三列(標題列 / 舞台 / 工具列),
+// 兩個都拿掉後舞台掉進第一列(auto),只剩內容高(257px),開場的抽獎箱、飛籤全擠在上面一小塊
+test('一番賞:舞台獨佔整個畫面高(body 只剩一列 1fr)', () => {
+  const css = read('ichiban/css/ichiban.css');
+  const at = css.indexOf('\nbody {');
+  const body = css.slice(at, css.indexOf('}', at));
+  assert.match(body, /grid-template-rows: minmax\(0, 1fr\);/);
+});

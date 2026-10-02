@@ -8,7 +8,9 @@ html, body { margin: 0; height: 100%; }
 body {
   min-height: 100dvh;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  /* 只剩舞台一列(2026-10-02 標題列、工具列都拿掉了)。留著 auto 1fr auto 的話舞台會掉進第一列(auto),
+     高度只剩內容那麼高,開場動畫的抽獎箱、飛籤全擠在上面一小塊(使用者回報) */
+  grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
 }
 
