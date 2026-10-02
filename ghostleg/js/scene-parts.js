@@ -119,7 +119,7 @@ export function buildNameTag(player, laneWidth, lane, lanes) {
   ctx.fillText(player.name, 150, 37, 260);
   const s = sprite(canvasTexture(c), laneWidth * 1.3, laneWidth * TAG_H);
   s.userData.stagger = tagLift(lane, lanes);
-  s.renderOrder = 10;   // 名字永遠畫在最上層:亂飛的獎品、別人的立牌都不能蓋住它
+  // 不設 renderOrder:跟立牌一樣依遠近排序,近的蓋遠的。設成永遠最上層的話,比賽時會蓋到別人(使用者)
   return s;
 }
 

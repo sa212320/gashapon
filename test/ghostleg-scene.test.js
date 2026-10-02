@@ -270,3 +270,12 @@ test('clampTagX:掃到畫面外的名牌不夾回來(回 null 隱藏),不然會�
   assert.equal(clampTagX(390 + 120, 200, 390), null);
   assert.equal(clampTagX(-60, 200, 390), null, '棋子中心已經在畫面外(只露出一半)也隱藏,不然會跟隔壁的名牌黏在一起');
 });
+
+// 2026-10-02 使用者:「跑的時候名字為啥會遮住後面的人」—— 名牌設成永遠畫在最上層(renderOrder 10),
+// 比賽時前後交錯就蓋到別人。改回跟立牌一樣依遠近排序。
+test('3D 名牌跟立牌一樣依遠近排序,不是永遠畫在最上層', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../ghostleg/js/scene-parts.js', import.meta.url), 'utf8');
+  const tag = src.slice(src.indexOf('export function buildNameTag'), src.indexOf('export function buildPrizeSprite'));
+  assert.ok(!/renderOrder\s*=\s*[1-9]/.test(tag), '名牌不能有比立牌高的 renderOrder');
+});
