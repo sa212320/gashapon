@@ -53,6 +53,38 @@ export function createDeskView({ deskEl, pileEl, canvasEl, emptyStateEl, onPick 
     redraw();
   }
 
+  // 每張卡先畫成一張小圖(含影子),捲動時只把小圖貼上去 —— 每格都重畫整張票卡
+  // (雪花、號碼、頭)在手機上會跟不上捲動(review 2026-10-02)。卡片尺寸、dpr、
+  // 素材載好時整批作廢重畫。
+  const SHADOW = 0.05;           // 影子往下偏移,卡寬的比例
+  let sprites = new Map();
+  let spriteKey = '';
+
+  function spriteFor(no, cardW, cardH, dpr) {
+    let s = sprites.get(no);
+    if (s) return s;
+    const pad = Math.ceil(Math.max(1.5, cardW * SHADOW));
+    s = document.createElement('canvas');
+    s.width = Math.ceil(cardW * dpr);
+    s.height = Math.ceil((cardH + pad) * dpr);
+    const ctx = s.getContext('2d');
+    ctx.scale(dpr, dpr);
+    // 跟以前 box-shadow 一樣的下方實影
+    ctx.save();
+    ctx.translate(0, pad);
+    traceTicket(ctx, { orientation: 'portrait', w: cardW, h: cardH });
+    ctx.fillStyle = 'rgba(87, 66, 57, .35)';
+    ctx.fill();
+    ctx.restore();
+    drawFace(ctx, {
+      color: faceColorFor(no), no, critter: critterFor(no),
+      orientation: 'portrait', w: cardW, h: cardH,
+    });
+    s.pad = pad;
+    sprites.set(no, s);
+    return s;
+  }
+
   function draw() {
     frame = 0;
     if (!layout) return;
@@ -63,30 +95,26 @@ export function createDeskView({ deskEl, pileEl, canvasEl, emptyStateEl, onPick 
       canvasEl.width = Math.round(w * dpr);
       canvasEl.height = Math.round(h * dpr);
     }
+    // CSS 尺寸跟著畫的尺寸走:clientWidth 不含捲軸,寫死 100% 的話
+    // 有傳統捲軸時整張會被橫向拉伸,卡跟按鈕對不齊(review 2026-10-02)
+    canvasEl.style.width = `${w}px`;
+    canvasEl.style.height = `${h}px`;
+    const { cardW, cardH } = layout;
+    const key = `${cardW}|${dpr}`;
+    if (key !== spriteKey) { sprites = new Map(); spriteKey = key; }
     const ctx = canvasEl.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
-    const { cardW, cardH } = layout;
     const top = deskEl.scrollTop;
     for (const s of slots) {
       // offsetLeft/Top 是排版位置(不含 rotate),相對於 .desk(position: relative)
       const y = s.el.offsetTop - top;
       if (y + cardH * 1.1 < 0 || y - cardH * 0.1 > h) continue;
+      const sprite = spriteFor(s.no, cardW, cardH, dpr);
       ctx.save();
       ctx.translate(s.el.offsetLeft + cardW / 2, y + cardH / 2);
       ctx.rotate((tiltFor(s.no) * Math.PI) / 180);
-      ctx.translate(-cardW / 2, -cardH / 2);
-      // 跟以前 box-shadow 一樣的下方實影
-      ctx.save();
-      ctx.translate(0, Math.max(1.5, cardW * 0.05));
-      traceTicket(ctx, { orientation: 'portrait', w: cardW, h: cardH });
-      ctx.fillStyle = 'rgba(87, 66, 57, .35)';
-      ctx.fill();
-      ctx.restore();
-      drawFace(ctx, {
-        color: faceColorFor(s.no), no: s.no, critter: critterFor(s.no),
-        orientation: 'portrait', w: cardW, h: cardH,
-      });
+      ctx.drawImage(sprite, -cardW / 2, -cardH / 2, cardW, cardH + sprite.pad);
       ctx.restore();
     }
   }
@@ -97,7 +125,7 @@ export function createDeskView({ deskEl, pileEl, canvasEl, emptyStateEl, onPick 
 
   deskEl.addEventListener('scroll', redraw, { passive: true });
   new ResizeObserver(() => { if (setup) render(setup); }).observe(deskEl);
-  loadCardArt().then(redraw);
+  loadCardArt().then(() => { sprites = new Map(); redraw(); });
 
   pileEl.addEventListener('click', e => {
     const btn = e.target.closest('.ticket');

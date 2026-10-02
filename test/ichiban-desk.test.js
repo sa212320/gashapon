@@ -106,3 +106,45 @@ test('桌面:只為還沒抽的籤建按鈕,號碼與歪斜跟著號碼走', asy
     for (const k of keys) globalThis[k] = saved[k];
   }
 });
+
+async function withDesk(fn) {
+  const keys = ['document', 'window', 'getComputedStyle', 'requestAnimationFrame', 'ResizeObserver'];
+  const saved = Object.fromEntries(keys.map(k => [k, globalThis[k]]));
+  const made = [];
+  globalThis.document = { createElement: tag => { const e = el(); e.tag = tag; made.push(e); return e; } };
+  globalThis.window = { devicePixelRatio: 2 };
+  globalThis.getComputedStyle = () => ({ paddingLeft: '16px', paddingRight: '16px', paddingTop: '14px', paddingBottom: '28px' });
+  globalThis.requestAnimationFrame = f => { f(); return 1; };
+  globalThis.ResizeObserver = class { observe() {} };
+  try {
+    const { createDeskView } = await import('../ichiban/js/ui.js');
+    const handlers = {};
+    const deskEl = el({ clientWidth: 375, addEventListener: (k, f) => { handlers[k] = f; } });
+    const canvasEl = el();
+    const pileEl = el();
+    const desk = createDeskView({ deskEl, pileEl, canvasEl, emptyStateEl: el(), onPick() {} });
+    return await fn({ desk, deskEl, canvasEl, handlers, made });
+  } finally {
+    for (const k of keys) globalThis[k] = saved[k];
+  }
+}
+
+test('捲動重畫時重用每張卡畫好的小圖,不重畫整張票卡(review: 捲動效能)', async () => {
+  await withDesk(async ({ desk, handlers, made }) => {
+    desk.render({ tickets: [1, 2, 3, 4].map(no => ({ no, prizeId: 'p', drawn: false })) });
+    const sprites = () => made.filter(e => e.tag === 'canvas').length;
+    const first = sprites();
+    assert.equal(first, 4, '每張卡一張小圖');
+    handlers.scroll();
+    handlers.scroll();
+    assert.equal(sprites(), first, '捲動不該再建小圖');
+  });
+});
+
+test('canvas 的 CSS 尺寸等於畫的尺寸(有傳統捲軸時不能被拉伸,review)', async () => {
+  await withDesk(async ({ desk, canvasEl }) => {
+    desk.render({ tickets: [{ no: 1, prizeId: 'p', drawn: false }] });
+    assert.equal(canvasEl.style.width, '375px');
+    assert.equal(canvasEl.style.height, '540px');
+  });
+});
