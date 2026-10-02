@@ -158,6 +158,9 @@ body {
   aspect-ratio: 34 / 15;
   translate: -50% -50%;
   opacity: 0;
+  /* 手指撕籤(2026-10-02):拉的時候不能讓瀏覽器拿去捲動頁面 / 返回手勢 */
+  touch-action: none;
+  cursor: grab;
 }
 
 .tear__canvas {
@@ -236,6 +239,8 @@ body {
 }
 
 .ticket-actions__row { display: flex; gap: 14px; }
+/* 開始撕就收起提示,但保留高度:按鈕不會跳一下 */
+.tear-hint[hidden] { display: block; visibility: hidden; }
 .ticket-actions .btn { min-width: 120px; }
 #tearBtn { font-size: 21px; padding-inline: 34px; }
 

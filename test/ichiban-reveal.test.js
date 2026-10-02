@@ -7,6 +7,7 @@
 // 只要有任何一支不存在就會炸在這裡。
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 // 只要能被呼叫就好:這裡驗的是「退路有沒有跑完」,不是畫出來長什麼樣。
 function fakeCtx() {
@@ -25,6 +26,16 @@ function stubEl() {
       getPropertyValue(k) { return this._v[k] ?? ''; },
     },
     dataset: {},
+    hidden: false,
+    offsetWidth: 340,
+    _l: {},
+    addEventListener(type, fn, opts) {
+      (el._l[type] ??= []).push(fn);
+      opts?.signal?.addEventListener('abort', () => { el._l[type] = el._l[type].filter(f => f !== fn); });
+    },
+    removeEventListener(type, fn) { el._l[type] = (el._l[type] ?? []).filter(f => f !== fn); },
+    dispatch(type, ev) { for (const fn of [...(el._l[type] ?? [])]) fn(ev); },
+    setPointerCapture() {},
     classList: { add() {}, remove() {} },
     children: [],
     removeAttribute(k) { delete el.dataset[k.replace(/^data-/, '')]; },
@@ -43,7 +54,7 @@ function stubEl() {
   return el;
 }
 
-const EL_KEYS = ['dim', 'tearCard', 'canvas', 'cardResult', 'cardBadge', 'cardName', 'aura', 'particles'];
+const EL_KEYS = ['dim', 'tearCard', 'canvas', 'cardResult', 'cardBadge', 'cardName', 'aura', 'particles', 'ticketActions', 'holdCancelBtn', 'tearBtn', 'tearHint'];
 
 async function withDomStubs(fn) {
   const saved = { document: globalThis.document, window: globalThis.window };
@@ -83,12 +94,13 @@ test('G 賞(最樸素的那一階)也走得完', async () => {
   });
 });
 
-test('最後一抽賞:hold + tear 一次跑完,獎項留在無障礙用的文字裡', async () => {
+test('最後一抽賞:holdBonus + tear,獎項留在無障礙用的文字裡', async () => {
   await withDomStubs(async () => {
     const { createRevealer } = await import('../ichiban/js/ui.js');
     const els = Object.fromEntries(EL_KEYS.map(k => [k, stubEl()]));
     const revealer = createRevealer(els);
-    await revealer.playBonus('最後一抽大獎');
+    await revealer.holdBonus('最後一抽大獎');
+    await revealer.tear(0);
     // 票卡上的字是畫進貼圖的,DOM 裡只剩這一份給螢幕閱讀器 —— 所以它一定要對。
     assert.equal(els.cardName.textContent, '最後一抽大獎');
     assert.equal(els.cardBadge.textContent, '🌟 最後一抽賞');
@@ -105,4 +117,85 @@ test('取消:票卡飛回去,不會丟例外', async () => {
     await revealer.cancelReturn(origin);
     revealer.clear();
   });
+});
+
+/* ---------- 手指撕籤(2026-10-02) ---------- */
+const tearEls = () => Object.fromEntries(EL_KEYS.map(k => [k, stubEl()]));
+const ev = (clientX = 0) => ({ clientX, pointerId: 1, stopPropagation() {}, preventDefault() {} });
+
+test('waitForTear:手指拉超過 3% 呼叫 onCommit 一次、收起取消;拉到 70% resolve { from }', async () => {
+  await withDomStubs(async () => {
+    const { createRevealer } = await import('../ichiban/js/ui.js');
+    const els = tearEls();
+    const r = createRevealer(els);
+    await r.hold({ tier: 'C', name: '三獎', no: 3 }, null);
+    let commits = 0;
+    const p = r.waitForTear({ onCommit: () => commits++ });
+    assert.equal(els.tearHint.hidden, false);
+    assert.equal(els.holdCancelBtn.hidden, false);
+    els.tearCard.dispatch('pointerdown', ev(0));
+    els.tearCard.dispatch('pointermove', ev(340 * 0.05));
+    assert.equal(commits, 1);
+    assert.equal(els.holdCancelBtn.hidden, true);
+    assert.equal(els.tearHint.hidden, true);
+    els.tearCard.dispatch('pointermove', ev(340 * 0.75));
+    const res = await p;
+    assert.ok(Math.abs(res.from - 0.75) < 1e-9);
+    assert.equal(commits, 1);
+    await r.tear(res.from);
+  });
+});
+
+test('waitForTear:沒拉就按取消 → resolve cancel、不 commit', async () => {
+  await withDomStubs(async () => {
+    const { createRevealer } = await import('../ichiban/js/ui.js');
+    const els = tearEls();
+    const r = createRevealer(els);
+    await r.hold({ tier: 'C', name: '三獎', no: 3 }, null);
+    let commits = 0;
+    const p = r.waitForTear({ onCommit: () => commits++ });
+    els.holdCancelBtn.dispatch('click', ev());
+    assert.equal(await p, 'cancel');
+    assert.equal(commits, 0);
+  });
+});
+
+test('waitForTear:撕到一半按撕開 → 從目前進度;連按、70% 同時按都只 resolve 一次', async () => {
+  await withDomStubs(async () => {
+    const { createRevealer } = await import('../ichiban/js/ui.js');
+    const els = tearEls();
+    const r = createRevealer(els);
+    await r.hold({ tier: 'C', name: '三獎', no: 3 }, null);
+    let commits = 0;
+    const p = r.waitForTear({ onCommit: () => commits++ });
+    els.tearCard.dispatch('pointerdown', ev(0));
+    els.tearCard.dispatch('pointermove', ev(340 * 0.3));
+    els.tearBtn.dispatch('click', ev());
+    els.tearBtn.dispatch('click', ev());
+    els.tearCard.dispatch('pointermove', ev(340 * 0.9));
+    const res = await p;
+    assert.ok(Math.abs(res.from - 0.3) < 1e-9);
+    assert.equal(commits, 1);
+  });
+});
+
+test('waitForTear:金卡(cancellable: false)看不到取消', async () => {
+  await withDomStubs(async () => {
+    const { createRevealer } = await import('../ichiban/js/ui.js');
+    const els = tearEls();
+    const r = createRevealer(els);
+    await r.holdBonus('最後一抽大獎');
+    const p = r.waitForTear({ cancellable: false });
+    assert.equal(els.holdCancelBtn.hidden, true);
+    els.tearBtn.dispatch('click', ev());
+    assert.deepEqual(await p, { from: 0 });
+    await r.tear(0);
+    assert.equal(els.cardBadge.textContent, '🌟 最後一抽賞');
+  });
+});
+
+test('撕籤區塊不讓瀏覽器拿去捲動 / 返回手勢', () => {
+  const css = readFileSync(new URL('../ichiban/css/ichiban.css', import.meta.url), 'utf8');
+  const rule = css.slice(css.indexOf('.tear {'), css.indexOf('}', css.indexOf('.tear {')));
+  assert.match(rule, /touch-action: none;/);
 });

@@ -7,6 +7,7 @@ import { sfx } from '../../shared/js/sound.js';
 import { faceColorFor, critterFor, tiltFor, layoutDesk } from './desk-layout.js';
 import { dealPlan, dealLength, flightAt, boxYAt } from './desk-deal.js';
 import { loadCardArt, drawFace, traceTicket } from './card-art.js';
+import { createTearDrag } from './tear-drag.js';
 
 // 最後一抽賞永遠是金色,不看賞別 —— 它是額外加碼的驚喜,不是某個賞別的籤。
 const GOLD = Object.freeze({ label: '🌟 最後一抽賞', color: '#FFD24C', glow: 'rgba(255,210,76,.95)' });
@@ -449,9 +450,10 @@ export function createRevealer(els) {
   // 撕 —— 上面那張捲起來走,底下的獎項留下來。
   // 捲曲本身是 curl.js 用 rAF 跑的,所以這裡自己接上跟 animate() 一樣的三條規則:
   // 動畫結束 / 按了跳過 / 逾時保險,先到先算。
-  function runCurl(ms) {
+  // from:手指已經撕到哪(2026-10-02 手指撕籤),從那裡接著自動撕完
+  function runCurl(ms, from = 0) {
     if (!stage) return Promise.resolve();
-    const handle = stage.play(isSkipping() ? 1 : ms);
+    const handle = stage.playFrom(from, isSkipping() ? 1 : ms);
     if (isSkipping()) { handle.finish(); return handle.finished; }
     return new Promise(resolve => {
       let timer = null;
@@ -472,13 +474,13 @@ export function createRevealer(els) {
     });
   }
 
-  async function playTear() {
+  async function playTear(from = 0) {
     const { level, color } = pending ?? { level: 0, color: '#E7DFD4' };
     playing = true;
     skipping = false;
     try {
       sfx.crack();
-      await runCurl(1150 + level * 45);
+      await runCurl(1150 + level * 45, from);
 
       // 賞別等級越高,光暈跟碎花越誇張;G 賞(level 0)乾脆不放光,樸素到底。
       sfx.upgrade(Math.min(level, 3));
@@ -527,20 +529,70 @@ export function createRevealer(els) {
 
     cancelReturn,
 
-    tear() {
-      return playTear();
+    tear(from = 0) {
+      return playTear(from);
     },
 
-    // 最後一抽賞永遠是最盛大的等級,跟籤紙本身的賞別無關,而且不用猶豫直接開獎。
-    async playBonus(name) {
+    // 等使用者撕(2026-10-02 手指撕籤,grill 定案):手指從籤上任何地方往右拉,或按「撕開」。
+    //   拉超過 3% 就算抽走 → onCommit(main.js 在這裡存檔),「取消」同時消失;之後拉回 0% 也一樣
+    //   放開停在原地,可以往回拉;到 70% 或按「撕開」→ resolve { from },由 tear(from) 自動撕完
+    //   沒拉就按「取消」→ resolve 'cancel'
+    // stopPropagation 是必要的,不是保險:這些元素都在 overlay 裡面,overlay 上掛著「播放中就快轉」。
+    // 瀏覽器每呼叫完一個 listener 就清一次 microtask,resolve 的後續(playTear 會把 playing 設成 true)
+    // 會搶在 overlay 的 listener 之前跑完 —— overlay 一看「正在播」就 requestSkip(),整段演出被快轉掉。
+    waitForTear({ cancellable = true, onCommit } = {}) {
+      const drag = createTearDrag();
+      const ac = new AbortController();
+      const on = (el, type, fn) => el.addEventListener(type, fn, { signal: ac.signal });
+      els.holdCancelBtn.hidden = !cancellable;
+      els.tearHint.hidden = false;
+      els.ticketActions.hidden = false;
+      return new Promise(resolve => {
+        let done = false;
+        const width = () => els.tearCard.offsetWidth || 340;
+        const finish = value => {
+          if (done) return;
+          done = true;
+          ac.abort();
+          els.ticketActions.hidden = true;
+          els.tearHint.hidden = true;
+          resolve(value);
+        };
+        const apply = ({ progress, events }) => {
+          for (const e of events) {
+            if (e === 'commit') {
+              els.holdCancelBtn.hidden = true;
+              els.tearHint.hidden = true;
+              onCommit?.();
+            }
+            if (e === 'rip') sfx.rip();
+          }
+          stage?.show(progress);
+          if (events.includes('auto')) finish({ from: progress });
+        };
+        on(els.tearCard, 'pointerdown', e => {
+          e.stopPropagation();
+          els.tearCard.setPointerCapture?.(e.pointerId);
+          drag.down(e.clientX / width());
+        });
+        on(els.tearCard, 'pointermove', e => { if (drag.active) apply(drag.move(e.clientX / width())); });
+        on(els.tearCard, 'pointerup', () => drag.up());
+        on(els.tearCard, 'pointercancel', () => drag.up());
+        // 單點不算撕,也不能被 overlay 接走當成「跳過」
+        on(els.tearCard, 'click', e => e.stopPropagation());
+        on(els.tearBtn, 'click', e => { e.stopPropagation(); apply(drag.button()); });
+        on(els.holdCancelBtn, 'click', e => { e.stopPropagation(); if (!drag.committed) finish('cancel'); });
+      });
+    },
+
+    // 最後一抽賞永遠是最盛大的等級,跟籤紙本身的賞別無關。金卡也用手撕(2026-10-02),只是沒有取消。
+    holdBonus(name) {
       els.cardBadge.textContent = GOLD.label;
       els.cardName.textContent = name;
-      await playHold({
+      return playHold({
         level: TIERS.length - 1, color: GOLD.color, glow: GOLD.glow,
         card: { faceColor: GOLD.color, no: '★', critter: 'both', color: GOLD.color, letter: '🌟', name, bonus: true },
       }, null);
-      await wait(260);
-      await playTear();
     },
 
     clear: reset,
