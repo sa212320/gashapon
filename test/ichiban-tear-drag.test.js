@@ -106,3 +106,21 @@ test('main.js:overlay 的「點一下跳過」不理會從籤卡上來的點擊'
   assert.ok(i > -1, 'overlay 的 click 要拿 event');
   assert.match(src.slice(i, src.indexOf('});', i)), /e\.target\.closest\?\.\('#tearCard'\)/);
 });
+
+// 2026-10-02 使用者:「手撕幅度到實際撕的不一樣」—— 拖曳套了 ease-in-out,手指 30% 時紙只到 18%
+import { autoProgress } from '../ichiban/js/tear-drag.js';
+test('curl.js:拖曳時紙的位置 = 手指進度(線性);ease 只用在自動撕完那一段', () => {
+  const src = read('ichiban/js/curl.js');
+  const fn = src.slice(src.indexOf('function setProgress('), src.indexOf('\n  }\n', src.indexOf('function setProgress(')));
+  assert.ok(!/2 \* p \* p|Math\.pow\(-2 \* p/.test(fn), 'setProgress 不能再套 ease');
+  assert.match(src, /autoProgress\(from, /);
+});
+
+test('autoProgress:從 from 接著撕、開頭不跳(t=0 就是 from)、先快後慢、最後到 1', () => {
+  assert.equal(autoProgress(0.7, 0), 0.7);
+  assert.equal(autoProgress(0.7, 1), 1);
+  assert.equal(autoProgress(0, 0), 0);
+  const a = autoProgress(0.3, 0.25) - autoProgress(0.3, 0);
+  const b = autoProgress(0.3, 1) - autoProgress(0.3, 0.75);
+  assert.ok(a > b, '先快後慢');
+});

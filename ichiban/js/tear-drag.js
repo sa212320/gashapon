@@ -50,3 +50,11 @@ export function createTearDrag() {
     },
   };
 }
+
+// 自動撕完那一段的進度(curl.js playFrom 用):從手指放開時的 from 接著撕,t = 0~1 是時間比例。
+// 拖曳時紙的位置 = 手指進度(線性,手到哪紙到哪 —— 2026-10-02 使用者:「手撕幅度到實際撕的不一樣」),
+// 所以曲線只放在這一段:ease-out 先快後慢,t = 0 正好是 from,接起來不會跳。
+export function autoProgress(from, t) {
+  const k = Math.min(1, Math.max(0, t));
+  return from + (1 - from) * (1 - (1 - k) ** 3);
+}

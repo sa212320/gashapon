@@ -10,6 +10,7 @@
 // 正反面改用兩塊平塗材質區分 —— 正面是票卡的印刷,背面是同色系加深的紙背。
 import * as THREE from 'three';
 import { CARD_W, CARD_H, makeCardCanvas, drawFace, drawPrize } from './card-art.js';
+import { autoProgress } from './tear-drag.js';
 
 const W = 3.4;              // 世界單位下的卡片寬(對應 34:15)
 const H = 1.5;
@@ -92,9 +93,9 @@ export function createCurlStage(canvas) {
   const START = -W / 2;
   const END = W / 2 + R * MAX_WRAP;
 
+  // p 就是摺線的位置比例(線性):手指撕的時候手到哪紙到哪;自動撕的曲線在 playFrom(autoProgress)
   function setProgress(p) {
-    const e = p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; // ease-in-out
-    shape(START + e * (END - START));
+    shape(START + p * (END - START));
     const fade = p > .84 ? Math.max(0, 1 - (p - .84) / .16) : 1;
     frontMat.opacity = fade;
     backMat.opacity = fade;
@@ -140,9 +141,9 @@ export function createCurlStage(canvas) {
         const r = done; done = null; r();
       };
       const step = now => {
-        const p = from + (1 - from) * Math.min(1, (now - t0) / left);
+        const p = autoProgress(from, (now - t0) / left);
         setProgress(p);
-        if (p >= 1) finish();
+        if (now - t0 >= left) finish();
         else raf = requestAnimationFrame(step);
       };
       raf = requestAnimationFrame(step);
