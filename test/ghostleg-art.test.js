@@ -143,3 +143,20 @@ test('結果清單的每一列照內容長高,不會被擠扁', () => {
   const rule = css.slice(css.indexOf('.results__list {'), css.indexOf('}', css.indexOf('.results__list {')));
   assert.match(rule, /grid-auto-rows: max-content/);
 });
+
+// 2026-10-02 使用者 iPhone 截圖:「這結果 modal 怪怪的」—— 卡片底下又露出一顆「開始」、頂上一條白色長條
+test('結果卡蓋住整個底部(fixed、在工具列上面),頂上沒有那條白色長條', () => {
+  const css = readFileSync(new URL('../ghostleg/css/ghostleg.css', import.meta.url), 'utf8');
+  const rule = css.slice(css.indexOf('.results {'), css.indexOf('}', css.indexOf('.results {')));
+  assert.match(rule, /position: fixed;/);
+  assert.match(rule, /z-index: 3;/);
+  assert.ok(!/\.results::before/.test(css));
+});
+
+// 2026-10-02 使用者 iPhone 截圖:設定裡的動物小圖超出方框 —— Safari 的 grid 裡 max-height: 100% 不算數
+test('設定的小圖固定 40px 方塊、方框裁掉超出的部分', () => {
+  const css = readFileSync(new URL('../ghostleg/css/ghostleg.css', import.meta.url), 'utf8');
+  const rule = sel => css.slice(css.indexOf(`${sel} {`), css.indexOf('}', css.indexOf(`${sel} {`)));
+  assert.match(rule('.edit-row__thumb'), /width: 40px; height: 40px;/);
+  assert.match(rule('.edit-row__pick'), /overflow: hidden;/);
+});
