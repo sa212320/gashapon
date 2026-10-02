@@ -8,29 +8,43 @@ export const INTRO_MS = 900;    // 抽獎箱彈出 + 搖一搖,搖完才開始�
 // 搖完、開始飛的同時,箱子往下滑到桌面底部,不擋在籤要飛過去的路上(使用者 2026-10-02)。
 // CSS 的 deal-box-down 動畫要對得上(ichiban.css)。
 export const SLIDE_MS = 400;
-const GAP_MIN_MS = 40;          // 機關槍:每發之間隔 40~110ms 隨機
-const GAP_MAX_MS = 110;
 const LAST_START_MS = 2500;     // 張數多時,最後一發最晚在搖完後這麼久出發
 const SPIN = 540;               // 飛行途中轉的角度(一圈半)
 
-// 像機關槍:每發 1~2 張從洞口射出來,發與發的間隔很短而且隨機(使用者 2026-10-02;
-// 試過一次 1~3 張排隊、一次 5~8 張拉炮)。整體照號碼。
-// 張數多到超過 LAST_START_MS 就把所有間隔等比例縮短。rng 給測試固定用。
-export function dealPlan(slots, rng = Math.random) {
+// 射法(2026-10-02 一路試出來的):機關槍 = 每發 1~2 張、間隔 40~110ms 隨機。
+// size:每發幾張;gap:發與發的間隔(ms,隨機);spray:同一發裡每張再錯開 0~spray ms(散彈的噴灑感)。
+// order:'random'(預設,使用者 2026-10-02 要隨機)或 'number'(照號碼,從左上角填起)。
+export const MACHINE_GUN = Object.freeze({ size: [1, 2], gap: [40, 110], spray: 0, order: 'random' });
+
+// 一發一發射出去。張數多到超過 LAST_START_MS 就把所有間隔等比例縮短。
+// rng 給測試固定用。每筆帶 shot(第幾發),桌面靠它讓箱子每發抖一下。
+export function dealPlan(slots, rng = Math.random, {
+  size = MACHINE_GUN.size, gap = MACHINE_GUN.gap, spray = MACHINE_GUN.spray, order = MACHINE_GUN.order,
+} = {}) {
   const sorted = [...slots].sort((a, b) => a.no - b.no);
+  if (order === 'random') {
+    for (let i = sorted.length - 1; i > 0; i--) {        // Fisher–Yates
+      const j = Math.floor(rng() * (i + 1));
+      [sorted[i], sorted[j]] = [sorted[j], sorted[i]];
+    }
+  }
   const shots = [];
   for (let i = 0; i < sorted.length;) {
-    const size = rng() < 0.5 ? 1 : 2;
-    shots.push(sorted.slice(i, i + size));
-    i += size;
+    const n = size[0] + Math.min(size[1] - size[0], Math.floor(rng() * (size[1] - size[0] + 1)));
+    shots.push(sorted.slice(i, i + n));
+    i += n;
   }
   const offsets = [0];
   for (let k = 1; k < shots.length; k++) {
-    offsets.push(offsets[k - 1] + GAP_MIN_MS + rng() * (GAP_MAX_MS - GAP_MIN_MS));
+    offsets.push(offsets[k - 1] + gap[0] + rng() * (gap[1] - gap[0]));
   }
   const squeeze = Math.min(1, LAST_START_MS / (offsets.at(-1) || 1));
-  return shots.flatMap((shot, k) =>
-    shot.map(s => ({ ...s, start: Math.round(INTRO_MS + offsets[k] * squeeze), duration: FLIGHT_MS })));
+  return shots.flatMap((shot, k) => shot.map(s => ({
+    ...s,
+    shot: k,
+    start: Math.round(INTRO_MS + offsets[k] * squeeze + (spray ? rng() * spray : 0)),
+    duration: FLIGHT_MS,
+  })));
 }
 
 export function dealLength(plan) {

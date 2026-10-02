@@ -141,7 +141,8 @@ export function createDeskView({ deskEl, pileEl, canvasEl, boxEl, emptyStateEl, 
   // 播放中按鈕不能點,點桌面任何地方就直接全部排好。
   let dealing = null;   // { plan: Map(no → { start, duration }), t0, length, holeX/Mid/Bottom, armed }
 
-  function deal(next) {
+  // style:射法參數(desk-deal.js 的 dealPlan 選項),預設機關槍、隨機順序;預覽頁拿來比較不同射法。
+  function deal(next, style) {
     render(next);
     const h = deskEl.clientHeight;
     const top = deskEl.scrollTop;
@@ -151,7 +152,7 @@ export function createDeskView({ deskEl, pileEl, canvasEl, boxEl, emptyStateEl, 
       return y + layout.cardH > 0 && y < h;
     });
     if (!visible.length) return;
-    const plan = dealPlan(visible);
+    const plan = dealPlan(visible, Math.random, style);
     const boxH = boxEl.offsetHeight || 100;   // 抽獎箱在桌面正中央(css .deal-box)
     dealing = {
       plan: new Map(plan.map(p => [p.no, p])),
@@ -164,7 +165,7 @@ export function createDeskView({ deskEl, pileEl, canvasEl, boxEl, emptyStateEl, 
       // 觸發動畫的那一下點擊(「重新鋪一桌」在桌面裡)會冒泡到桌面;下一幀才開始接受「點一下跳過」
       armed: false,
       // 每一發的出發時間(連射:每射一發箱子抖一下);fired 記到第幾發了
-      shots: [...new Set(plan.map(p => p.start))],
+      shots: plan.reduce((a, p) => { a[p.shot] = Math.min(a[p.shot] ?? Infinity, p.start); return a; }, []),
       fired: 0,
     };
     pileEl.style.pointerEvents = 'none';

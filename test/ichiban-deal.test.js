@@ -9,7 +9,7 @@ const fixed = (...vals) => { let i = 0; return () => vals[i++ % vals.length]; };
 
 test('dealPlan:先搖箱子,再像機關槍一樣連射;每發 1~2 張,照號碼', () => {
   // rng 0 → 1 張、0.99 → 2 張
-  const plan = dealPlan(slots(6), fixed(0, 0.99));
+  const plan = dealPlan(slots(6), fixed(0, 0.99), { order: 'number' });
   assert.deepEqual(plan.map(p => p.no), [1, 2, 3, 4, 5, 6]);
   const starts = plan.map(p => p.start);
   assert.equal(starts[0], INTRO_MS, '搖完箱子才開始射');
@@ -67,4 +67,27 @@ test('boxYAt:搖箱子時在中間,開始飛就往下滑到底部,不擋籤的�
   assert.ok(half > mid && half < bottom);
   assert.equal(boxYAt(INTRO_MS + SLIDE_MS, mid, bottom), bottom);
   assert.equal(boxYAt(99999, mid, bottom), bottom);
+});
+
+test('dealPlan 參數:散彈 —— 每發 2~4 張,同一發裡錯開一點點時間噴出去', () => {
+  const plan = dealPlan(slots(40), Math.random, { size: [2, 4], gap: [90, 160], spray: 30 });
+  assert.ok(plan.every(p => p.shot !== undefined));
+  const byShot = Object.values(plan.reduce((m, p) => ({ ...m, [p.shot]: [...(m[p.shot] ?? []), p.start] }), {}));
+  assert.ok(byShot.slice(0, -1).every(s => s.length >= 2 && s.length <= 4), byShot.map(s => s.length).join());
+  assert.ok(byShot.every(s => Math.max(...s) - Math.min(...s) <= 30));
+  assert.ok(byShot.some(s => new Set(s).size > 1), '同一發要有錯開');
+});
+
+test('dealPlan 參數:順序隨機(使用者 2026-10-02),每張還是剛好出現一次', () => {
+  const rng = (() => { let a = 7; return () => ((a = (a * 16807) % 2147483647) / 2147483647); })();
+  const plan = dealPlan(slots(30), rng, { order: 'random' });
+  const nos = plan.map(p => p.no);
+  assert.deepEqual([...nos].sort((a, b) => a - b), Array.from({ length: 30 }, (_, i) => i + 1));
+  assert.notDeepEqual(nos, [...nos].sort((a, b) => a - b), '不是照號碼');
+});
+
+test('dealPlan 預設就是隨機順序', () => {
+  const rng = (() => { let a = 11; return () => ((a = (a * 16807) % 2147483647) / 2147483647); })();
+  const nos = dealPlan(slots(30), rng).map(p => p.no);
+  assert.notDeepEqual(nos, [...nos].sort((a, b) => a - b));
 });
