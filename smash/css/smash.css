@@ -2,10 +2,8 @@
 
 body { display: flex; flex-direction: column; min-height: 100svh; }
 
-/* home-link 是絕對定位的,topbar 不給 relative 的話它會跑到頁面中間去 */
-.topbar { position: relative; padding: 14px 16px 6px; text-align: center; }
-.setup-name { margin: 0; font-size: 22px; }
-.remaining { margin: 2px 0 0; font-size: 14px; opacity: .72; }
+/* 標題列拿掉了(2026-10-02,跟扭蛋機一致):人數小字在開始鈕旁的 .remain-tag(shared/css/tokens.css) */
+.draw-group { display: grid; justify-items: center; gap: 6px; }
 
 .stage { position: relative; flex: 1; min-height: 0; }
 
@@ -50,11 +48,17 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
 }
 .btn--go { font-size: 21px; padding-inline: 38px; }
 
-.edit-list { margin: 0 0 10px; padding: 0; list-style: none; display: grid; gap: 8px; }
+.edit-list { margin: 0 0 10px; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .edit-row { display: flex; align-items: center; gap: 8px; }
 .edit-row__dot { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 3px solid var(--ink); }
-.edit-row__name { flex: 1; min-width: 0; }
-.edit-row__count { width: 52px; text-align: center; }
+/* width: 0 —— input 天生約 20 個字寬(~208px),會被算進 grid 欄的 min-content,
+   手機上整列撐出對話框、「刪」被擠到外面;min-width: 0 擋不住這個。 */
+.edit-row__name { flex: 1; min-width: 0; width: 0; }
+/* 最多兩位數(0~99)。原本 52px 扣掉框線與 12px 內距只剩 20px,上下鍵再吃掉一半,數字被切掉。
+   內距收窄、拿掉上下鍵 —— 手機上 type=number 仍會叫出數字鍵盤。 */
+.edit-row__count { width: 64px; padding-inline: 4px; text-align: center; appearance: textfield; -moz-appearance: textfield; }
+.edit-row__count::-webkit-inner-spin-button,
+.edit-row__count::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .panel__hint { margin: 0 0 8px; font-size: 14px; opacity: .75; }
 
 /* three.js 有 168 KB,手機上會有一段看不到東西的空窗。

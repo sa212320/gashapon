@@ -5,7 +5,7 @@
     "gashapon": "an empty snowy landscape scene only: soft snowy ground, gentle snowy hills, a few snowy pine trees far in the back, pale icy blue sky, a few small colorful round capsule toys lying on the snow in the bottom corners, the whole middle of the picture is just empty flat snow, no animals, no characters, no creatures, no machine",
     "gashapon3d": "a round icy blue ice tray with a fluffy white snow rim on soft snowy ground, seen from the front at a slight angle from above, many perfectly round spherical capsule balls scattered on the tray, every ball is a perfect circle like a ping pong ball, not oval, not egg shaped, not elongated, each ball has a colorful top half and a white bottom half split by a straight horizontal line, pink orange yellow mint sky blue and lavender capsules, a couple of balls bouncing in the air, pale icy blue sky, a few snowy pine trees far in the back, sparkling snowflakes, no machine, no characters",
     "ichiban": "one small open cardboard lottery ticket box made of pale icy blue paper with fluffy snow on its rim, sitting on soft snowy ground, many small rectangular paper lottery tickets flying up out of the box in a happy arc, each ticket is a pastel cold color (sky blue, lavender, mint, periwinkle, glacier blue), each ticket has a row of tiny round perforation holes along its long top and bottom edges and tiny white snowflake prints, pale icy blue sky, a few snowy pine trees far in the back, sparkling snowflakes, no text, no letters, no numbers, no characters",
-    "ghostleg": "a ladder lottery drawn on a sheet of paper: several colorful vertical lines connected by short horizontal rungs, small wrapped gift boxes with ribbons at the bottom of the lines, snowy background",
+    "ghostleg": "an amidakuji ghost leg lottery diagram, NOT a ladder: five long parallel vertical lines evenly spaced across a big slab of smooth pale icy blue frozen lake ice seen from the front and slightly above, the lines are raised white snow paths with thick dark brown outlines, many short horizontal rungs at different random heights, each rung only connects two neighbouring vertical lines and the rungs are staggered so no rung lines up with the next one, a row of five small empty round colourful board game pawn bases at the near bottom end of the five lines, pale icy blue gift boxes with icy blue bows and frosty ice treasure chests floating in the air above the far top end, soft fluffy snow piled on the ice edges, pale icy blue sky, snowy pine trees far in the back, sparkling snowflakes, no text, no letters, no numbers, no characters, no people, no animals",
     "smash": "a round frozen ice rink seen from above at an angle, colorful round curling stones sliding on the shiny ice, snowy pine trees around the rink"
   },
   "sign": "a single wide wooden signboard plank, completely blank with nothing written on it, fluffy white snow piled on its top edge, a full row of shiny translucent pale blue icicles hanging down along the entire bottom edge of the board, pointed icicles of different lengths, a few small white snowflakes on the wood, the signboard alone with nothing else around it, no posts, no legs, no shadow, isolated on a solid flat bright pure green #00FF00 background",
@@ -14,8 +14,10 @@
     "sign": 3,
     "gashapon": 2,
     "gashapon3d": 4,
-    "ichiban": 5
+    "ichiban": 5,
+    "ghostleg": 6
   },
   "gashapon3d_style_note": "gashapon3d 這張是用 gashapon_prompts.json 的 style 接在前面生的(冰雪色調),不是這個檔的 style;picks 4 = out/gashapon3d/home-card-round/s2.png(2026-10-02 使用者選定)",
-  "ichiban_style_note": "ichiban 這張跟 gashapon3d 一樣用 gashapon_prompts.json 的 style 接在前面生(冰雪色調)"
+  "ichiban_style_note": "ichiban 這張跟 gashapon3d 一樣用 gashapon_prompts.json 的 style 接在前面生(冰雪色調)",
+  "ghostleg_style_note": "2026-10-02:阿彌陀籤改版後的畫面(冰板 + 雪路 + 戰棋底座 + 獎品),照共同規則不放角色"
 }

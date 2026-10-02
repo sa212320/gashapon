@@ -57,7 +57,7 @@ const ask = createAsk({
 });
 
 function setSoundIcon() {
-  $('soundIcon').textContent = prefs.soundOn ? '🔊' : '🔇';
+  $('soundIcon').setAttribute('href', `../shared/img/icons.svg#${prefs.soundOn ? 'sound-on' : 'sound-off'}`);
   $('soundBtn').classList.toggle('is-muted', !prefs.soundOn);
 }
 
@@ -65,11 +65,7 @@ function setSoundIcon() {
 // 抽一張、改音效之類的重畫都不播(2026-10-02 grill)。
 function render({ deal = false } = {}) {
   const setup = getActive(state);
-  $('setupName').textContent = setup.name || '一番賞';
-  const left = setup.tickets.filter(t => !t.drawn).length;
-  $('remaining').textContent = setup.tickets.length === 0
-    ? '還沒有獎項,去設定加一個吧!'
-    : `還剩 ${left} 張 / 共 ${setup.tickets.length} 張`;
+  // 標題列跟「還剩幾張」都拿掉了(2026-10-02 使用者:小字沒用);桌上看得到還剩哪些籤
   if (deal) desk.deal(setup); else desk.render(setup);
   setSoundIcon();
 

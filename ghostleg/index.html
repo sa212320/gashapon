@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#FFF6E9">
-<title>阿彌陀籤</title>
+<title>爬格子</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🪜</text></svg>">
 <link rel="stylesheet" href="../shared/css/tokens.css?v=c3b419a4">
 <link rel="stylesheet" href="../shared/css/mascot.css">
@@ -22,18 +22,21 @@
 </head>
 <body>
 
-<header class="topbar">
-  <a class="home-link" href="../" aria-label="回首頁">←</a>
-  <h1 class="setup-name" id="setupName">阿彌陀籤</h1>
-  <p class="remaining" id="remaining"></p>
-</header>
+<a class="home-link home-link--corner" href="../" aria-label="回首頁"><svg class="icon" aria-hidden="true"><use href="../shared/img/icons.svg#home"/></svg></a>
+<div class="corner-tools">
+  <button class="icon-btn" id="soundBtn" type="button" aria-label="音效開關"><svg class="icon" aria-hidden="true"><use id="soundIcon" href="../shared/img/icons.svg#sound-on"/></svg></button>
+  <button class="icon-btn" id="settingsBtn" type="button" aria-label="設定"><svg class="icon" aria-hidden="true"><use href="../shared/img/icons.svg#settings"/></svg></button>
+</div>
 
 <main class="stage">
   <canvas class="track" id="track"></canvas>
+  <!-- 開跑前的大字名牌:投影到黑板時後排也要看得到(3D 名牌會跟著透視縮小) -->
+  <div class="name-layer" id="nameLayer" aria-hidden="true"></div>
+  <p class="skip-hint" id="skipHint" hidden>點一下跳過</p>
   <p class="loading" id="loading">載入中…</p>
 
   <div class="empty-state" id="emptyState" hidden>
-    <div class="empty-state__icon">🪜</div>
+    <div class="empty-scene" id="emptyScene" aria-hidden="true"></div>
     <p class="empty-state__text">至少要兩個人才跑得起來</p>
     <button class="btn btn--primary" id="emptySettingsBtn" type="button">去加人</button>
   </div>
@@ -47,14 +50,12 @@
 </main>
 
 <footer class="toolbar">
-  <button class="icon-btn" id="soundBtn" type="button" aria-label="音效開關"><span id="soundIcon">🔊</span></button>
   <button class="btn btn--primary btn--go" id="startBtn" type="button">開始</button>
-  <button class="icon-btn" id="settingsBtn" type="button" aria-label="設定">⚙️</button>
 </footer>
 
 <dialog class="dialog" id="settingsDialog">
   <header class="dialog__head">
-    <h2>阿彌陀籤設定</h2>
+    <h2>爬格子設定</h2>
     <button class="icon-btn icon-btn--light" id="closeBtn" type="button" aria-label="關閉">✕</button>
   </header>
 
@@ -86,7 +87,7 @@
     <section class="panel" data-panel="other" hidden>
       <label class="field">
         <span class="field__label">這組設定的名字</span>
-        <input class="field__input" id="nameInput" type="text" maxlength="20" placeholder="我的阿彌陀籤">
+        <input class="field__input" id="nameInput" type="text" maxlength="20" placeholder="我的爬格子">
       </label>
       <label class="switch">
         <input type="checkbox" id="soundInput">

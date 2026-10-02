@@ -26,17 +26,40 @@ export function pickColor(existing) {
   return PALETTE.find(c => !used.has(c)) ?? PALETTE[existing.length % PALETTE.length];
 }
 
-export function createPlayer({ name = '玩家', color = null } = {}) {
-  return { id: newId('pl'), name, color: color ?? PALETTE[0] };
+// 玩家的動物(2026-10-02 改版)。存在玩家身上、跟著人走 —— 小孩會認「我是兔子」,
+// 每局換來換去就沒意義了。動物畫成吉祥物同一套畫風、不染色(染色版跟狐狸不搭),
+// 玩家色在底座、名牌、緞帶上;所以同一種動物看起來一模一樣,種類多一點(10 種)人少時才不會撞。
+// 最多 40 人一定會重複,名字才是識別。新增種類只能加在尾端 —— 舊存檔是照這個順序補的。
+export const ANIMALS = Object.freeze(['snowman', 'rabbit', 'penguin', 'reindeer', 'cat', 'dog', 'bear', 'seal', 'owl', 'hamster']);
+
+export function pickAnimal(existing) {
+  const used = new Map(ANIMALS.map(a => [a, 0]));
+  for (const p of existing) if (used.has(p.animal)) used.set(p.animal, used.get(p.animal) + 1);
+  const least = Math.min(...used.values());
+  return ANIMALS.find(a => used.get(a) === least);
 }
 
-export function createGhostPrize({ name = '新獎項', count = 1 } = {}) {
+// 獎品等級。每個獎項手動選、存在獎項上 —— 不能從 count 或清單順序猜(會猜錯)。
+// 銘謝惠顧不是一個等級,它是沒有獎項的空格(prizeId: null),永遠畫雪球。
+export const TIERS = Object.freeze(['plain', 'chest', 'deluxe']);
+
+export function createPlayer({ name = '玩家', color = null, animal = null } = {}) {
+  return {
+    id: newId('pl'),
+    name,
+    color: color ?? PALETTE[0],
+    animal: ANIMALS.includes(animal) ? animal : pickAnimal([]),
+  };
+}
+
+export function createGhostPrize({ name = '新獎項', count = 1, tier = 'plain' } = {}) {
   return {
     id: newId('gp'),
     name,
     // count 不可信:Infinity / NaN 會讓 expand 的迴圈跑不完(一番賞踩過,真的會 OOM)。
     // 一律當成 0(沒有這個獎)比憑空多一份安全。
     count: Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0,
+    tier: TIERS.includes(tier) ? tier : 'plain',
   };
 }
 
@@ -61,7 +84,7 @@ export function lineup(players, rng = Math.random) {
 // 數量多的獎項自然比較常被選中(它展開後佔比較多份)。
 // 最後那次洗是為了讓補進來的空籤不會全部擠在尾端。
 export function bottomSlots(prizes, playerCount, rng = Math.random) {
-  const filled = shuffle(expand(prizes, p => ({ prizeId: p.id, name: p.name })), rng);
+  const filled = shuffle(expand(prizes, p => ({ prizeId: p.id, name: p.name, tier: p.tier })), rng);
   const slots = filled.slice(0, playerCount);
   while (slots.length < playerCount) slots.push({ prizeId: null, name: EMPTY_SLOT_NAME });
   return shuffle(slots, rng);
@@ -77,7 +100,9 @@ export function buildLadder({
   rng = Math.random,
 } = {}) {
   const rungs = [];
-  for (let row = 0; row < rows; row++) {
+  // 從第 1 列開始:第 0 列畫在 z = 0,就是起跑線(棋子站的地方),橫槓放那裡看起來像一開始腳下就有橫線
+  //(2026-10-02 使用者回報)。公平性不受影響 —— 它來自兩端的洗牌,不是橫槓。
+  for (let row = 1; row < rows; row++) {
     let left = 0;
     while (left < lanes - 1) {
       if (rng() < density) {
@@ -109,8 +134,20 @@ export function assign(ladder, players, slots) {
   });
 }
 
+// 結果卡的顯示順序:頭獎 → 大獎 → 一般 → 銘謝惠顧;同級照設定裡的獎項順序(prizes),
+// 同一個獎再照原本順序。只給畫面用,不寫回存檔。
+const TIER_RANK = { deluxe: 0, chest: 1, plain: 2 };
+export function sortResults(results, prizes = []) {
+  const order = new Map(prizes.map((p, i) => [p.id, i]));
+  const rank = r => (r.slot.prizeId === null ? 3 : TIER_RANK[r.slot.tier] ?? 2);
+  const pos = r => order.get(r.slot.prizeId) ?? Infinity;
+  return results.map((r, i) => [r, i])
+    .sort((a, b) => rank(a[0]) - rank(b[0]) || pos(a[0]) - pos(b[0]) || a[1] - b[1])
+    .map(([r]) => r);
+}
+
 // 一份設定 = 一組玩家 + 一組獎項。每局的梯子、站位、終點擺設都是現場產生的,不存。
-export function createGhostSetup({ name = '我的阿彌陀籤', players = [], prizes = [] } = {}) {
+export function createGhostSetup({ name = '我的爬格子', players = [], prizes = [] } = {}) {
   return { id: newId('gs'), name, players, prizes };
 }
 

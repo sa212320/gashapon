@@ -19,13 +19,57 @@ export const TOTAL = SHOW + FLY + BACK + RUN + FINISH;
 const lerp = (a, b, k) => a + (b - a) * k;
 const easeInOut = k => (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2);
 
-export function createCameraScript({ camera, ladder, laneWidth: w, rowDepth }) {
+// 冰板寬度:車道總寬 + 兩側雪邊。scene-parts.js 的 buildBoard 用同一個式子。
+export const boardWidth = (lanes, laneWidth) => lanes * laneWidth + 1.8;
+
+// 開跑前的畫面(2026-10-02):鏡頭拉近,冰板約佔畫面寬八成 —— 原本整組縮在畫面中間一小塊。
+// 以 35° 俯角看向起跑線前方一點,距離由「冰板寬 / 0.8 要剛好塞滿水平視角」反推。
+// 橫向螢幕(桌機)當成正方形算:冰板是直長條,硬撐滿 16:9 的寬度,鏡頭會貼到動物大到塞滿畫面。
+const IDLE_PITCH = (35 * Math.PI) / 180;
+//
+// 開跑前的特寫(labels.js namePlan):只框 frameLanes 條車道,看向 centerX(scanPass 從左掃到右)。
+// 橫向螢幕一樣當成正方形算(review 2026-10-02:以 16:9 的寬度框 2 個人,鏡頭貼太近,
+// 底座前的名牌整段掃描都掉在畫面下面 —— 投影上課正好是這個情況)。
+export function idleFrame({ lanes, laneWidth, rowDepth, aspect, fov = 48, frameLanes = null, centerX = 0 }) {
+  const scan = Boolean(frameLanes);   // 開跑前一律特寫(人少時 frameLanes = 人數,不用掃)
+  const hfov = 2 * Math.atan(Math.tan((fov * Math.PI) / 360) * Math.min(1, aspect));
+  const frameW = scan ? frameLanes * laneWidth : boardWidth(lanes, laneWidth) / 0.8;
+  const d = frameW / (2 * Math.tan(hfov / 2));
+  // 掃描時鏡頭很近,看向起跑線前方的話棋子和名字會掉到畫面外 —— 直接看著起跑線
+  const look = scan ? [centerX, laneWidth * 0.7, 0] : [0, laneWidth * 0.8, -rowDepth * 1.5];
+  return { pos: [look[0], look[1] + d * Math.sin(IDLE_PITCH), look[2] + d * Math.cos(IDLE_PITCH)], look };
+}
+
+// 開跑前的掃描(2026-10-02 使用者:「最多框 2 人,掃描久一點沒關係,可以點一下跳過」):
+// 從最左邊開始,先停 1.2 秒,每秒走 0.8 條車道寬一路掃到最右邊,再停 1.2 秒就結束(done)。
+// 結束或被點一下跳過之後,main.js 把鏡頭拉回整塊冰板。
+const SCAN_HOLD = 1.2;
+const SCAN_SPEED = 0.8;   // 車道 / 秒
+const scanTravel = ({ lanes, frameLanes, laneWidth }) => (Math.max(0, lanes - frameLanes) * laneWidth) / 2;
+
+export function scanDuration(opts) {
+  // 不用移動(剛好 2 個人)也要停 2 × SCAN_HOLD,不然第一格就結束、大字名牌從來沒出現(review)
+  return 2 * SCAN_HOLD + (2 * scanTravel(opts)) / (SCAN_SPEED * opts.laneWidth);
+}
+
+export function scanPass(tSec, opts) {
+  const travel = scanTravel(opts);
+  const total = scanDuration(opts);
+  const done = tSec >= total;
+  const move = total - 2 * SCAN_HOLD;
+  if (move === 0) return { x: 0, done };
+  const k = Math.min(1, Math.max(0, (tSec - SCAN_HOLD) / move));
+  const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+  return { x: -travel + 2 * travel * e, done };
+}
+
+export function createCameraScript({ camera, ladder, laneWidth: w, rowDepth, from = null }) {
   const far = ladder.rows * rowDepth;      // 跑道總長(正值)
   const wide = Math.max(1, ladder.lanes * w);
 
   // 獎品開跑前浮在起跑線上方(track.js 的 prizeFrom 就是以這一帶為中心)
   const cloudY = w * 2.7;
-  const cloudZ = rowDepth * 0.9;
+  const cloudZ = -rowDepth * 1.15;   // 獎品的起飛點在起跑線後方(track.js prizeFrom)
 
   // 俯視要能框住**整條**跑道 —— 含近處的起跑線跟遠處的獎品。
   const fit = () => Math.max(far * 0.95, wide / Math.max(0.5, camera.aspect) * 1.15);
@@ -55,6 +99,9 @@ export function createCameraScript({ camera, ladder, laneWidth: w, rowDepth }) {
     camera.lookAt(look[0], look[1], look[2]);
   }
 
+  // from:開跑那一刻的機位(人多時開跑前會左右掃,不一定停在正中間)
+  const idle = () => from ?? idleFrame({ lanes: ladder.lanes, laneWidth: w, rowDepth, aspect: camera.aspect });
+
   const between = (a, b, k) => [lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k)];
 
   // elapsed:毫秒。runners:setProgress 回傳的每個人此刻的座標。
@@ -63,8 +110,9 @@ export function createCameraScript({ camera, ladder, laneWidth: w, rowDepth }) {
     // 1. 看獎品:獎品浮在角色頭上,鏡頭由下往上看。
     if (elapsed < SHOW) {
       const k = easeInOut(elapsed / SHOW);
-      // 開場先微微推近,不要一動也不動
-      place(between([0, w * 1.1, cloudZ + wide * 1.5 + 5], showPos(), k), showLook());
+      // 從開跑前的構圖(idleFrame)推到「由下往上看獎品」
+      const f = idle();
+      place(between(f.pos, showPos(), k), between(f.look, showLook(), k));
       return { run: 0, fly: 0 };
     }
 

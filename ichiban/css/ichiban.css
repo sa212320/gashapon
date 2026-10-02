@@ -12,23 +12,6 @@ body {
   overflow: hidden;
 }
 
-/* ---------- topbar ---------- */
-.topbar {
-  position: relative;
-  padding: max(14px, env(safe-area-inset-top)) 18px 6px;
-  text-align: center;
-}
-.setup-name {
-  margin: 0;
-  font-size: clamp(22px, 5.5vw, 30px);
-  letter-spacing: .04em;
-}
-.remaining {
-  margin: 4px 0 0;
-  font-size: 15px;
-  color: #9A8778;
-}
-
 /* ---------- 桌面:散落的籤紙 ---------- */
 .stage {
   position: relative;
@@ -43,7 +26,10 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  padding: 14px 16px 28px;
+  /* 標題列拿掉了(2026-10-02):上緣讓開角落的回首頁 / 音效 / 設定,第一排籤才不會被蓋住。
+     留白一定要放在 .desk(不是 .stage):.desk-canvas 貼齊 .stage,籤的位置照 .desk 裡的按鈕算 ——
+     放在 .stage 的話按鈕往下、畫布沒跟著,畫出來的籤整個偏上(2026-10-02 截圖)。 */
+  padding: calc(max(10px, env(safe-area-inset-top)) + 56px) 16px 28px;
 }
 /* 桌上的籤畫在 .desk-canvas 上(js/ui.js createDeskView);這裡的按鈕是透明的,
    只負責點擊、焦點跟飛出去的起點。大小與欄數由 layoutDesk 算好塞進 CSS 變數。 */
@@ -263,14 +249,6 @@ body {
   font-size: 14px;
 }
 
-/* ---------- toolbar ---------- */
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 18px;
-  padding: 10px 18px max(18px, env(safe-area-inset-bottom));
-}
 .is-muted { opacity: .45; }
 
 /* ---------- 設定對話框:一番賞自己的分頁內容 ---------- */

@@ -85,12 +85,18 @@ body { display: grid; grid-template-rows: 1fr auto; min-height: 100dvh; overflow
   .toolbar .btn--draw { font-size: 24px; min-height: 60px; padding: 12px 34px; }
 }
 
-.prize-list, .edit-list { margin: 0 0 10px; padding: 0; list-style: none; display: grid; gap: 8px; }
+.prize-list, .edit-list { margin: 0 0 10px; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .prize-list li { display: flex; gap: 10px; padding: 7px 10px; border-radius: 12px; background: var(--cream-deep); font-weight: 700; }
 .prize-list li span:last-child { margin-left: auto; opacity: .8; }
 .edit-row { display: flex; align-items: center; gap: 8px; }
-.edit-row__name { flex: 1; min-width: 0; }
-.edit-row__count { width: 52px; text-align: center; }
+/* width: 0 —— input 天生約 20 個字寬(~208px),會被算進 grid 欄的 min-content,
+   手機上整列撐出對話框、「刪」被擠到外面;min-width: 0 擋不住這個。 */
+.edit-row__name { flex: 1; min-width: 0; width: 0; }
+/* 最多兩位數(0~99)。原本 52px 扣掉框線與 12px 內距只剩 20px,上下鍵再吃掉一半,數字被切掉。
+   內距收窄、拿掉上下鍵 —— 手機上 type=number 仍會叫出數字鍵盤。 */
+.edit-row__count { width: 64px; padding-inline: 4px; text-align: center; appearance: textfield; -moz-appearance: textfield; }
+.edit-row__count::-webkit-inner-spin-button,
+.edit-row__count::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .edit-row__rarity { width: 76px; }
 .panel__hint { margin: 0 0 8px; font-size: 14px; opacity: .75; }
 

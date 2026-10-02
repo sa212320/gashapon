@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import {
   PALETTE, createPlayer, createGhostPrize, pickColor,
   shuffle, lineup, bottomSlots, buildLadder, walk, assign,
+  ANIMALS, TIERS, pickAnimal, sortResults,
 } from '../ghostleg/js/ladder.js';
 
 function seeded(seed) {
@@ -191,4 +192,83 @@ test('assign 把結果對上玩家與格子', () => {
   assert.deepEqual(out.map(r => r.playerId).sort(), list.map(p => p.id).sort());
   assert.equal(new Set(out.map(r => r.slotIndex)).size, 4);
   for (const r of out) assert.equal(r.slot, slots[r.slotIndex]);
+});
+
+/* ---------- 動物與獎品等級(2026-10-02 改版) ---------- */
+
+test('ANIMALS / TIERS 是定案的那幾個', () => {
+  assert.deepEqual([...ANIMALS], ['snowman', 'rabbit', 'penguin', 'reindeer', 'cat', 'dog', 'bear', 'seal', 'owl', 'hamster']);
+  assert.deepEqual([...TIERS], ['plain', 'chest', 'deluxe']);
+});
+
+test('pickAnimal 挑目前最少人用的,同票照清單順序', () => {
+  assert.equal(pickAnimal([]), 'snowman');
+  assert.equal(pickAnimal([{ animal: 'snowman' }]), 'rabbit');
+  const all = ANIMALS.map(animal => ({ animal }));
+  assert.equal(pickAnimal([...all, { animal: 'snowman' }, { animal: 'rabbit' }]), 'penguin');
+});
+
+test('createPlayer 預設配一隻動物;給了就用給的', () => {
+  assert.ok(ANIMALS.includes(createPlayer().animal));
+  assert.equal(createPlayer({ animal: 'cat' }).animal, 'cat');
+});
+
+test('createGhostPrize 預設 tier 是 plain;不合法的 tier 也變 plain', () => {
+  assert.equal(createGhostPrize().tier, 'plain');
+  assert.equal(createGhostPrize({ tier: 'deluxe' }).tier, 'deluxe');
+  assert.equal(createGhostPrize({ tier: 'gold' }).tier, 'plain');
+});
+
+test('tier 不從 count 或清單順序推算(模型錯誤 #2)', () => {
+  const a = createGhostPrize({ name: 'A', count: 1 });
+  const b = createGhostPrize({ name: 'B', count: 9 });
+  assert.equal(a.tier, 'plain');
+  assert.equal(b.tier, 'plain');
+});
+
+test('bottomSlots 把 tier 帶進每格;銘謝惠顧格沒有 tier(模型錯誤 #3)', () => {
+  const list = [createGhostPrize({ name: '頭', count: 1, tier: 'deluxe' })];
+  const slots = bottomSlots(list, 3, seeded(5));
+  const won = slots.filter(s => s.prizeId !== null);
+  const empty = slots.filter(s => s.prizeId === null);
+  assert.equal(won.length, 1);
+  assert.equal(won[0].tier, 'deluxe');
+  assert.equal(empty.length, 2);
+  for (const s of empty) assert.ok(!('tier' in s));
+});
+
+test('動物跟著人走:lineup 洗過之後每個人的 animal 不變(模型錯誤 #1)', () => {
+  const ps = ['a', 'b', 'c', 'd'].map((name, i) => createPlayer({ name, animal: ANIMALS[i] }));
+  const before = new Map(ps.map(p => [p.id, p.animal]));
+  for (const p of lineup(ps, seeded(9))) assert.equal(p.animal, before.get(p.id));
+});
+
+test('sortResults:頭獎 → 大獎 → 一般 → 銘謝惠顧,同級保持原順序;不改原陣列', () => {
+  const r = (id, slot) => ({ playerId: id, slotIndex: 0, slot });
+  const input = [
+    r('e1', { prizeId: null, name: '銘謝惠顧' }),
+    r('p1', { prizeId: 'a', name: '一般A', tier: 'plain' }),
+    r('d1', { prizeId: 'b', name: '頭', tier: 'deluxe' }),
+    r('c1', { prizeId: 'c', name: '大', tier: 'chest' }),
+    r('p2', { prizeId: 'd', name: '一般B', tier: 'plain' }),
+  ];
+  const copy = input.slice();
+  assert.deepEqual(sortResults(input).map(x => x.playerId), ['d1', 'c1', 'p1', 'p2', 'e1']);
+  assert.deepEqual(input, copy);
+});
+
+test('sortResults:同一級照設定裡的獎項順序,不是照車道順序', () => {
+  const two = createGhostPrize({ name: '二獎' });
+  const three = createGhostPrize({ name: '三獎' });
+  const r = (id, p) => ({ playerId: id, slotIndex: 0, slot: { prizeId: p.id, name: p.name, tier: p.tier } });
+  const results = [r('a', three), r('b', three), r('c', two)];
+  assert.deepEqual(sortResults(results, [two, three]).map(x => x.playerId), ['c', 'a', 'b']);
+});
+
+// 2026-10-02 使用者:「為啥有些橫線在最底下一開始的地方」—— 第 0 列畫在 z = 0,就是起跑線(棋子站的地方)
+test('buildLadder:第 0 列(起跑線)不會有橫槓', () => {
+  for (let seed = 1; seed <= 200; seed++) {
+    const ladder = buildLadder({ lanes: 8, rng: seeded(seed) });
+    assert.ok(ladder.rungs.every(r => r.row >= 1), `seed ${seed}`);
+  }
 });

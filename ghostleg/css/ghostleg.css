@@ -3,15 +3,43 @@
 
 body { display: flex; flex-direction: column; min-height: 100svh; }
 
-.topbar { position: relative; padding: 14px 16px 6px; text-align: center; }
-/* home-link 是絕對定位的,topbar 不給 relative 的話它會跑到頁面中間去 */
-.setup-name { margin: 0; font-size: 22px; }
-.remaining { margin: 2px 0 0; font-size: 14px; opacity: .72; }
+/* 標題列、人數小字都拿掉了(2026-10-02 使用者) */
 
 .stage { position: relative; flex: 1; min-height: 0; }
-/* 用 absolute inset:0 而不是 height:100% —— 百分比高度要靠父層有明確高度才解得出來,
-   在 flex 版面裡很容易變成只算到一半。 */
-.track { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+/* 畫布撐滿整個視窗(跟立體扭蛋機一樣)。只蓋到開始鈕上方的話,特寫時冰板蓋滿畫布,
+   吉祥物(在畫布後面)只剩下半身從底下那條露出來(2026-10-02 使用者)。 */
+.track { position: fixed; inset: 0; display: block; width: 100vw; height: 100dvh; }
+
+/* 開跑前的大字名牌(2026-10-02):投影上課時後排也看得到。位置由 main.js placeNames 跟著棋子擺,
+   字高約畫面 3%;開跑時淡出,換回 3D 底座前的小名牌。 */
+.name-layer { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .35s; overflow: hidden; }
+.name-layer.is-on { opacity: 1; }
+.name-layer__tag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: .12em .35em;
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;   /* 名字一律全名,不截短(「王…」看不出是誰)*/
+  box-sizing: border-box;
+}
+
+.skip-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  translate: -50% 0;
+  margin: 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(58, 46, 41, .5);
+  color: #fff;
+  font-size: 14px;
+  pointer-events: none;
+}
 
 .empty-state {
   position: absolute;
@@ -22,56 +50,105 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
   gap: 10px;
   text-align: center;
 }
-.empty-state__icon { font-size: 54px; }
+/* 空狀態(2026-10-02):小冰板上一隻立牌(玩家色底座)+ 一個空的虛線底座 */
+.empty-scene {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 26px;
+  width: 220px;
+  padding: 16px 0 14px;
+  border: 4px solid var(--ink);
+  border-radius: 22px;
+  background: linear-gradient(#DDF0FB, #BFE1F7);
+  box-shadow: inset 0 0 0 5px #fff;
+}
+.empty-scene__seat { display: grid; justify-items: center; width: 70px; }
+.empty-scene__seat img { height: 90px; width: auto; margin-bottom: -6px; position: relative; }
+.empty-scene__seat::after {
+  content: '';
+  width: 58px;
+  height: 18px;
+  border: 4px solid var(--ink);
+  border-radius: 50%;
+  background: var(--seat, #fff);
+}
+.empty-scene__seat--vacant::after { border-style: dashed; background: transparent; }
 .empty-state__text { margin: 0; font-size: 18px; font-weight: 700; }
 
-/* 結果清單:蓋在跑道上,本身可以捲動。40 個人的話一定捲得到。 */
+/* 結果卡(2026-10-02):冰雪框 + 冰牌標題;依等級排序,頭獎那列微微發光。本身可以捲動,40 個人一定捲得到。 */
 .results {
   position: absolute;
   left: 50%;
   bottom: 0;
   translate: -50% 0;
-  width: min(94vw, 420px);
-  max-height: 74%;
+  width: min(94vw, 440px);
+  max-height: 76%;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 14px;
+  padding: 26px 14px max(14px, env(safe-area-inset-bottom));
   box-sizing: border-box;
   border: var(--stroke) solid var(--ink);
-  border-radius: var(--radius) var(--radius) 0 0;
-  background: var(--cream);
+  border-bottom: 0;
+  border-radius: 26px 26px 0 0;
+  background: linear-gradient(#F4FAFE, #DDEFFA);
+  box-shadow: inset 0 0 0 4px #fff;
 }
-.results__head { margin: 0; font-size: 18px; text-align: center; }
-.results__list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  overflow-y: auto;
-  display: grid;
-  gap: 6px;
+.results::before {   /* 框頂的積雪 */
+  content: '';
+  position: absolute;
+  inset: -10px 18px auto;
+  height: 22px;
+  border: 4px solid var(--ink);
+  border-radius: 999px;
+  background: #fff;
 }
+.results__head {
+  align-self: center;
+  margin: -6px 0 0;
+  padding: 4px 22px;
+  border: 4px solid var(--ink);
+  border-radius: 14px;
+  background: #BFE1F7;
+  font-size: 18px;
+  position: relative;
+}
+.results__list { margin: 0; padding: 0 2px; list-style: none; overflow-y: auto; display: grid; gap: 6px; }
 .results__item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 10px;
-  border-radius: 12px;
-  background: var(--cream-deep);
+  gap: 8px;
+  min-height: 48px;
+  padding: 4px 10px;
+  border-radius: 14px;
+  background: #fff;
+  border: 3px solid #C9E2F3;
   font-weight: 700;
 }
-.results__dot {
+.results__item--deluxe { border-color: #9FD3F5; box-shadow: 0 0 0 3px #fff, 0 0 16px 4px rgba(160, 215, 255, .9); }
+.results__seat {
   flex: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
   border: 3px solid var(--ink);
+  border-radius: 50%;
+  overflow: hidden;
 }
-.results__who { flex: 1; }
-.results__prize { opacity: .85; }
-.results__item--empty .results__prize { opacity: .5; font-weight: 400; }
+.results__animal { height: 38px; width: auto; }
+/* 名字、獎項都不截斷(「…」看不出是誰,老師要照著抄),長的就換行 */
+.results__who { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.results__icon { flex: none; height: 34px; width: auto; }
+.results__prize { flex: none; max-width: 40%; overflow-wrap: anywhere; text-align: right; }
+.results__item--empty { background: #F1F5F8; }
+.results__item--empty .results__prize { opacity: .55; font-weight: 400; }
 
 .toolbar {
+  /* 畫布是 fixed、撐滿視窗(定位元素),工具列要定位 + z-index 才會畫在它上面 */
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -81,7 +158,7 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
 .btn--go { font-size: 21px; padding-inline: 38px; }
 
 /* 設定裡的每一列 */
-.edit-list { margin: 0 0 10px; padding: 0; list-style: none; display: grid; gap: 8px; }
+.edit-list { margin: 0 0 10px; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .edit-row { display: flex; align-items: center; gap: 8px; }
 .edit-row__dot {
   flex: none;
@@ -90,8 +167,40 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
   border-radius: 50%;
   border: 3px solid var(--ink);
 }
-.edit-row__name { flex: 1; min-width: 0; }
-.edit-row__count { width: 52px; text-align: center; }
+/* 動物 / 等級選擇器(2026-10-02):點小圖在那一列下面展開一排選項 */
+.edit-row__pick {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  padding: 2px;
+  display: grid;
+  place-items: center;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #EAF5FC;
+  cursor: pointer;
+}
+.edit-row__pick.is-current { outline: 3px solid var(--sun); outline-offset: 1px; }
+.edit-row__thumb { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
+.picker-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--cream-deep);
+}
+.picker-row__opt { display: grid; justify-items: center; gap: 2px; }
+.picker-row__label { font-size: 12px; font-weight: 700; }
+.picker-row .edit-row__pick:has(.picker-row__opt) { width: 64px; height: 64px; }
+/* width: 0 —— input 天生約 20 個字寬(~208px),會被算進 grid 欄的 min-content,
+   手機上整列撐出對話框、「刪」被擠到外面;min-width: 0 擋不住這個。 */
+.edit-row__name { flex: 1; min-width: 0; width: 0; }
+/* 最多兩位數(0~99)。原本 52px 扣掉框線與 12px 內距只剩 20px,上下鍵再吃掉一半,數字被切掉。
+   內距收窄、拿掉上下鍵 —— 手機上 type=number 仍會叫出數字鍵盤。 */
+.edit-row__count { width: 64px; padding-inline: 4px; text-align: center; appearance: textfield; -moz-appearance: textfield; }
+.edit-row__count::-webkit-inner-spin-button,
+.edit-row__count::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .panel__hint { margin: 0 0 8px; font-size: 14px; opacity: .75; }
 
 /* three.js 有 168 KB,手機上會有一段看不到東西的空窗。
