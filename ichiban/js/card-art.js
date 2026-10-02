@@ -7,47 +7,20 @@
 export const CARD_W = 1020;
 export const CARD_H = 450; // 34:15
 
-// 票卡輪廓:上下長邊一排方齒、左緣一個往外凸的半圓耳、右端圓頭。
-// 百分比座標;x 與 y 的 1% 長度不同(卡片是 34:15),所以圓弧的 x 半徑要乘 15/34,
-// 不然半圓耳會變成扁橢圓。
-function shapePoints() {
-  const XL = 10, XR = 95, YT = 13, YB = 87;
-  const TOOTH = 7, TEETH = 12;
-  const capX = 7, capY = 37;
-  const lobeY = 16, lobeX = lobeY * (15 / 34);
-  const flatR = XR - capX;
-  const w = (flatR - XL) / TEETH;
-  const p = [];
+// 票卡輪廓(2026-10-02 使用者選 D):圓角長方形,上下兩條長邊各一排半圓撕線孔(ミシン目),
+// 像真的一番賞籤券。原本「方齒 + 半圓耳」直放在桌上像梳子,使用者覺得怪。
+// 孔的大小跟間距是票卡座標(1020×450);桌上最小 28px 寬時孔約 1px,看起來就是一排小點。
+const EDGE = { x0: CARD_W * 0.02, x1: CARD_W * 0.98, y0: CARD_H * 0.05, y1: CARD_H * 0.95, r: 30 };
+const HOLE_R = 18;
+const HOLE_STEP = 64;
 
-  for (let i = 0; i < TEETH; i++) {            // 上緣方齒,由左往右
-    const a = XL + i * w;
-    const m = a + w / 2;
-    p.push([a, YT], [a, YT - TOOTH], [m, YT - TOOTH], [m, YT]);
-  }
-  p.push([flatR, YT]);
-
-  for (let i = 1; i < 12; i++) {               // 右端圓頭
-    const t = -Math.PI / 2 + (Math.PI * i) / 12;
-    p.push([flatR + capX * Math.cos(t), 50 + capY * Math.sin(t)]);
-  }
-  p.push([flatR, YB]);
-
-  for (let i = TEETH - 1; i >= 0; i--) {       // 下緣方齒,由右往左(x 範圍與上緣一致)
-    const a = XL + i * w;
-    const m = a + w / 2;
-    p.push([m, YB], [m, YB + TOOTH], [a, YB + TOOTH], [a, YB]);
-  }
-
-  p.push([XL, 50 + lobeY]);                    // 左緣往外凸的半圓耳
-  for (let i = 1; i < 10; i++) {
-    const t = Math.PI / 2 + (Math.PI * i) / 10;
-    p.push([XL + lobeX * Math.cos(t), 50 + lobeY * Math.sin(t)]);
-  }
-  p.push([XL, 50 - lobeY], [XL, YT]);
-  return p;
+function holeCenters() {
+  const { x0, x1, r } = EDGE;
+  const n = Math.floor((x1 - x0 - 2 * r - HOLE_STEP) / HOLE_STEP);
+  const start = (x0 + x1) / 2 - (n * HOLE_STEP) / 2;
+  return Array.from({ length: n + 1 }, (_, i) => start + i * HOLE_STEP);
 }
-
-const PTS = shapePoints();
+const HOLES = holeCenters();
 
 export function makeCardCanvas() {
   const c = document.createElement('canvas');
@@ -57,12 +30,25 @@ export function makeCardCanvas() {
 }
 
 function traceShape(ctx) {
+  const { x0, x1, y0, y1, r } = EDGE;
   ctx.beginPath();
-  PTS.forEach(([x, y], i) => {
-    const px = (x / 100) * CARD_W;
-    const py = (y / 100) * CARD_H;
-    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-  });
+  ctx.moveTo(x0 + r, y0);
+  for (const cx of HOLES) {                    // 上緣:由左往右,孔往卡片裡面凹
+    ctx.lineTo(cx - HOLE_R, y0);
+    ctx.arc(cx, y0, HOLE_R, Math.PI, 0, true);
+  }
+  ctx.lineTo(x1 - r, y0);
+  ctx.arcTo(x1, y0, x1, y0 + r, r);
+  ctx.lineTo(x1, y1 - r);
+  ctx.arcTo(x1, y1, x1 - r, y1, r);
+  for (const cx of [...HOLES].reverse()) {     // 下緣:由右往左
+    ctx.lineTo(cx + HOLE_R, y1);
+    ctx.arc(cx, y1, HOLE_R, 0, Math.PI, true);
+  }
+  ctx.lineTo(x0 + r, y1);
+  ctx.arcTo(x0, y1, x0, y1 - r, r);
+  ctx.lineTo(x0, y0 + r);
+  ctx.arcTo(x0, y0, x0 + r, y0, r);
   ctx.closePath();
 }
 
@@ -138,10 +124,21 @@ function paperOver(ctx) {
   ctx.globalCompositeOperation = 'source-over';
 }
 
-function snowflake(ctx, x, y, r) {
+// 固定種子的假隨機(mulberry32):同一張籤永遠同一組雪花,不同張排法不一樣。
+function seeded(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function snowflake(ctx, x, y, r, turn) {
   ctx.beginPath();
   for (let i = 0; i < 3; i++) {
-    const a = (i * Math.PI) / 3;
+    const a = turn + (i * Math.PI) / 3;
     ctx.moveTo(x - r * Math.cos(a), y - r * Math.sin(a));
     ctx.lineTo(x + r * Math.cos(a), y + r * Math.sin(a));
   }
@@ -149,17 +146,33 @@ function snowflake(ctx, x, y, r) {
 }
 
 // 印在紙上的白色雪花 + 一圈虛線框。紙不是冰:不做透明、亮面(2026-10-02 定案)。
-function snowPrint(ctx) {
-  ctx.strokeStyle = 'rgba(255,255,255,.55)';
-  ctx.lineWidth = 5;
+// 雪花不排成格子(使用者:太規則了):每格一朵、在格子裡隨機偏移,大小 / 角度 / 深淺各不同,
+// 偶爾換成小圓點。用格子是為了不會擠成一團或空一大塊。
+function snowPrint(ctx, seed) {
+  const rand = seeded(seed * 2654435761);
   ctx.lineCap = 'round';
-  for (let y = 40, row = 0; y < CARD_H; y += 70, row++) {
-    for (let x = 30 + (row % 2) * 45; x < CARD_W; x += 90) snowflake(ctx, x, y, 14);
+  const CW = 120, CH = 100;
+  for (let gy = 0; gy < CARD_H; gy += CH) {
+    for (let gx = 0; gx < CARD_W; gx += CW) {
+      const x = gx + CW * (0.15 + rand() * 0.7);
+      const y = gy + CH * (0.15 + rand() * 0.7);
+      const alpha = 0.35 + rand() * 0.4;
+      if (rand() < 0.25) {
+        ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(2)})`;
+        ctx.beginPath();
+        ctx.arc(x, y, 3 + rand() * 4, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.strokeStyle = `rgba(255,255,255,${alpha.toFixed(2)})`;
+        ctx.lineWidth = 4 + rand() * 3;
+        snowflake(ctx, x, y, 9 + rand() * 15, rand() * Math.PI);
+      }
+    }
   }
   ctx.setLineDash([22, 16]);
   ctx.lineWidth = 7;
   ctx.strokeStyle = 'rgba(255,255,255,.9)';
-  traceRoundRect(ctx, CARD_W * 0.14, CARD_H * 0.2, CARD_W * 0.76, CARD_H * 0.6, 30);
+  traceRoundRect(ctx, CARD_W * 0.07, CARD_H * 0.17, CARD_W * 0.86, CARD_H * 0.66, 30);
   ctx.stroke();
   ctx.setLineDash([]);
 }
@@ -209,7 +222,7 @@ export function drawFace(ctx, { color, no, critter, orientation = 'landscape', w
   ctx.save();
   ctx.clip();
   paperOver(ctx);
-  snowPrint(ctx);
+  snowPrint(ctx, typeof no === 'number' ? no : 0);
   ctx.restore();
   traceShape(ctx);
   ctx.lineJoin = 'round';
@@ -264,8 +277,6 @@ function drawBadge(ctx, x, y, r, color, letter) {
   ctx.restore();
 }
 
-// 齒孔 → 賞別色帶 → 一條淺色細線 → 深色卡身 → 灰底帶 → 齒孔。
-// 色帶不能壓在齒孔的範圍上,不然看起來像黏了一條鋸齒膠帶。
 export function drawPrize(ctx, { color, letter, name, bonus = false }) {
   ctx.clearRect(0, 0, CARD_W, CARD_H);
   ctx.save();
@@ -273,10 +284,8 @@ export function drawPrize(ctx, { color, letter, name, bonus = false }) {
   ctx.clip();
 
   const body = bonus ? '#4A3A1E' : '#2E2A28';
-  const bands = [
-    [0, .13, '#5A4A42'], [.13, .25, color], [.25, .28, '#FFFFFF'],
-    [.28, .80, body], [.80, .87, '#6B625C'], [.87, 1, '#5A4A42'],
-  ];
+  // 輪廓改成圓角長方形 + 撕線孔之後(2026-10-02),不再有齒孔帶:上方賞別色帶、細白線、深色卡身。
+  const bands = [[0, .24, color], [.24, .27, '#FFFFFF'], [.27, 1, body]];
   for (const [a, b, fill] of bands) {
     ctx.fillStyle = fill;
     ctx.fillRect(0, a * CARD_H, CARD_W, (b - a) * CARD_H);
@@ -284,7 +293,7 @@ export function drawPrize(ctx, { color, letter, name, bonus = false }) {
   paperOver(ctx);
 
   const bx = CARD_W * 0.25;
-  const by = CARD_H * 0.54;      // 深色卡身(28%~80%)的中央
+  const by = CARD_H * 0.61;      // 深色卡身(27%~95%)的中央
   const br = CARD_H * 0.21;
   drawBadge(ctx, bx, by, br, color, letter);
 

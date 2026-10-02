@@ -97,3 +97,22 @@ test('traceTicket 只建路徑,不填色', () => {
   assert.equal(ctx.calls.filter(c => c[0] === 'fill' || c[0] === 'stroke').length, 0);
   assert.ok(ctx.calls.some(c => c[0] === 'lineTo'));
 });
+
+test('票卡輪廓:兩條長邊各一排撕線孔(2026-10-02 使用者選 D),不是方齒', () => {
+  const ctx = recCtx();
+  traceTicket(ctx);
+  const holes = ctx.calls.filter(c => c[0] === 'arc');
+  assert.ok(holes.length >= 20, `只有 ${holes.length} 個孔`);
+  const ys = new Set(holes.map(c => Math.round(c[2])));
+  assert.equal(ys.size, 2, '孔只在上下兩條長邊');
+});
+
+test('雪花紋不規則:每張依號碼散佈不同,同一張永遠一樣', () => {
+  const flakes = no => {
+    const ctx = recCtx();
+    drawFace(ctx, { color: '#fff', no, critter: 'fox' });
+    return JSON.stringify(ctx.calls.filter(c => c[0] === 'moveTo'));
+  };
+  assert.equal(flakes(3), flakes(3));
+  assert.notEqual(flakes(3), flakes(4));
+});
