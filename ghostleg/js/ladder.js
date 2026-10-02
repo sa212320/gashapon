@@ -26,17 +26,38 @@ export function pickColor(existing) {
   return PALETTE.find(c => !used.has(c)) ?? PALETTE[existing.length % PALETTE.length];
 }
 
-export function createPlayer({ name = '玩家', color = null } = {}) {
-  return { id: newId('pl'), name, color: color ?? PALETTE[0] };
+// 玩家的動物(2026-10-02 改版)。存在玩家身上、跟著人走 —— 小孩會認「我是兔子」,
+// 每局換來換去就沒意義了。6 種給最多 40 人用,會重複,名字才是識別。
+export const ANIMALS = Object.freeze(['snowman', 'rabbit', 'penguin', 'reindeer', 'cat', 'dog']);
+
+export function pickAnimal(existing) {
+  const used = new Map(ANIMALS.map(a => [a, 0]));
+  for (const p of existing) if (used.has(p.animal)) used.set(p.animal, used.get(p.animal) + 1);
+  const least = Math.min(...used.values());
+  return ANIMALS.find(a => used.get(a) === least);
 }
 
-export function createGhostPrize({ name = '新獎項', count = 1 } = {}) {
+// 獎品等級。每個獎項手動選、存在獎項上 —— 不能從 count 或清單順序猜(會猜錯)。
+// 銘謝惠顧不是一個等級,它是沒有獎項的空格(prizeId: null),永遠畫雪球。
+export const TIERS = Object.freeze(['plain', 'chest', 'deluxe']);
+
+export function createPlayer({ name = '玩家', color = null, animal = null } = {}) {
+  return {
+    id: newId('pl'),
+    name,
+    color: color ?? PALETTE[0],
+    animal: ANIMALS.includes(animal) ? animal : pickAnimal([]),
+  };
+}
+
+export function createGhostPrize({ name = '新獎項', count = 1, tier = 'plain' } = {}) {
   return {
     id: newId('gp'),
     name,
     // count 不可信:Infinity / NaN 會讓 expand 的迴圈跑不完(一番賞踩過,真的會 OOM)。
     // 一律當成 0(沒有這個獎)比憑空多一份安全。
     count: Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0,
+    tier: TIERS.includes(tier) ? tier : 'plain',
   };
 }
 
@@ -61,7 +82,7 @@ export function lineup(players, rng = Math.random) {
 // 數量多的獎項自然比較常被選中(它展開後佔比較多份)。
 // 最後那次洗是為了讓補進來的空籤不會全部擠在尾端。
 export function bottomSlots(prizes, playerCount, rng = Math.random) {
-  const filled = shuffle(expand(prizes, p => ({ prizeId: p.id, name: p.name })), rng);
+  const filled = shuffle(expand(prizes, p => ({ prizeId: p.id, name: p.name, tier: p.tier })), rng);
   const slots = filled.slice(0, playerCount);
   while (slots.length < playerCount) slots.push({ prizeId: null, name: EMPTY_SLOT_NAME });
   return shuffle(slots, rng);
@@ -107,6 +128,13 @@ export function assign(ladder, players, slots) {
     const slotIndex = walk(ladder, lane);
     return { playerId: player.id, slotIndex, slot: slots[slotIndex] };
   });
+}
+
+// 結果卡的顯示順序:頭獎 → 大獎 → 一般 → 銘謝惠顧,同級保持原本順序。只給畫面用,不寫回存檔。
+const TIER_RANK = { deluxe: 0, chest: 1, plain: 2 };
+export function sortResults(results) {
+  const rank = r => (r.slot.prizeId === null ? 3 : TIER_RANK[r.slot.tier] ?? 2);
+  return results.map((r, i) => [r, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([r]) => r);
 }
 
 // 一份設定 = 一組玩家 + 一組獎項。每局的梯子、站位、終點擺設都是現場產生的,不存。
