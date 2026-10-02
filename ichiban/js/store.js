@@ -2,7 +2,7 @@
 // 壞掉就回種子資料,絕不讓小孩看到白畫面。
 import { createStore } from '../../shared/js/storage.js';
 import { createSetupList } from '../../shared/js/roster.js';
-import { createIchibanSetup, createIchibanPrize, buildTickets, TIERS } from './ichiban.js';
+import { createIchibanSetup, createIchibanPrize, buildTickets, normalizeTicketNos, TIERS } from './ichiban.js';
 
 const SEED_PRIZES = [
   { name: '大獎',   tier: 'A', count: 1 },
@@ -37,7 +37,9 @@ function sanitizeSetup(raw) {
     name: typeof raw.name === 'string' ? raw.name : '我的一番賞',
     lastOnePrize: typeof raw.lastOnePrize === 'string' ? raw.lastOnePrize : '',
     prizes,
-    tickets: ok ? raw.tickets.map(t => ({ prizeId: t.prizeId, drawn: t.drawn === true })) : buildTickets(prizes),
+    tickets: ok
+      ? normalizeTicketNos(raw.tickets.map(t => ({ no: t.no, prizeId: t.prizeId, drawn: t.drawn === true })))
+      : buildTickets(prizes),
   };
 }
 

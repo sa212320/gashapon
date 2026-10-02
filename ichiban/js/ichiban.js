@@ -29,8 +29,19 @@ export function createIchibanPrize({ name = '新獎項', tier = 'G', count = 1 }
   };
 }
 
+// 每張籤一個固定號碼(2026-10-02):小孩可以喊「我要 7 號」。抽走後其他號碼不重編,
+// 只有重建(補籤、改獎項)才從 1 重新編。顏色、角色、歪斜都由號碼推算,不存。
 export function buildTickets(prizes) {
-  return expand(prizes, prize => ({ prizeId: prize.id, drawn: false }));
+  return expand(prizes, prize => ({ prizeId: prize.id, drawn: false }))
+    .map((t, i) => ({ no: i + 1, ...t }));
+}
+
+// 存檔讀回來的號碼不可信:缺、重複、不是正整數 → 整組依陣列順序重編。
+// 合法的就不動 —— 抽走一些之後號碼本來就不連續。
+export function normalizeTicketNos(tickets) {
+  const seen = new Set();
+  const valid = tickets.every(t => Number.isInteger(t.no) && t.no > 0 && !seen.has(t.no) && seen.add(t.no));
+  return valid ? tickets : tickets.map((t, i) => ({ ...t, no: i + 1 }));
 }
 
 export function createIchibanSetup({ name = '我的一番賞', prizes = [], lastOnePrize = '' } = {}) {
@@ -42,15 +53,25 @@ export function refillSetup(setup) {
 }
 
 // 抽一張。機率只由 count 決定 —— 每張籤機會均等,賞別從不參與計算。
-export function drawTicket(setup, rng = Math.random) {
+// pickedNo(2026-10-02):使用者點的那張。隨機挑出的那張 j 跟它互換 prizeId,
+// 再把點的那張標成 drawn —— 桌上消失的就是點的那張,而各獎的機率完全不變
+// (prizeId 在撕開前沒有意義,互換不改變任何一張「被抽到什麼」的分布)。
+export function drawTicket(setup, rng = Math.random, pickedNo) {
   const candidates = [];
   setup.tickets.forEach((ticket, index) => { if (!ticket.drawn) candidates.push(index); });
   if (candidates.length === 0) return null;
 
-  const index = candidates[Math.floor(rng() * candidates.length)];
-  const ticket = setup.tickets[index];
-  const prize = setup.prizes.find(p => p.id === ticket.prizeId);
-  const tickets = setup.tickets.map((t, i) => (i === index ? { ...t, drawn: true } : t));
+  const j = candidates[Math.floor(rng() * candidates.length)];
+  const picked = setup.tickets.findIndex(t => !t.drawn && t.no === pickedNo);
+  const index = picked === -1 ? j : picked;
+  const prizeId = setup.tickets[j].prizeId;
+  const tickets = setup.tickets.map((t, i) => {
+    if (i === index) return { ...t, prizeId, drawn: true };
+    if (i === j) return { ...t, prizeId: setup.tickets[index].prizeId };
+    return t;
+  });
+  const ticket = tickets[index];
+  const prize = setup.prizes.find(p => p.id === prizeId);
 
   const bonus = (setup.lastOnePrize ?? '').trim();
   const wasLast = candidates.length === 1 && bonus !== '';

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   TIERS, TIER_META, createIchibanPrize, createIchibanSetup,
-  buildTickets, drawTicket, refillSetup,
+  buildTickets, drawTicket, refillSetup, normalizeTicketNos,
 } from '../ichiban/js/ichiban.js';
 import { remaining } from '../shared/js/roster.js';
 
@@ -139,4 +139,95 @@ test('TIER_META 的內層也凍住了,不能偷改某個賞別的顏色', () => 
   assert.equal(Object.isFrozen(TIER_META), true);
   assert.equal(Object.isFrozen(TIER_META.A), true);
   assert.throws(() => { TIER_META.A.color = 'x'; }, TypeError);
+});
+
+test('buildTickets 依序給號碼 1..N', () => {
+  const prizes = [
+    createIchibanPrize({ name: '模型', tier: 'A', count: 1 }),
+    createIchibanPrize({ name: '吊飾', tier: 'C', count: 3 }),
+  ];
+  assert.deepEqual(buildTickets(prizes).map(t => t.no), [1, 2, 3, 4]);
+});
+
+test('refillSetup 重建時重新編號', () => {
+  const setup = createIchibanSetup({ prizes: [createIchibanPrize({ name: 'x', tier: 'A', count: 3 })] });
+  const r = drawTicket(setup, seeded(9), 2);
+  const refilled = refillSetup({ ...setup, tickets: r.tickets });
+  assert.deepEqual(refilled.tickets.map(t => t.no), [1, 2, 3]);
+  assert.ok(refilled.tickets.every(t => !t.drawn));
+});
+
+test('drawTicket 帶 pickedNo:被點的那張一定被抽走', () => {
+  const setup = createIchibanSetup({
+    prizes: [
+      createIchibanPrize({ name: '大獎', tier: 'A', count: 1 }),
+      createIchibanPrize({ name: '小獎', tier: 'G', count: 5 }),
+    ],
+  });
+  for (let seed = 1; seed <= 30; seed++) {
+    const r = drawTicket(setup, seeded(seed), 4);
+    assert.equal(r.ticket.no, 4);
+    assert.equal(r.tickets.find(t => t.no === 4).drawn, true);
+    assert.equal(r.tickets.filter(t => t.drawn).length, 1);
+    assert.equal(r.prize.id, r.ticket.prizeId);
+  }
+});
+
+test('drawTicket 互換不會改變各獎項的張數,也不動號碼', () => {
+  const setup = createIchibanSetup({
+    prizes: [
+      createIchibanPrize({ name: '大獎', tier: 'A', count: 2 }),
+      createIchibanPrize({ name: '小獎', tier: 'G', count: 5 }),
+    ],
+  });
+  const tally = ts => ts.reduce((m, t) => ({ ...m, [t.prizeId]: (m[t.prizeId] ?? 0) + 1 }), {});
+  const r = drawTicket(setup, seeded(5), 7);
+  assert.deepEqual(tally(r.tickets), tally(setup.tickets));
+  assert.deepEqual(r.tickets.map(t => t.no), setup.tickets.map(t => t.no));
+});
+
+test('drawTicket 帶 pickedNo:機率仍然只看 count', () => {
+  const setup = createIchibanSetup({
+    prizes: [
+      createIchibanPrize({ name: '大獎', tier: 'A', count: 1 }),
+      createIchibanPrize({ name: '小獎', tier: 'G', count: 3 }),
+    ],
+  });
+  const rng = seeded(42);
+  let a = 0;
+  const N = 4000;
+  for (let i = 0; i < N; i++) if (drawTicket(setup, rng, 1).prize.tier === 'A') a++;
+  // 1 號在陣列裡本來就是大獎;如果點哪張就給哪張的獎,這裡會是 100%
+  assert.ok(Math.abs(a / N - 0.25) < 0.03, `A 賞比例 ${a / N}`);
+});
+
+test('drawTicket:pickedNo 不在剩下的籤裡就退回隨機那張', () => {
+  let setup = createIchibanSetup({ prizes: [createIchibanPrize({ name: 'x', tier: 'A', count: 3 })] });
+  setup = { ...setup, tickets: drawTicket(setup, seeded(1), 2).tickets };
+  const r = drawTicket(setup, seeded(2), 2);
+  assert.notEqual(r.ticket.no, 2);
+  assert.equal(r.tickets.filter(t => t.drawn).length, 2);
+});
+
+test('normalizeTicketNos:缺號碼、重複、非整數都整組依順序重編', () => {
+  const t = no => ({ no, prizeId: 'p', drawn: false });
+  assert.deepEqual(normalizeTicketNos([t(undefined), t(undefined)]).map(x => x.no), [1, 2]);
+  assert.deepEqual(normalizeTicketNos([t(3), t(3)]).map(x => x.no), [1, 2]);
+  assert.deepEqual(normalizeTicketNos([t(1.5), t(2)]).map(x => x.no), [1, 2]);
+  assert.deepEqual(normalizeTicketNos([t(5), t(2)]).map(x => x.no), [5, 2], '合法就不動(抽走後號碼本來就不連續)');
+});
+
+test('舊存檔沒有 no:讀進來依陣列順序補號碼,不回種子資料', async () => {
+  const data = {
+    'ichiban.v1': JSON.stringify({ schema: 1, state: {
+      activeSetupId: 's1',
+      setups: [{ id: 's1', name: '舊的', lastOnePrize: '', prizes: [{ id: 'p1', name: 'x', tier: 'A', count: 2 }],
+        tickets: [{ prizeId: 'p1', drawn: true }, { prizeId: 'p1', drawn: false }] }],
+    } }),
+  };
+  const storage = { getItem: k => data[k] ?? null, setItem: (k, v) => { data[k] = String(v); }, removeItem: k => { delete data[k]; } };
+  const { store } = await import('../ichiban/js/store.js');
+  const s = store.load(storage).setups[0];
+  assert.equal(s.name, '舊的');
+  assert.deepEqual(s.tickets.map(t => [t.no, t.drawn]), [[1, true], [2, false]]);
 });
