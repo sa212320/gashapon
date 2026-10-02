@@ -1,7 +1,7 @@
 // localStorage 讀寫。讀進來的東西一律當成不可信,壞掉就回種子資料,絕不白畫面。
 import { createStore } from '../../shared/js/storage.js';
 import { createSetupList } from '../../shared/js/roster.js';
-import { createGhostSetup, createPlayer, createGhostPrize, MAX_PLAYERS, PALETTE } from './ladder.js';
+import { createGhostSetup, createPlayer, createGhostPrize, MAX_PLAYERS, PALETTE, ANIMALS, TIERS } from './ladder.js';
 
 const SEED_PLAYERS = ['小紅', '小綠', '小藍', '小黃', '小紫', '小橘'];
 const SEED_PRIZES = [
@@ -13,12 +13,12 @@ const SEED_PRIZES = [
 export function seedState() {
   return createSetupList(createGhostSetup({
     name: '我的阿彌陀籤',
-    players: SEED_PLAYERS.map((name, i) => createPlayer({ name, color: PALETTE[i % PALETTE.length] })),
+    players: SEED_PLAYERS.map((name, i) => createPlayer({ name, color: PALETTE[i % PALETTE.length], animal: ANIMALS[i % ANIMALS.length] })),
     prizes: SEED_PRIZES.map(createGhostPrize),
   }));
 }
 
-function sanitizeSetup(raw) {
+export function sanitizeSetup(raw) {
   if (!raw || typeof raw !== 'object' || typeof raw.id !== 'string') return null;
 
   const players = (Array.isArray(raw.players) ? raw.players : [])
@@ -28,6 +28,8 @@ function sanitizeSetup(raw) {
       id: p.id,
       name: typeof p.name === 'string' ? p.name : '玩家',
       color: PALETTE.includes(p.color) ? p.color : PALETTE[i % PALETTE.length],
+      // 2026-10-02 以前的存檔沒有 animal:照順序補,之後就固定跟著這個人
+      animal: ANIMALS.includes(p.animal) ? p.animal : ANIMALS[i % ANIMALS.length],
     }));
 
   const prizes = (Array.isArray(raw.prizes) ? raw.prizes : [])
@@ -37,6 +39,7 @@ function sanitizeSetup(raw) {
       name: typeof p.name === 'string' ? p.name : '獎項',
       // Infinity / NaN 會讓 expand 的迴圈跑不完,當成 0 比憑空多一份安全
       count: Number.isFinite(p.count) ? Math.max(0, Math.floor(p.count)) : 0,
+      tier: TIERS.includes(p.tier) ? p.tier : 'plain',
     }));
 
   return {
