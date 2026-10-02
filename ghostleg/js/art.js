@@ -1,7 +1,16 @@
 // 阿彌陀籤的素材網址(含 ?v= 內容雜湊,由 tools/mascot-gen/ghostleg.py build 蓋上)。
 // 首頁的 preload.json 從這支檔案抓網址,所以網址要寫成 new URL('../img/…?v=…', import.meta.url) 的字面值。
 export const ANIMAL_URLS = {
-
+  snowman: new URL('../img/animals/snowman.webp?v=c5fb7077', import.meta.url).href,
+  rabbit: new URL('../img/animals/rabbit.webp?v=5e87d544', import.meta.url).href,
+  penguin: new URL('../img/animals/penguin.webp?v=d31d802f', import.meta.url).href,
+  reindeer: new URL('../img/animals/reindeer.webp?v=289bb975', import.meta.url).href,
+  cat: new URL('../img/animals/cat.webp?v=c20bac07', import.meta.url).href,
+  dog: new URL('../img/animals/dog.webp?v=5a9bbb22', import.meta.url).href,
+  bear: new URL('../img/animals/bear.webp?v=64dea055', import.meta.url).href,
+  seal: new URL('../img/animals/seal.webp?v=a5b3fcf7', import.meta.url).href,
+  owl: new URL('../img/animals/owl.webp?v=4555981a', import.meta.url).href,
+  hamster: new URL('../img/animals/hamster.webp?v=7e5f5a87', import.meta.url).href,
 };
 export const PRIZE_URLS = {
   plain: new URL('../img/prizes/plain.webp?v=b85adb1b', import.meta.url).href,

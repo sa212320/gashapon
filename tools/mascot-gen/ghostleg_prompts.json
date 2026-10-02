@@ -1,7 +1,7 @@
 {
   "animal_ref": "shared/img/mascot/key/idle.webp",
-  "animal_style": "Draw a brand new character in exactly the same art style, colouring and soft shading as <image1>: flat 2D cartoon, thick dark brown outlines, cute chibi proportions with a big head, big shiny dark brown eyes with a small white highlight like <image1>, soft rosy cheeks, mouth closed, not talking. Full body, standing upright on two feet, facing the viewer, centered. No base, no ground, no shadow, no text. Isolated on a solid flat bright pure green #00FF00 background. Do not draw the fox or the ermine from <image1>.",
-  "snowman": "The character is a cute little snowman made of two clearly separate stacked snowballs (a small round head on a bigger round body), white snow with pale icy blue shading, two thin brown twig arms, a small orange carrot nose, three small dark buttons, a small pale blue knitted scarf. No hat.",
+  "animal_style": "Draw a brand new character in exactly the same art style, colouring and soft shading as <image1>: flat 2D cartoon, thick dark brown outlines, cute chibi proportions with a big head, big shiny dark brown eyes with a small white highlight like <image1>, soft rosy cheeks, mouth closed, not talking. Full body, standing upright, facing the viewer, centered. No base, no ground, no shadow, no text. Isolated on a solid flat bright pure green #00FF00 background. Do not draw the fox or the ermine from <image1>.",
+  "snowman": "The character is a cute little snowman made of two clearly separate stacked snowballs: the head is a small round white snowball (not an animal head, no ears, no fur), sitting on a bigger round white snowball body. White snow with pale icy blue shading, two thin brown twig arms, a small orange carrot nose, three small dark buttons, a small pale blue knitted scarf. No hat. No legs and no feet: the round bottom of the body snowball sits directly on the ground.",
   "rabbit": "The character is a cute little white rabbit with two long upright ears with pink insides, a round fluffy white tail.",
   "penguin": "The character is a cute little penguin with a dark navy blue back and head, a white belly and face, a small orange beak, small orange feet, short flippers at its sides.",
   "reindeer": "The character is a cute little reindeer with warm brown fur, a cream belly and muzzle, a small dark brown nose, two small branching tan antlers and small round ears.",
@@ -14,7 +14,19 @@
       "deluxe": "picked/prize-deluxe.png",
       "snow": "picked/prize-snow.png"
     },
-    "board": "picked/board-ice.png"
+    "board": "picked/board-ice.png",
+    "animals": {
+      "snowman": 2,
+      "rabbit": 2,
+      "penguin": 2,
+      "reindeer": 2,
+      "cat": 2,
+      "dog": 2,
+      "bear": 2,
+      "seal": 2,
+      "owl": 2,
+      "hamster": 2
+    }
   },
   "bear": "The character is a cute little polar bear cub with creamy white fur, small round ears, a small black nose.",
   "seal": "The character is a cute little seal pup with soft light grey fur, a white muzzle, small whiskers, two front flippers, sitting upright on its tail flippers.",
