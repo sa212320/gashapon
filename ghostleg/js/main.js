@@ -9,7 +9,7 @@ import { loadArt, getArt, ANIMAL_LABEL, TIER_LABEL, PRIZE_URLS } from './art.js'
 import { createTrack, laneWidth, ROW_D } from './track.js';
 import { createCameraScript, TOTAL, idleFrame, scanPass } from './camera-script.js';
 import { createIdleLoop } from './prize-motion.js';
-import { namePlan } from './labels.js';
+import { namePlan, clampTagX } from './labels.js';
 import { getActive, replaceSetup, addSetup, removeSetup, entriesChanged } from '../../shared/js/roster.js';
 import { createDialogShell } from '../../shared/js/dialog.js';
 import { createAsk } from '../../shared/js/ask.js';
@@ -166,7 +166,9 @@ function placeNames() {
     const el = nameEls[i];
     const down = (i % rows) * fontPx * 1.7;   // 一前一後(最多三排)錯開;名字一律全名,不截短
     el.style.fontSize = `${fontPx}px`;
-    el.style.transform = `translate(${a.x}px, ${a.y + down}px) translate(-50%, 0)`;
+    const x = clampTagX(a.x, el.offsetWidth, layer.clientWidth);
+    el.hidden = x === null;
+    if (x !== null) el.style.transform = `translate(${x}px, ${a.y + down}px) translate(-50%, 0)`;
   });
   if (!pulling) layer.classList.add('is-on');
 }

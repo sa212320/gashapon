@@ -91,3 +91,12 @@ test('空狀態不再用 🪜,改成一塊小冰板 + 一隻立牌 + 一個空�
   assert.match(empty, /id="emptyScene"/);
   assert.match(mainJs, /empty-scene__seat--vacant/);
 });
+
+// review(升級成 Important):結果卡把名字截成「…」—— 使用者說過「用…也不知道是誰」,老師要照著抄
+test('結果卡的名字和獎項不截斷(不用 ellipsis,長的就換行)', () => {
+  const css = readFileSync(new URL('../ghostleg/css/ghostleg.css', import.meta.url), 'utf8');
+  for (const sel of ['.results__who', '.results__prize']) {
+    const rule = css.slice(css.indexOf(`${sel} {`), css.indexOf('}', css.indexOf(`${sel} {`)));
+    assert.ok(!/ellipsis|nowrap/.test(rule), `${sel}: ${rule}`);
+  }
+});

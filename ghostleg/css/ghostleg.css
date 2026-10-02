@@ -138,9 +138,10 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
   overflow: hidden;
 }
 .results__animal { height: 38px; width: auto; }
-.results__who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 名字、獎項都不截斷(「…」看不出是誰,老師要照著抄),長的就換行 */
+.results__who { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .results__icon { flex: none; height: 34px; width: auto; }
-.results__prize { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.results__prize { flex: none; max-width: 40%; overflow-wrap: anywhere; text-align: right; }
 .results__item--empty { background: #F1F5F8; }
 .results__item--empty .results__prize { opacity: .55; font-weight: 400; }
 

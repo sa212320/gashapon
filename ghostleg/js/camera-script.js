@@ -28,10 +28,11 @@ export const boardWidth = (lanes, laneWidth) => lanes * laneWidth + 1.8;
 const IDLE_PITCH = (35 * Math.PI) / 180;
 //
 // 開跑前的特寫(labels.js namePlan):只框 frameLanes 條車道,看向 centerX(scanPass 從左掃到右)。
-// 這時以畫面寬度為準(不套用橫向的正方形構圖),名字才夠寬。
+// 橫向螢幕一樣當成正方形算(review 2026-10-02:以 16:9 的寬度框 2 個人,鏡頭貼太近,
+// 底座前的名牌整段掃描都掉在畫面下面 —— 投影上課正好是這個情況)。
 export function idleFrame({ lanes, laneWidth, rowDepth, aspect, fov = 48, frameLanes = null, centerX = 0 }) {
   const scan = Boolean(frameLanes);   // 開跑前一律特寫(人少時 frameLanes = 人數,不用掃)
-  const hfov = 2 * Math.atan(Math.tan((fov * Math.PI) / 360) * (scan ? aspect : Math.min(1, aspect)));
+  const hfov = 2 * Math.atan(Math.tan((fov * Math.PI) / 360) * Math.min(1, aspect));
   const frameW = scan ? frameLanes * laneWidth : boardWidth(lanes, laneWidth) / 0.8;
   const d = frameW / (2 * Math.tan(hfov / 2));
   // 掃描時鏡頭很近,看向起跑線前方的話棋子和名字會掉到畫面外 —— 直接看著起跑線
@@ -47,16 +48,16 @@ const SCAN_SPEED = 0.8;   // 車道 / 秒
 const scanTravel = ({ lanes, frameLanes, laneWidth }) => (Math.max(0, lanes - frameLanes) * laneWidth) / 2;
 
 export function scanDuration(opts) {
-  const travel = scanTravel(opts);
-  return travel === 0 ? 0 : 2 * SCAN_HOLD + (2 * travel) / (SCAN_SPEED * opts.laneWidth);
+  // 不用移動(剛好 2 個人)也要停 2 × SCAN_HOLD,不然第一格就結束、大字名牌從來沒出現(review)
+  return 2 * SCAN_HOLD + (2 * scanTravel(opts)) / (SCAN_SPEED * opts.laneWidth);
 }
 
 export function scanPass(tSec, opts) {
   const travel = scanTravel(opts);
   const total = scanDuration(opts);
   const done = tSec >= total;
-  if (travel === 0) return { x: 0, done };
   const move = total - 2 * SCAN_HOLD;
+  if (move === 0) return { x: 0, done };
   const k = Math.min(1, Math.max(0, (tSec - SCAN_HOLD) / move));
   const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
   return { x: -travel + 2 * travel * e, done };

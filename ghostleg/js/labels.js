@@ -39,7 +39,8 @@ export function tagPlace(w, stagger = 0) {
 //   一次只框 2 個人,從左掃到右一趟(camera-script.js scanPass),點一下可跳過
 //   一條車道放不下全名就相鄰一前一後錯開成兩排
 export function namePlan({ viewW, viewH, lanes, longestChars }) {
-  const usable = viewW * 0.92;
+  // 橫向螢幕的特寫當成正方形構圖(camera-script.js idleFrame),2 條車道只佔畫面中間 ≈ 高度那麼寬
+  const usable = Math.min(viewW, viewH) * 0.92;
   const frameLanes = Math.min(lanes, 2);
   // 2 人特寫時動物很大,名字跟著放大(一條車道寬的 16%),上限畫面高 6%、下限 3%(手機至少 16px)
   // —— 固定 3% 時動物跟名字比例很怪(使用者)
@@ -48,4 +49,13 @@ export function namePlan({ viewW, viewH, lanes, longestChars }) {
   // 特寫一次只框 2 個人(使用者:「我以為最多框 2 人,掃描久一點沒關係」),3 人以上一定會掃
   const rows = (usable / frameLanes) * 0.95 >= nameW ? 1 : 2;
   return { fontPx, rows, frameLanes };
+}
+
+// 名牌整塊留在畫面裡(左右各留 6px)。錯開兩排時名牌可以比車道寬,最左 / 最右那個置中在車道上會凸出畫面(review)。
+// 但棋子中心已經在畫面外的(掃描時只露出一半或完全看不到),名牌回 null 隱藏 ——
+// 夾回來的話會在邊緣跟隔壁的名牌疊成一團(2026-10-02 截圖)。
+export function clampTagX(x, tagW, layerW) {
+  if (x < 0 || x > layerW) return null;
+  const half = tagW / 2 + 6;
+  return Math.min(Math.max(x, half), Math.max(half, layerW - half));
 }

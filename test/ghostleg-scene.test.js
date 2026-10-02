@@ -190,9 +190,6 @@ test('scanPass:從最左邊開始,掃一趟到最右邊就結束;兩端各停一
   assert.ok(scanDuration({ lanes: 40, frameLanes: 2, laneWidth: 0.34 }) > scanDuration({ lanes: 6, frameLanes: 2, laneWidth: 1 }));
 });
 
-test('scanPass:兩個人時不用掃,馬上結束', () => {
-  assert.equal(scanPass(0, { lanes: 2, frameLanes: 2, laneWidth: 1 }).done, true);
-});
 
 test('idleFrame 掃描模式:鏡頭看著起跑線(z = 0),跟著 centerX 左右移', () => {
   const f = idleFrame({ lanes: 24, laneWidth: 0.34, rows: 12, rowDepth: 1.35, aspect: 0.5, frameLanes: 6, centerX: 1.2 });
@@ -219,4 +216,57 @@ test('namePlan:特寫時名字跟著放大(約一條車道寬的 16%),但不超�
   assert.ok(phone.fontPx >= 26 && phone.fontPx <= 760 * 0.06, `${phone.fontPx}`);
   const desk = namePlan({ viewW: 1500, viewH: 784, lanes: 7, longestChars: 3 });
   assert.ok(Math.abs(desk.fontPx - 784 * 0.06) < 1e-9, `${desk.fontPx}`);
+});
+
+/* ---------- 最終 review 的修正(2026-10-02) ---------- */
+
+// 簡易透視投影:世界座標 → NDC(-1~1),跟 three.js PerspectiveCamera + lookAt 一樣(上方向 +y)
+function project(p, f, aspect, fov = 48) {
+  const sub = (a, b) => a.map((v, i) => v - b[i]);
+  const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const norm = a => { const l = Math.hypot(...a); return a.map(v => v / l); };
+  const fwd = norm(sub(f.look, f.pos));
+  const right = norm(cross(fwd, [0, 1, 0]));
+  const up = cross(right, fwd);
+  const d = sub(p, f.pos);
+  const z = dot(d, fwd);
+  const t = Math.tan((fov * Math.PI) / 360);
+  return { x: dot(d, right) / (z * t * aspect), y: dot(d, up) / (z * t) };
+}
+
+// review Critical:橫向(投影 16:9)時 2 人特寫拉太近,底座前的名牌掉到畫面下面、整段掃描看不到名字
+for (const [W, H] of [[1280, 720], [1024, 768], [1694, 695], [390, 700], [1920, 1080]]) {
+  test(`特寫時底座前的名牌在畫面裡(${W}×${H}),而且下面留得下 namePlan 排出來的每一排`, () => {
+    const aspect = W / H;
+    const w = 1;
+    const f = idleFrame({ lanes: 7, laneWidth: w, rows: 12, rowDepth: 1.35, aspect, frameLanes: 2, centerX: 0 });
+    const a = project([0, 0.1, BASE_R * w * 1.16], f, aspect);
+    const plan = namePlan({ viewW: W, viewH: H, lanes: 7, longestChars: 4 });
+    const roomPx = ((a.y + 1) / 2) * H;   // 名牌頂到畫面底的距離
+    assert.ok(a.y < 1 && a.y > -1, `名牌錨點 y=${a.y.toFixed(2)} 在畫面外`);
+    assert.ok(roomPx >= plan.fontPx * 1.7 * plan.rows, `只剩 ${roomPx.toFixed(0)}px,放不下 ${plan.rows} 排 ${plan.fontPx.toFixed(0)}px 的名牌`);
+  });
+}
+
+// review Important:剛好 2 個人時 scanDuration = 0,第一格就結束、大字名牌從來沒出現
+test('scanPass:兩個人時鏡頭不用移動,但還是停 2.4 秒讓大家看清楚名字', () => {
+  const opts = { lanes: 2, frameLanes: 2, laneWidth: 1 };
+  assert.ok(Math.abs(scanDuration(opts) - 2.4) < 1e-9);
+  assert.deepEqual(scanPass(1, opts), { x: 0, done: false });
+  assert.equal(scanPass(2.5, opts).done, true);
+});
+
+// review Important:錯開兩排時名牌可以比車道寬,最左 / 最右的會凸出畫面被切掉
+import { clampTagX } from '../ghostleg/js/labels.js';
+test('clampTagX:名牌整塊留在畫面裡(左右各留 6px);放得下就不動', () => {
+  assert.equal(clampTagX(10, 200, 390), 106);
+  assert.equal(clampTagX(380, 200, 390), 284);
+  assert.equal(clampTagX(195, 100, 390), 195);
+});
+
+test('clampTagX:掃到畫面外的名牌不夾回來(回 null 隱藏),不然會全部疊在邊緣', () => {
+  assert.equal(clampTagX(-120, 200, 390), null);
+  assert.equal(clampTagX(390 + 120, 200, 390), null);
+  assert.equal(clampTagX(-60, 200, 390), null, '棋子中心已經在畫面外(只露出一半)也隱藏,不然會跟隔壁的名牌黏在一起');
 });
