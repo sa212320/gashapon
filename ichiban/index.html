@@ -26,7 +26,10 @@
 </header>
 
 <main class="stage" id="stage">
-  <div class="desk">
+  <!-- 桌上的籤全部畫在這一張 canvas 上(只畫看得到的那幾排),大小 = 桌面可見範圍。
+       點擊、焦點、螢幕閱讀器交給疊在上面的透明按鈕(#pile)。 -->
+  <canvas class="desk-canvas" id="deskCanvas" aria-hidden="true"></canvas>
+  <div class="desk" id="desk">
     <div class="pile" id="pile"></div>
 
     <div class="empty-state" id="emptyState" hidden>

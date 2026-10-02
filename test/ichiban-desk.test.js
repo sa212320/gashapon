@@ -63,3 +63,38 @@ test('layoutDesk:0 張、極窄都不會爆', () => {
   assert.equal(layoutDesk({ count: 0, width: 358, height: 500 }).rows, 0);
   assert.ok(layoutDesk({ count: 10, width: 10, height: 500 }).cols >= 1);
 });
+
+function el(extra = {}) {
+  const e = {
+    style: { _v: {}, setProperty(k, v) { this._v[k] = v; }, transform: '' },
+    dataset: {}, attrs: {}, children: [], hidden: false,
+    setAttribute(k, v) { e.attrs[k] = v; },
+    replaceChildren(...k) { e.children = k; },
+    addEventListener() {},
+    getContext() { return new Proxy({}, { get: () => () => {}, set: () => true }); },
+    offsetLeft: 0, offsetTop: 0, clientWidth: 390, clientHeight: 540, scrollTop: 0,
+    ...extra,
+  };
+  return e;
+}
+
+test('桌面:只為還沒抽的籤建按鈕,號碼與歪斜跟著號碼走', async () => {
+  const keys = ['document', 'window', 'getComputedStyle', 'requestAnimationFrame', 'ResizeObserver'];
+  const saved = Object.fromEntries(keys.map(k => [k, globalThis[k]]));
+  globalThis.document = { createElement: () => el() };
+  globalThis.window = { devicePixelRatio: 2 };
+  globalThis.getComputedStyle = () => ({ paddingLeft: '16px', paddingRight: '16px', paddingTop: '14px', paddingBottom: '28px' });
+  globalThis.requestAnimationFrame = fn => { fn(); return 1; };
+  globalThis.ResizeObserver = class { observe() {} };
+  try {
+    const { createDeskView } = await import('../ichiban/js/ui.js');
+    const pileEl = el();
+    const desk = createDeskView({ deskEl: el(), pileEl, canvasEl: el(), emptyStateEl: el(), onPick() {} });
+    desk.render({ tickets: [1, 2, 3, 4, 5].map(no => ({ no, prizeId: 'p', drawn: no === 2 })) });
+    assert.deepEqual(pileEl.children.map(b => b.dataset.no), ['1', '3', '4', '5']);
+    assert.equal(pileEl.children[1].attrs['aria-label'], '抽 3 號籤');
+    assert.equal(pileEl.children[1].style.transform, `rotate(${tiltFor(3)}deg)`);
+  } finally {
+    for (const k of keys) globalThis[k] = saved[k];
+  }
+});

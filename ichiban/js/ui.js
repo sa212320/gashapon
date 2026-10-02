@@ -4,61 +4,107 @@ import { TIERS, TIER_META, createIchibanPrize } from './ichiban.js';
 import { remaining, needsRebuild, entriesChanged } from '../../shared/js/roster.js';
 import { createDialogShell } from '../../shared/js/dialog.js';
 import { sfx } from '../../shared/js/sound.js';
-import { faceColorFor, critterFor } from './desk-layout.js';
-import { loadCardArt } from './card-art.js';
+import { faceColorFor, critterFor, tiltFor, layoutDesk } from './desk-layout.js';
+import { loadCardArt, drawFace, traceTicket } from './card-art.js';
 
 // 最後一抽賞永遠是金色,不看賞別 —— 它是額外加碼的驚喜,不是某個賞別的籤。
 const GOLD = Object.freeze({ label: '🌟 最後一抽賞', color: '#FFD24C', glow: 'rgba(255,210,76,.95)' });
 
-// 一番賞票卡的輪廓:上下長邊一排方齒、左緣一個往外凸的半圓耳、右端圓頭。
-// 套子表面的淺色蓋片、抽走後的白色凹槽、票卡本身,三個都吃這一條 —— 共用同一條
-// 才保證三層完全疊合,任何一層自己畫一份都會在邊緣露出對不齊的縫。
-//
-// 百分比是相對各元素自己的框,所以會跟著卡片縮放;但 x 與 y 的 1% 長度不同
-// (卡片是 34:15),圓弧的 x 半徑要乘上 15/34,不然半圓耳會變成扁橢圓。
-/* ---------- 桌面:散落的籤紙 ---------- */
-// 用 index 算一個穩定的假隨機值(sine hash),同一張籤紙在沒被抽走之前
-// 位置跟角度都不會變 —— 不用真的 Math.random(),不然每次 render 都會全部重新洗牌。
-function pseudoRandom(seed) {
-  const h = Math.sin(seed * 12.9898 + 4.1414) * 43758.5453;
-  return h - Math.floor(h);
-}
+/* ---------- 桌面:一張 canvas + 透明按鈕 ---------- */
+// 按鈕負責排版(CSS grid)、點擊、焦點、飛出起點;canvas 只照著按鈕的位置畫,
+// 而且只畫捲動後看得到的那幾排 —— canvas 永遠只有一個桌面大,張數再多也不會撐爆
+// Safari 的 canvas 像素上限。
+export function createDeskView({ deskEl, pileEl, canvasEl, emptyStateEl, onPick }) {
+  let setup = null;
+  let layout = null;
+  let slots = [];      // { no, el }
+  let frame = 0;
 
-function jitter(index) {
-  const rot = pseudoRandom(index * 3 + 1) * 24 - 12; // -12deg ~ 12deg
-  const dx = pseudoRandom(index * 3 + 2) * 14 - 7; // -7px ~ 7px
-  const dy = pseudoRandom(index * 3 + 3) * 14 - 7;
-  return { rot, dx, dy };
-}
+  function inner() {
+    const cs = getComputedStyle(deskEl);
+    return {
+      width: deskEl.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight),
+      height: deskEl.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom),
+    };
+  }
 
-export function createDeskView({ pileEl, emptyStateEl, onPick }) {
-  function render(setup) {
+  function render(next) {
+    setup = next;
     const undrawn = setup.tickets.filter(t => !t.drawn);
-    pileEl.replaceChildren(...undrawn.map((ticket, i) => {
-      const { rot, dx, dy } = jitter(i);
+    layout = layoutDesk({ count: undrawn.length, ...inner() });
+    pileEl.style.setProperty('--cols', String(layout.cols));
+    pileEl.style.setProperty('--card-w', `${layout.cardW}px`);
+    pileEl.style.setProperty('--card-h', `${layout.cardH}px`);
+    pileEl.style.setProperty('--gap', `${layout.gap}px`);
+    const buttons = undrawn.map(ticket => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'ticket';
-      btn.setAttribute('aria-label', '抽一張籤');
-      btn.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) rotate(${rot.toFixed(1)}deg)`;
-      const color = faceColorFor(i + 1);
-      btn.style.setProperty('--card-color', color);
-      // 撕開之前那張卡就是這個顏色 —— 跟賞別無關。用賞別色去畫蓋著的那一面,
-      // 等於還沒撕就先公布中了什麼。
-      btn.dataset.color = color;
-      btn.innerHTML = '<span class="ticket__mark">籤</span>';
+      btn.dataset.no = String(ticket.no);
+      btn.setAttribute('aria-label', `抽 ${ticket.no} 號籤`);
+      // 跟 canvas 上畫的角度一樣,飛出去的起點才對得上
+      btn.style.transform = `rotate(${tiltFor(ticket.no)}deg)`;
       return btn;
-    }));
+    });
+    pileEl.replaceChildren(...buttons);
+    slots = undrawn.map((t, i) => ({ no: t.no, el: buttons[i] }));
     pileEl.hidden = undrawn.length === 0;
     emptyStateEl.hidden = undrawn.length > 0;
+    redraw();
   }
+
+  function draw() {
+    frame = 0;
+    if (!layout) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const w = deskEl.clientWidth;
+    const h = deskEl.clientHeight;
+    if (canvasEl.width !== Math.round(w * dpr) || canvasEl.height !== Math.round(h * dpr)) {
+      canvasEl.width = Math.round(w * dpr);
+      canvasEl.height = Math.round(h * dpr);
+    }
+    const ctx = canvasEl.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    const { cardW, cardH } = layout;
+    const top = deskEl.scrollTop;
+    for (const s of slots) {
+      // offsetLeft/Top 是排版位置(不含 rotate),相對於 .desk(position: relative)
+      const y = s.el.offsetTop - top;
+      if (y + cardH * 1.1 < 0 || y - cardH * 0.1 > h) continue;
+      ctx.save();
+      ctx.translate(s.el.offsetLeft + cardW / 2, y + cardH / 2);
+      ctx.rotate((tiltFor(s.no) * Math.PI) / 180);
+      ctx.translate(-cardW / 2, -cardH / 2);
+      // 跟以前 box-shadow 一樣的下方實影
+      ctx.save();
+      ctx.translate(0, Math.max(1.5, cardW * 0.05));
+      traceTicket(ctx, { orientation: 'portrait', w: cardW, h: cardH });
+      ctx.fillStyle = 'rgba(87, 66, 57, .35)';
+      ctx.fill();
+      ctx.restore();
+      drawFace(ctx, {
+        color: faceColorFor(s.no), no: s.no, critter: critterFor(s.no),
+        orientation: 'portrait', w: cardW, h: cardH,
+      });
+      ctx.restore();
+    }
+  }
+
+  function redraw() {
+    if (!frame) frame = requestAnimationFrame(draw);
+  }
+
+  deskEl.addEventListener('scroll', redraw, { passive: true });
+  new ResizeObserver(() => { if (setup) render(setup); }).observe(deskEl);
+  loadCardArt().then(redraw);
 
   pileEl.addEventListener('click', e => {
     const btn = e.target.closest('.ticket');
     if (btn) onPick(btn);
   });
 
-  return { render };
+  return { render, redraw };
 }
 
 /* ---------- 拿起 → 猶豫(取消/撕開)→ 撕開演出 ---------- */

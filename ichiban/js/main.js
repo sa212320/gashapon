@@ -4,6 +4,7 @@ import { store, seedState } from './store.js';
 import { getActive, replaceSetup, addSetup, removeSetup } from '../../shared/js/roster.js';
 import { drawTicket, refillSetup, createIchibanSetup, createIchibanPrize } from './ichiban.js';
 import { createDeskView, createRevealer, createSettingsDialog } from './ui.js';
+import { tiltFor } from './desk-layout.js';
 import { createAsk } from '../../shared/js/ask.js';
 import { setEnabled, unlock, sfx } from '../../shared/js/sound.js';
 import { loadPrefs, savePrefs } from '../../shared/js/prefs.js';
@@ -28,7 +29,9 @@ setEnabled(prefs.soundOn);
 requestPersistence();
 
 const desk = createDeskView({
+  deskEl: $('desk'),
   pileEl: $('pile'),
+  canvasEl: $('deskCanvas'),
   emptyStateEl: $('emptyState'),
   onPick: ticketEl => doDraw(ticketEl),
 });
@@ -128,13 +131,15 @@ async function doDraw(ticketEl) {
   }
 
   const setup = getActive(state);
-  // 動畫要從「使用者點的那張籤紙」飛出去,所以先量好它的位置,
+  const no = Number(ticketEl.dataset.no);
+  // 動畫要從「使用者點的那張籤紙」飛出去(直放 + 歪斜),所以先量好它的位置,
   // 等一下桌面重繪之後這個 DOM 節點就不見了,rect 量不到。
-  const originRect = ticketEl.getBoundingClientRect();
+  const origin = { rect: ticketEl.getBoundingClientRect(), tilt: tiltFor(no) };
 
   // 結果先決定,但先不寫進 state —— 使用者按「取消」的話這個結果就直接丟掉,
   // 那張籤要維持沒被抽掉的樣子,localStorage 也完全不動。
-  const result = drawTicket(setup, Math.random);
+  // 傳 no:點哪張就抽走哪張(獎項在 drawTicket 裡隨機互換進來)。
+  const result = drawTicket(setup, Math.random, no);
   if (!result) {
     sfx.empty();
     return;
@@ -154,16 +159,16 @@ async function doDraw(ticketEl) {
     await revealer.hold({
       tier: result.prize.tier,
       name: result.prize.name,
-      // 用桌上那張籤紙自己的顏色,飛到中央顏色才是連續的,而且不洩漏賞別。
-      faceColor: ticketEl.dataset.color,
-    }, originRect);
+      // 號碼決定蓋著那面的顏色與角色(跟桌上那張一樣),而且不洩漏賞別。
+      no,
+    }, origin);
     ticketActions.hidden = false;
 
     const choice = await waitForChoice();
     ticketActions.hidden = true;
 
     if (choice === 'cancel') {
-      await revealer.cancelReturn(originRect);
+      await revealer.cancelReturn(origin);
       // 取消不會改變 state。關遮罩、讓吉祥物從 watch 回到正確位置這兩件事
       // 交給下面的 finally 統一處理,不在這裡重複做一次。
       return;

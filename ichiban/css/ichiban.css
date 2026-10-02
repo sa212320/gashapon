@@ -36,6 +36,8 @@ body {
   display: flex;
 }
 .desk {
+  position: relative;   /* 按鈕的 offsetParent;疊在 .desk-canvas 上面 */
+  z-index: 1;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -43,45 +45,33 @@ body {
   -webkit-overflow-scrolling: touch;
   padding: 14px 16px 28px;
 }
-.pile {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 18px 14px;
-  justify-content: center;
-  align-content: flex-start;
-}
-
-.ticket {
-  flex: none;
-  width: 64px;
-  height: 92px;
-  min-width: 44px;
-  min-height: 44px;
-  position: relative;
-  border: 4px solid var(--ink);
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  font-size: 26px;
-  color: var(--ink);
-  cursor: pointer;
-  box-shadow: 0 3px 0 rgba(87, 66, 57, .35);
-  transition: transform .08s;
-}
-.ticket:active { filter: brightness(.96); }
-
-/* 桌上的籤紙就是票卡的縮小版:粗描邊 + 一圈齒孔。
-   顏色是 ui.js 給的裝飾色,不是賞別色 —— 賞別在撕開前不能外洩。 */
-.ticket { background: var(--card-color, var(--cream-deep)); }
-
-.ticket__mark {
+/* 桌上的籤畫在 .desk-canvas 上(js/ui.js createDeskView);這裡的按鈕是透明的,
+   只負責點擊、焦點跟飛出去的起點。大小與欄數由 layoutDesk 算好塞進 CSS 變數。 */
+.desk-canvas {
   position: absolute;
-  inset: 7px;
-  border-radius: 8px;
-  border: 2px dashed rgba(255, 255, 255, .8);
-  background: rgba(255, 255, 255, .3);
-  font-size: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
+.pile {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 5), var(--card-w, 56px));
+  grid-auto-rows: var(--card-h, 127px);
+  gap: var(--gap, 12px);
+  justify-content: center;
+  align-content: start;
+}
+.ticket {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 12% / 5%;
+  background: transparent;
+  cursor: pointer;
+}
+.ticket:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
 
 .empty-state {
   position: absolute;
@@ -342,6 +332,3 @@ body {
   cursor: pointer;
 }
 
-@media (max-width: 380px) {
-  .ticket { width: 56px; height: 80px; font-size: 22px; }
-}
