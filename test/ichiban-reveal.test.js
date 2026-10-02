@@ -121,7 +121,7 @@ test('取消:票卡飛回去,不會丟例外', async () => {
 
 /* ---------- 手指撕籤(2026-10-02) ---------- */
 const tearEls = () => Object.fromEntries(EL_KEYS.map(k => [k, stubEl()]));
-const ev = (clientX = 0) => ({ clientX, pointerId: 1, stopPropagation() {}, preventDefault() {} });
+const ev = (clientX = 0) => ({ clientX, pointerId: 1, button: 0, isPrimary: true, stopPropagation() {}, preventDefault() {} });
 
 test('waitForTear:手指拉超過 3% 呼叫 onCommit 一次、收起取消;拉到 70% resolve { from }', async () => {
   await withDomStubs(async () => {
@@ -198,4 +198,20 @@ test('撕籤區塊不讓瀏覽器拿去捲動 / 返回手勢', () => {
   const css = readFileSync(new URL('../ichiban/css/ichiban.css', import.meta.url), 'utf8');
   const rule = css.slice(css.indexOf('.tear {'), css.indexOf('}', css.indexOf('.tear {')));
   assert.match(rule, /touch-action: none;/);
+});
+
+test('waitForTear:右鍵 / 第二根手指不能撕(只有主要按鍵)', async () => {
+  await withDomStubs(async () => {
+    const { createRevealer } = await import('../ichiban/js/ui.js');
+    const els = tearEls();
+    const r = createRevealer(els);
+    await r.hold({ tier: 'C', name: '三獎', no: 3 }, null);
+    let commits = 0;
+    r.waitForTear({ onCommit: () => commits++ });
+    els.tearCard.dispatch('pointerdown', { ...ev(0), button: 2, isPrimary: true });
+    els.tearCard.dispatch('pointermove', ev(340 * 0.3));
+    els.tearCard.dispatch('pointerdown', { ...ev(0), button: 0, isPrimary: false });
+    els.tearCard.dispatch('pointermove', ev(340 * 0.3));
+    assert.equal(commits, 0);
+  });
 });

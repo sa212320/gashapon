@@ -98,3 +98,11 @@ test('main.js:存檔只在 onCommit 裡(手指 > 3% 或按撕開);金卡不能�
   assert.match(src, /holdBonus\(result\.lastOnePrize\)[\s\S]*?waitForTear\(\{ cancellable: false \}\)/);
   assert.ok(!/playBonus\(/.test(src));
 });
+
+// review(2026-10-02):滑鼠拖過 70% 放開,瀏覽器補送的 click 冒泡到 overlay → 被當成「跳過」,獎項演出直接跳到最後
+test('main.js:overlay 的「點一下跳過」不理會從籤卡上來的點擊', () => {
+  const src = read('ichiban/js/main.js');
+  const i = src.indexOf("overlay.addEventListener('click', e =>");
+  assert.ok(i > -1, 'overlay 的 click 要拿 event');
+  assert.match(src.slice(i, src.indexOf('});', i)), /e\.target\.closest\?\.\('#tearCard'\)/);
+});

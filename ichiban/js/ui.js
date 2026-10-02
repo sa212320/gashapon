@@ -572,6 +572,8 @@ export function createRevealer(els) {
         };
         on(els.tearCard, 'pointerdown', e => {
           e.stopPropagation();
+          // 只有左鍵 / 第一根手指能撕:右鍵拖、第二根手指都不算(review)
+          if (e.button !== 0 || e.isPrimary === false) return;
           els.tearCard.setPointerCapture?.(e.pointerId);
           drag.down(e.clientX / width());
         });

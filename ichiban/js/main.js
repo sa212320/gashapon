@@ -214,7 +214,10 @@ async function doDraw(ticketEl) {
   }
 }
 
-overlay.addEventListener('click', () => {
+overlay.addEventListener('click', e => {
+  // 籤卡上的點擊不算「跳過」:滑鼠拖過 70% 放開時瀏覽器會補送一次 click,
+  // 冒泡上來的話整段撕開演出會被快轉到最後(2026-10-02 review)
+  if (e.target.closest?.('#tearCard')) return;
   if (revealer.isPlaying) revealer.requestSkip();
 });
 
