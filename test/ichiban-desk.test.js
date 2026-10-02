@@ -9,6 +9,14 @@ test('7 個冷色,互不相同', () => {
   assert.equal(new Set(DESK_COLORS).size, 7);
 });
 
+test('每個底色都夠深,白色印刷(雪花、角色頭)看得見', () => {
+  for (const c of DESK_COLORS) {
+    const n = parseInt(c.slice(1), 16);
+    const lum = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+    assert.ok(lum < 0.88, `${c} 太淺(${lum.toFixed(2)})`);
+  }
+});
+
 test('顏色 / 角色 / 歪斜只看號碼:同一個號碼永遠一樣', () => {
   for (const no of [1, 7, 8, 99, 150]) {
     assert.equal(faceColorFor(no), faceColorFor(no));

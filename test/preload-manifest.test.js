@@ -15,6 +15,7 @@ function gashaponRefs() {
   const out = new Set();
   const add = (base, url) => { if (!/^(data:|https?:|#)/.test(url) && /\.(webp|png|svg)/.test(url)) out.add(normalize(join(base, url))); };
   for (const m of read('gashapon/index.html').matchAll(/<img\b[^>]*\bsrc="([^"]+)"/g)) add('gashapon', m[1]);
+  for (const m of read('ichiban/index.html').matchAll(/<img\b[^>]*\bsrc="([^"]+)"/g)) add('ichiban', m[1]);
   for (const [css, base] of [['gashapon/css/style.css', 'gashapon/css'], ['shared/css/prize-frame.css', 'shared/css']]) {
     for (const m of read(css).matchAll(/url\(\s*["']?([^"')#]+)["']?\s*\)/g)) add(base, m[1]);
   }

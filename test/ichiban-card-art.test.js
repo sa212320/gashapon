@@ -125,12 +125,11 @@ test('loadCardArt 只下載狐狸跟白鼬兩張頭(沒有紙紋),網址帶 ?v= 
   useCardArt({ fox: null, ermine: null });
 });
 
-test('太淺的底色(冰白)印刷改用加深的同色系,白色會看不見', () => {
-  const strokes = color => {
+test('印刷一律白色(2026-10-02 使用者:要統一白色)', () => {
+  for (const color of ['#A9D2F5', '#8FB3E8']) {
     const ctx = recCtx();
     drawFace(ctx, { color, no: 4, critter: 'fox' });
-    return ctx.calls.filter(c => c[0] === 'set:strokeStyle').map(c => c[1]);
-  };
-  assert.ok(strokes('#A9D2F5').some(s => s.startsWith('rgba(255,255,255')), '一般底色用白色印刷');
-  assert.ok(!strokes('#EEF3FA').some(s => s.startsWith('rgba(255,255,255')), '冰白底不能用白色印刷');
+    const strokes = ctx.calls.filter(c => c[0] === 'set:strokeStyle').map(c => c[1]).filter(s => s.startsWith('rgba'));
+    assert.ok(strokes.length > 0 && strokes.every(s => s.startsWith('rgba(255,255,255')), color);
+  }
 });

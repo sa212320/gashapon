@@ -80,9 +80,11 @@ body {
   place-content: center;
   justify-items: center;
   gap: 12px;
-  background: rgba(255, 246, 233, .94);
+  /* 冰雪色的半透明白(2026-10-02;原本是舊主題的奶油色) */
+  background: rgba(238, 246, 255, .9);
 }
-.empty-state__icon { font-size: 64px; }
+/* 「抽完了」插圖(tools/mascot-gen/ichiban.py build-empty) */
+.empty-state__art { width: min(240px, 60vw); height: auto; }
 .empty-state__text { margin: 0; font-size: 24px; }
 
 /* ---------- 遮罩 / 拿起‧撕開演出 ---------- */

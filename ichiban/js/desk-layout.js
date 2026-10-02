@@ -9,7 +9,7 @@ export const DESK_COLORS = Object.freeze([
   '#A9D2F5', // 天空藍
   '#C8B6EE', // 薰衣草
   '#9FE0DA', // 水綠
-  '#EEF3FA', // 冰白
+  '#8FB3E8', // 冰河藍(原本冰白太淺,白色印刷看不見 —— 印刷一律白色,2026-10-02)
   '#B3BCF0', // 長春花藍
   '#C2EBCF', // 薄荷
   '#E8C9EE', // 霜紫粉

@@ -402,6 +402,8 @@ def write_preload_manifest():
 
     for m in re.finditer(r'<img\b[^>]*\bsrc="([^"]+)"', (ROOT / 'gashapon' / 'index.html').read_text()):
         add('gashapon', m.group(1))
+    for m in re.finditer(r'<img\b[^>]*\bsrc="([^"]+)"', (ROOT / 'ichiban' / 'index.html').read_text()):
+        add('ichiban', m.group(1))
     for css, base in [('gashapon/css/style.css', 'gashapon/css'), ('shared/css/prize-frame.css', 'shared/css')]:
         for m in re.finditer(r'url\(\s*["\']?([^"\')#]+)["\']?\s*\)', (ROOT / css).read_text()):
             add(base, m.group(1))

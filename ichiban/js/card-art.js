@@ -142,17 +142,11 @@ function snowflake(ctx, x, y, r, turn) {
   ctx.stroke();
 }
 
-// 印刷用的墨色:平常是白色;底色太淺(冰白)時白色會看不見,改用淡冰藍(底色與 #7FA6D6 各半)。
-function printInk(color) {
-  const n = parseInt(color.replace('#', ''), 16);
-  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  if (lum < 0.9) return [255, 255, 255];
-  return [[r, 0x7F], [g, 0xA6], [b, 0xD6]].map(([v, k]) => Math.round((v + k) / 2));
-}
+// 印刷一律白色(2026-10-02 使用者:要統一白色);底色由 desk-layout 保證夠深。
+const INK_WHITE = [255, 255, 255];
 const rgba = (ink, a) => `rgba(${ink.join(',')},${a})`;
 
-// 印在紙上的雪花 + 一圈虛線框(墨色見 printInk)。紙不是冰:不做透明、亮面(2026-10-02 定案)。
+// 印在紙上的白色雪花 + 一圈虛線框。紙不是冰:不做透明、亮面(2026-10-02 定案)。
 // 雪花不排成格子(使用者:太規則了):每格一朵、在格子裡隨機偏移,大小 / 角度 / 深淺各不同,
 // 偶爾換成小圓點。用格子是為了不會擠成一團或空一大塊。
 function snowPrint(ctx, seed, ink) {
@@ -204,37 +198,16 @@ function drawNumber(ctx, no, x, y, r) {
 }
 
 // 白色印章頭(素材本身就是白色 + 透明,工具烘好的)。both = 最後一抽賞兩隻並排。
-// 墨色不是白色時(冰白底),先把頭染成墨色再貼:offscreen canvas 用 source-in 上色,依墨色快取。
-const tinted = new Map();
-function inked(img, ink) {
-  if (ink.every(v => v === 255) || typeof document === 'undefined') return img;
-  const key = ink.join(',');
-  let byInk = tinted.get(img);
-  if (!byInk) tinted.set(img, (byInk = new Map()));
-  if (!byInk.has(key)) {
-    const c = document.createElement('canvas');
-    c.width = img.width;
-    c.height = img.height;
-    const x = c.getContext('2d');
-    x.drawImage(img, 0, 0);
-    x.globalCompositeOperation = 'source-in';
-    x.fillStyle = rgba(ink, 1);
-    x.fillRect(0, 0, c.width, c.height);
-    byInk.set(key, c);
-  }
-  return byInk.get(key);
-}
-
-function drawHead(ctx, critter, x, y, size, ink) {
+function drawHead(ctx, critter, x, y, size) {
   if (critter === 'both') {
     if (!art.fox || !art.ermine) return;
     const s = size * 0.75;
-    ctx.drawImage(inked(art.fox, ink), x - s * 1.05, y - s / 2, s, s);
-    ctx.drawImage(inked(art.ermine, ink), x + s * 0.05, y - s / 2, s, s);
+    ctx.drawImage(art.fox, x - s * 1.05, y - s / 2, s, s);
+    ctx.drawImage(art.ermine, x + s * 0.05, y - s / 2, s, s);
     return;
   }
   const img = art[critter];
-  if (img) ctx.drawImage(inked(img, ink), x - size / 2, y - size / 2, size, size);
+  if (img) ctx.drawImage(img, x - size / 2, y - size / 2, size, size);
 }
 
 /* ---------- 蓋著的那一面 ---------- */
@@ -242,7 +215,7 @@ function drawHead(ctx, critter, x, y, size, ink) {
 // 不清畫布:桌面是一張 canvas 畫很多張。整面不透明,底下的獎項不能透出來。
 // 號碼跟頭不跟著轉,永遠正立:直卡上下排、橫卡左右排。
 export function drawFace(ctx, { color, no, critter, orientation = 'landscape', w = CARD_W, h = CARD_H }) {
-  const ink = printInk(color);
+  const ink = INK_WHITE;
   ctx.save();
   enterCardSpace(ctx, orientation, w, h);
   traceShape(ctx);
@@ -264,7 +237,7 @@ export function drawFace(ctx, { color, no, critter, orientation = 'landscape', w
   const [nx, ny] = portrait ? [w * 0.5, h * 0.34] : [w * 0.36, h * 0.5];
   const [hx, hy] = portrait ? [w * 0.5, h * 0.66] : [w * 0.66, h * 0.5];
   drawNumber(ctx, no, nx, ny, s * 0.27);
-  drawHead(ctx, critter, hx, hy, s * 0.5, ink);
+  drawHead(ctx, critter, hx, hy, s * 0.5);
 }
 
 /* ---------- 獎項那一面 ---------- */
