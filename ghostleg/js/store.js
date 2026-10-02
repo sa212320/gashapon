@@ -12,7 +12,7 @@ const SEED_PRIZES = [
 
 export function seedState() {
   return createSetupList(createGhostSetup({
-    name: '我的阿彌陀籤',
+    name: '我的爬格子',
     players: SEED_PLAYERS.map((name, i) => createPlayer({ name, color: PALETTE[i % PALETTE.length], animal: ANIMALS[i % ANIMALS.length] })),
     prizes: SEED_PRIZES.map(createGhostPrize),
   }));
@@ -44,7 +44,8 @@ export function sanitizeSetup(raw) {
 
   return {
     id: raw.id,
-    name: typeof raw.name === 'string' ? raw.name : '我的阿彌陀籤',
+    // 2026-10-02 改名「爬格子」(小孩比較好懂):還叫舊的預設名字就換掉,自己取的名字不動
+    name: typeof raw.name === 'string' && raw.name !== '我的阿彌陀籤' ? raw.name : '我的爬格子',
     players,
     prizes,
   };

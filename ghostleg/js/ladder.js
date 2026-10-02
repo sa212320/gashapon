@@ -147,7 +147,7 @@ export function sortResults(results, prizes = []) {
 }
 
 // 一份設定 = 一組玩家 + 一組獎項。每局的梯子、站位、終點擺設都是現場產生的,不存。
-export function createGhostSetup({ name = '我的阿彌陀籤', players = [], prizes = [] } = {}) {
+export function createGhostSetup({ name = '我的爬格子', players = [], prizes = [] } = {}) {
   return { id: newId('gs'), name, players, prizes };
 }
 

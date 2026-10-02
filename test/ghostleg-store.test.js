@@ -34,3 +34,27 @@ test('種子資料:6 個人各配一種不同的動物,獎項都是 plain', () =
   assert.deepEqual(setup.players.map(p => p.animal), ANIMALS.slice(0, 6));
   assert.ok(setup.prizes.every(p => p.tier === 'plain'));
 });
+
+// 2026-10-02 使用者:「阿彌陀籤可以幫我改名叫爬格子嗎,小孩比較好懂」
+import { readFileSync } from 'node:fs';
+const read = p => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
+
+test('畫面上的名字是「爬格子」(頁面標題、標題列、設定、首頁卡片)', () => {
+  const page = read('ghostleg/index.html');
+  assert.match(page, /<title>爬格子<\/title>/);
+  assert.match(page, /id="setupName">爬格子</);
+  assert.match(page, /<h2>爬格子設定<\/h2>/);
+  assert.match(page, /placeholder="我的爬格子"/);
+  assert.match(read('index.html'), /<span class="card__name">爬格子<\/span>/);
+  for (const f of ['ghostleg/index.html', 'index.html', 'ghostleg/js/main.js', 'ghostleg/js/store.js', 'ghostleg/js/ladder.js']) {
+    // 註解、以及 store.js 把舊預設名字換掉的那一行(本來就要寫著舊名字才比對得到)不算
+    const visible = read(f).split('\n').filter(l => !/^\s*(\/\/|\*|\/\*|<!--)/.test(l) && !/!== '我的阿彌陀籤'/.test(l)).join('\n');
+    assert.ok(!/['">]阿彌陀籤|我的阿彌陀籤/.test(visible), `${f} 還有舊名字`);
+  }
+});
+
+test('種子資料叫「我的爬格子」;舊存檔還叫預設的「我的阿彌陀籤」就換成新名字,自己取的名字不動', () => {
+  assert.equal(seedState().setups[0].name, '我的爬格子');
+  assert.equal(sanitizeSetup({ id: 'a', name: '我的阿彌陀籤', players: [], prizes: [] }).name, '我的爬格子');
+  assert.equal(sanitizeSetup({ id: 'b', name: '三年二班', players: [], prizes: [] }).name, '三年二班');
+});

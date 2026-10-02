@@ -35,7 +35,7 @@ const ask = createAsk({ dialog: $('askDialog'), text: $('askText'), yes: $('askY
 
 function render() {
   const setup = getActive(state);
-  $('setupName').textContent = setup.name || '阿彌陀籤';
+  $('setupName').textContent = setup.name || '爬格子';
   const n = setup.players.length;
   $('remaining').textContent = `${n} 個人 · ${setup.prizes.reduce((a, p) => a + p.count, 0)} 個獎`;
   const ready = n >= 2;
@@ -531,7 +531,7 @@ const settings = createDialogShell({
       const s = getActive(state);
       state = replaceSetup(state, {
         ...s,
-        name: draft.name.trim() || '我的阿彌陀籤',
+        name: draft.name.trim() || '我的爬格子',
         players: draft.players.map(p => ({ ...p })),
         prizes: draft.prizes.map(p => ({ ...p })),
       });
