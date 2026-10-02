@@ -4,14 +4,11 @@ import { TIERS, TIER_META, createIchibanPrize } from './ichiban.js';
 import { remaining, needsRebuild, entriesChanged } from '../../shared/js/roster.js';
 import { createDialogShell } from '../../shared/js/dialog.js';
 import { sfx } from '../../shared/js/sound.js';
+import { faceColorFor, critterFor } from './desk-layout.js';
+import { loadCardArt } from './card-art.js';
 
 // 最後一抽賞永遠是金色,不看賞別 —— 它是額外加碼的驚喜,不是某個賞別的籤。
 const GOLD = Object.freeze({ label: '🌟 最後一抽賞', color: '#FFD24C', glow: 'rgba(255,210,76,.95)' });
-
-// 桌上籤紙的裝飾色。故意跟 TIER_META 無關 —— 賞別在撕開之前不能從桌面看出來。
-const DESK_COLORS = Object.freeze([
-  '#F6C6B8', '#C9B6E4', '#BBD9F0', '#F7DFA0', '#BFE3C8', '#F3B8CE', '#E8CFAE',
-]);
 
 // 一番賞票卡的輪廓:上下長邊一排方齒、左緣一個往外凸的半圓耳、右端圓頭。
 // 套子表面的淺色蓋片、抽走後的白色凹槽、票卡本身,三個都吃這一條 —— 共用同一條
@@ -44,7 +41,7 @@ export function createDeskView({ pileEl, emptyStateEl, onPick }) {
       btn.className = 'ticket';
       btn.setAttribute('aria-label', '抽一張籤');
       btn.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) rotate(${rot.toFixed(1)}deg)`;
-      const color = DESK_COLORS[i % DESK_COLORS.length];
+      const color = faceColorFor(i + 1);
       btn.style.setProperty('--card-color', color);
       // 撕開之前那張卡就是這個顏色 —— 跟賞別無關。用賞別色去畫蓋著的那一面,
       // 等於還沒撕就先公布中了什麼。
@@ -77,6 +74,11 @@ export function createRevealer(els) {
   let stageReady = null;
 
   function loadStage() {
+    // 紙紋與角色頭最多等 1.5 秒:慢網路不能卡住拿起動畫,沒等到就先畫沒有素材的版本。
+    const art = new Promise(resolve => {
+      const timer = setTimeout(resolve, 1500);
+      loadCardArt().then(() => { clearTimeout(timer); resolve(); });
+    });
     if (!stageReady) {
       stageReady = import('./curl.js')
         .then(m => { stage = m.createCurlStage(els.canvas); })
@@ -85,7 +87,7 @@ export function createRevealer(els) {
           stage = null;
         });
     }
-    return stageReady;
+    return Promise.all([stageReady, art]);
   }
 
   // 退路:沒有 three.js 的時候,至少把獎項畫出來。
@@ -212,7 +214,16 @@ export function createRevealer(els) {
   let pending = null;
 
   // 起 —— 票券從桌面飛到畫面正中央,亮出賞別顏色,但還沒撕開(名字沒揭曉)。
-  async function playHold({ level, color, glow, card }, originRect) {
+  // 桌上那張是直放的(轉 90°)而且歪了 tilt 度;飛到中央時轉回橫的、放到全尺寸。
+  function liftFrom(origin) {
+    if (!origin) return { x: 0, y: 0, scale: 0.4, rot: -8 };
+    const { x, y } = originOffset(origin.rect);
+    const full = els.tearCard.offsetWidth || 340;
+    const scale = Math.max(origin.rect.width, origin.rect.height) / full;
+    return { x, y, scale, rot: 90 + (origin.tilt ?? 0) };
+  }
+
+  async function playHold({ level, color, glow, card }, origin) {
     playing = true;
     skipping = false;
     reset();
@@ -226,7 +237,7 @@ export function createRevealer(els) {
         await drawStatic(card);
       }
 
-      const offset = originOffset(originRect);
+      const from = liftFrom(origin);
       els.tearCard.style.setProperty('--tier-color', color);
       els.tearCard.style.setProperty('--tier-glow', glow);
 
@@ -234,7 +245,7 @@ export function createRevealer(els) {
       await Promise.all([
         animate(els.dim, [{ opacity: 0 }, { opacity: 1 }], 320),
         animate(els.tearCard, [
-          { transform: `translate(${offset.x}px, ${offset.y}px) scale(.4) rotate(-8deg)`, opacity: 0 },
+          { transform: `translate(${from.x}px, ${from.y}px) scale(${from.scale}) rotate(${from.rot}deg)`, opacity: .6 },
           { transform: 'translate(0,0) scale(1) rotate(0deg)', opacity: 1 },
         ], 420 + level * 30, { easing: 'cubic-bezier(.34,1.2,.64,1)' }),
       ]);
@@ -245,14 +256,14 @@ export function createRevealer(els) {
   }
 
   // 取消 —— 票卡飛回桌上原本的位置,那張籤沒有被抽掉。
-  async function cancelReturn(originRect) {
+  async function cancelReturn(origin) {
     playing = true;
     skipping = false;
     try {
-      const offset = originOffset(originRect);
+      const to = liftFrom(origin);
       await animate(els.tearCard, [
         { transform: 'translate(0,0) scale(1) rotate(0deg)', opacity: 1 },
-        { transform: `translate(${offset.x}px, ${offset.y}px) scale(.4) rotate(8deg)`, opacity: 0 },
+        { transform: `translate(${to.x}px, ${to.y}px) scale(${to.scale}) rotate(${origin ? to.rot : 8}deg)`, opacity: 0 },
       ], 320, { easing: 'cubic-bezier(.4,0,.2,1)' });
       await animate(els.dim, [{ opacity: 1 }, { opacity: 0 }], 220);
     } finally {
@@ -324,20 +335,21 @@ export function createRevealer(els) {
       [...running].forEach(entry => entry.finish());
     },
 
-    hold({ tier, name, faceColor }, originRect) {
+    hold({ tier, name, no = 1 }, origin) {
       const rank = TIERS.indexOf(tier);
       const level = TIERS.length - 1 - (rank === -1 ? TIERS.length - 1 : rank);
       const meta = TIER_META[tier] ?? TIER_META.G;
+      const letter = TIER_META[tier] ? tier : 'G';
       // 獎項在這時候就畫進貼圖了,但它在蓋著的那一面底下,撕開之前看不到。
       els.cardBadge.textContent = meta.label;
       els.cardName.textContent = name;
       return playHold({
         level, color: meta.color, glow: meta.glow,
         card: {
-          faceColor: faceColor || DESK_COLORS[0],
-          color: meta.color, badge: meta.label, name, bonus: false,
+          faceColor: faceColorFor(no), no, critter: critterFor(no),
+          color: meta.color, letter, name, bonus: false,
         },
-      }, originRect);
+      }, origin);
     },
 
     cancelReturn,
@@ -352,7 +364,7 @@ export function createRevealer(els) {
       els.cardName.textContent = name;
       await playHold({
         level: TIERS.length - 1, color: GOLD.color, glow: GOLD.glow,
-        card: { faceColor: GOLD.color, color: GOLD.color, badge: GOLD.label, name, bonus: true },
+        card: { faceColor: GOLD.color, no: '★', critter: 'both', color: GOLD.color, letter: '🌟', name, bonus: true },
       }, null);
       await wait(260);
       await playTear();

@@ -102,11 +102,12 @@ export function createCurlStage(canvas) {
   }
 
   return {
-    // faceColor 是蓋著那一面的顏色,跟 color(賞別色)是兩回事 ——
+    // faceColor 是蓋著那一面的裝飾色(由號碼推算),跟 color(賞別色)是兩回事 ——
     // 蓋著的那面用賞別色的話,撕開之前就知道中了什麼。
-    setCard({ faceColor, color, badge, name, bonus }) {
-      drawFace(faceCtx, { color: faceColor });
-      drawPrize(prizeCtx, { color, badge, name, bonus });
+    setCard({ faceColor, no, critter, color, letter, name, bonus }) {
+      faceCtx.clearRect(0, 0, CARD_W, CARD_H);
+      drawFace(faceCtx, { color: faceColor, no, critter });
+      drawPrize(prizeCtx, { color, letter, name, bonus });
       faceTex.needsUpdate = true;
       prizeTex.needsUpdate = true;
       backMat.color.set(darken(faceColor));

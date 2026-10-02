@@ -63,7 +63,7 @@ test('hold 之後 tear,每一步的私有函式都存在', async () => {
     const els = Object.fromEntries(EL_KEYS.map(k => [k, stubEl()]));
     const revealer = createRevealer(els);
 
-    await revealer.hold({ tier: 'A', name: '大獎' }, { left: 10, top: 20, width: 60, height: 84 });
+    await revealer.hold({ tier: 'A', name: '大獎', no: 7 }, { rect: { left: 10, top: 20, width: 60, height: 84 }, tilt: 2 });
     assert.equal(revealer.isPlaying, false);
 
     await revealer.tear();
@@ -77,7 +77,7 @@ test('G 賞(最樸素的那一階)也走得完', async () => {
     const { createRevealer } = await import('../ichiban/js/ui.js');
     const els = Object.fromEntries(EL_KEYS.map(k => [k, stubEl()]));
     const revealer = createRevealer(els);
-    await revealer.hold({ tier: 'G', name: '銘謝惠顧' }, null);
+    await revealer.hold({ tier: 'G', name: '銘謝惠顧', no: 1 }, null);
     await revealer.tear();
     assert.equal(els.cardName.textContent, '銘謝惠顧');
   });
@@ -100,8 +100,9 @@ test('取消:票卡飛回去,不會丟例外', async () => {
     const { createRevealer } = await import('../ichiban/js/ui.js');
     const els = Object.fromEntries(EL_KEYS.map(k => [k, stubEl()]));
     const revealer = createRevealer(els);
-    await revealer.hold({ tier: 'C', name: '三獎' }, { left: 5, top: 5, width: 60, height: 84 });
-    await revealer.cancelReturn({ left: 5, top: 5, width: 60, height: 84 });
+    const origin = { rect: { left: 5, top: 5, width: 60, height: 84 }, tilt: -3 };
+    await revealer.hold({ tier: 'C', name: '三獎', no: 3 }, origin);
+    await revealer.cancelReturn(origin);
     revealer.clear();
   });
 });

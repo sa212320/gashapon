@@ -1,0 +1,99 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { drawFace, drawPrize, traceTicket, useCardArt, CARD_W, CARD_H } from '../ichiban/js/card-art.js';
+
+// 記下每一次呼叫與屬性設定,沒定義的方法一律當成可呼叫的 noop。
+function recCtx() {
+  const calls = [];
+  const target = { calls, measureText: s => ({ width: String(s).length * 30 }) };
+  return new Proxy(target, {
+    get: (t, k) => (k in t ? t[k] : (...a) => { calls.push([k, ...a]); }),
+    set: (t, k, v) => { calls.push(['set:' + String(k), v]); return true; },
+  });
+}
+const texts = ctx => ctx.calls.filter(c => c[0] === 'fillText').map(c => c[1]);
+
+test('drawFace 橫 / 直都畫出號碼', () => {
+  for (const orientation of ['landscape', 'portrait']) {
+    const ctx = recCtx();
+    const [w, h] = orientation === 'portrait' ? [30, 68] : [CARD_W, CARD_H];
+    drawFace(ctx, { color: '#A9D2F5', no: 7, critter: 'fox', orientation, w, h });
+    assert.ok(texts(ctx).includes('7'), orientation);
+  }
+});
+
+test('drawFace 不清畫布(桌面一張 canvas 上畫很多張)', () => {
+  const ctx = recCtx();
+  drawFace(ctx, { color: '#A9D2F5', no: 1, critter: 'fox' });
+  assert.equal(ctx.calls.filter(c => c[0] === 'clearRect').length, 0);
+});
+
+test('drawFace 的底色是傳進來的裝飾色(不是賞別色)', () => {
+  const ctx = recCtx();
+  drawFace(ctx, { color: '#ABCDEF', no: 1, critter: 'fox' });
+  assert.ok(ctx.calls.some(c => c[0] === 'set:fillStyle' && c[1] === '#ABCDEF'));
+});
+
+test('三位數號碼縮字', () => {
+  const size = no => {
+    const ctx = recCtx();
+    drawFace(ctx, { color: '#fff', no, critter: 'fox', orientation: 'portrait', w: 28, h: 63 });
+    const f = ctx.calls.filter(c => c[0] === 'set:font').map(c => parseFloat(c[1].match(/(\d+(\.\d+)?)px/)[1]));
+    return Math.max(...f);
+  };
+  assert.ok(size(123) < size(12));
+});
+
+test('最後一抽賞:號碼位置畫 🌟', () => {
+  const ctx = recCtx();
+  drawFace(ctx, { color: '#FFD24C', no: '★', critter: 'both' });
+  assert.ok(texts(ctx).includes('🌟'));
+});
+
+test('素材沒載入時照樣畫得完,不呼叫 drawImage', () => {
+  useCardArt({ paper: null, fox: null, ermine: null });
+  const ctx = recCtx();
+  drawFace(ctx, { color: '#fff', no: 3, critter: 'ermine' });
+  drawPrize(ctx, { color: '#FF6F91', letter: 'A', name: '大獎' });
+  assert.equal(ctx.calls.filter(c => c[0] === 'drawImage').length, 0);
+});
+
+test('素材載入後:背面畫紙紋 + 角色頭,獎項面只畫紙紋', () => {
+  const paper = { id: 'paper' }, fox = { id: 'fox' }, ermine = { id: 'ermine' };
+  useCardArt({ paper, fox, ermine });
+  try {
+    const face = recCtx();
+    drawFace(face, { color: '#fff', no: 3, critter: 'ermine' });
+    const imgs = face.calls.filter(c => c[0] === 'drawImage').map(c => c[1]);
+    assert.ok(imgs.includes(paper) && imgs.includes(ermine) && !imgs.includes(fox));
+
+    const prize = recCtx();
+    drawPrize(prize, { color: '#FF6F91', letter: 'A', name: '大獎' });
+    const pimgs = prize.calls.filter(c => c[0] === 'drawImage').map(c => c[1]);
+    assert.deepEqual(pimgs, [paper], '獎項面不印角色');
+  } finally {
+    useCardArt({ paper: null, fox: null, ermine: null });
+  }
+});
+
+test('獎項面:字母 + 獎品名,沒有號碼', () => {
+  const ctx = recCtx();
+  drawPrize(ctx, { color: '#FF6F91', letter: 'A', name: '大獎' });
+  assert.deepEqual(texts(ctx), ['A', '大獎']);
+});
+
+test('獎項名太長會縮字', () => {
+  const font = name => {
+    const ctx = recCtx();
+    drawPrize(ctx, { color: '#FF6F91', letter: 'A', name });
+    return ctx.calls.filter(c => c[0] === 'set:font').map(c => c[1]).at(-1);
+  };
+  assert.notEqual(font('短'), font('這是一個非常非常非常長的獎品名字二十字'));
+});
+
+test('traceTicket 只建路徑,不填色', () => {
+  const ctx = recCtx();
+  traceTicket(ctx, { orientation: 'portrait', w: 30, h: 68 });
+  assert.equal(ctx.calls.filter(c => c[0] === 'fill' || c[0] === 'stroke').length, 0);
+  assert.ok(ctx.calls.some(c => c[0] === 'lineTo'));
+});
