@@ -151,7 +151,7 @@ function finish(round) {
   $('startBtn').disabled = false;
   const byId = new Map(round.players.map(p => [p.id, p]));
   // 頭獎 → 大獎 → 一般 → 銘謝惠顧。車道順序是洗過的,照它排等於隨機,老師要找某個小孩得一列一列掃。
-  const ordered = sortResults(round.results);
+  const ordered = sortResults(round.results, getActive(state).prizes);
   $('resultList').replaceChildren(...ordered.map(r => {
     const p = byId.get(r.playerId);
     const tier = r.slot.prizeId === null ? 'snow' : r.slot.tier;

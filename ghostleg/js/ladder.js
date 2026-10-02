@@ -132,11 +132,16 @@ export function assign(ladder, players, slots) {
   });
 }
 
-// 結果卡的顯示順序:頭獎 → 大獎 → 一般 → 銘謝惠顧,同級保持原本順序。只給畫面用,不寫回存檔。
+// 結果卡的顯示順序:頭獎 → 大獎 → 一般 → 銘謝惠顧;同級照設定裡的獎項順序(prizes),
+// 同一個獎再照原本順序。只給畫面用,不寫回存檔。
 const TIER_RANK = { deluxe: 0, chest: 1, plain: 2 };
-export function sortResults(results) {
+export function sortResults(results, prizes = []) {
+  const order = new Map(prizes.map((p, i) => [p.id, i]));
   const rank = r => (r.slot.prizeId === null ? 3 : TIER_RANK[r.slot.tier] ?? 2);
-  return results.map((r, i) => [r, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([r]) => r);
+  const pos = r => order.get(r.slot.prizeId) ?? Infinity;
+  return results.map((r, i) => [r, i])
+    .sort((a, b) => rank(a[0]) - rank(b[0]) || pos(a[0]) - pos(b[0]) || a[1] - b[1])
+    .map(([r]) => r);
 }
 
 // 一份設定 = 一組玩家 + 一組獎項。每局的梯子、站位、終點擺設都是現場產生的,不存。

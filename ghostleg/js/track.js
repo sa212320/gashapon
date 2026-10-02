@@ -146,9 +146,10 @@ export function createTrack(canvas) {
     });
     r.prizeTo = slots.map((_, i) => new THREE.Vector3(laneX(i, lanes, w), w * 0.55, far - ROW_D * 0.6));
     // 起飛位置:散在起跑線上方,高度各不相同,看起來才不像排隊。
+    // 開跑前鏡頭是由上往下看(idleFrame),太低的話獎品會疊在立牌上 —— 拉到冰板上方的天空裡飛。
     r.prizeFrom = slots.map((_, i) => new THREE.Vector3(
       laneX(i, lanes, w) + (pseudoRandom(i * 7 + 1) - 0.5) * w * 0.7,
-      w * (2.0 + pseudoRandom(i * 7 + 2) * 1.5),
+      w * (3.4 + pseudoRandom(i * 7 + 2) * 1.4),
       ROW_D * (0.4 + pseudoRandom(i * 7 + 3) * 1.1)));
     setPrizeFly(0, 0);
   }

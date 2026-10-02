@@ -78,7 +78,7 @@ test('設定的動物小圖放在玩家色的底上(玩家色不在動物身上�
 });
 
 test('結果卡用 sortResults 排序,每列有動物、名字、獎品圖、獎項名稱', () => {
-  assert.match(mainJs, /sortResults\(round\.results\)/);
+  assert.match(mainJs, /sortResults\(round\.results, getActive\(state\)\.prizes\)/);
   for (const cls of ['results__animal', 'results__who', 'results__icon', 'results__prize']) assert.match(mainJs, new RegExp(cls));
   assert.match(mainJs, /results__item--deluxe/);
 });

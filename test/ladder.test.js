@@ -256,3 +256,11 @@ test('sortResults:頭獎 → 大獎 → 一般 → 銘謝惠顧,同級保持原�
   assert.deepEqual(sortResults(input).map(x => x.playerId), ['d1', 'c1', 'p1', 'p2', 'e1']);
   assert.deepEqual(input, copy);
 });
+
+test('sortResults:同一級照設定裡的獎項順序,不是照車道順序', () => {
+  const two = createGhostPrize({ name: '二獎' });
+  const three = createGhostPrize({ name: '三獎' });
+  const r = (id, p) => ({ playerId: id, slotIndex: 0, slot: { prizeId: p.id, name: p.name, tier: p.tier } });
+  const results = [r('a', three), r('b', three), r('c', two)];
+  assert.deepEqual(sortResults(results, [two, three]).map(x => x.playerId), ['c', 'a', 'b']);
+});
