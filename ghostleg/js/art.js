@@ -1,8 +1,15 @@
 // 阿彌陀籤的素材網址(含 ?v= 內容雜湊,由 tools/mascot-gen/ghostleg.py build 蓋上)。
 // 首頁的 preload.json 從這支檔案抓網址,所以網址要寫成 new URL('../img/…?v=…', import.meta.url) 的字面值。
-export const ANIMAL_URLS = {};
-export const PRIZE_URLS = {};
-export const BOARD_URL = null;
+export const ANIMAL_URLS = {
+
+};
+export const PRIZE_URLS = {
+  plain: new URL('../img/prizes/plain.webp?v=b85adb1b', import.meta.url).href,
+  chest: new URL('../img/prizes/chest.webp?v=751b799b', import.meta.url).href,
+  deluxe: new URL('../img/prizes/deluxe.webp?v=80310a54', import.meta.url).href,
+  snow: new URL('../img/prizes/snow.webp?v=d1afd51e', import.meta.url).href,
+};
+export const BOARD_URL = new URL('../img/board.webp?v=e3b16d46', import.meta.url).href;
 
 export const ANIMAL_LABEL = { snowman: '雪人', rabbit: '兔子', penguin: '企鵝', reindeer: '馴鹿', cat: '貓', dog: '狗' };
 export const TIER_LABEL = { plain: '一般', chest: '大獎', deluxe: '頭獎' };

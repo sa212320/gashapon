@@ -48,3 +48,16 @@ test('設定:動物 / 等級選擇器是有 aria-label 的 button', () => {
 test('頁面等素材載完才畫第一格', () => {
   assert.match(mainJs, /await loadArt\(\);\s*\n\s*render\(\);\s*$/);
 });
+
+import { existsSync } from 'node:fs';
+const artJs = readFileSync(new URL('../ghostleg/js/art.js', import.meta.url), 'utf8');
+
+test('art.js 引用的圖都存在、網址都帶 8 碼雜湊,而且三種獎品和雪球都有', () => {
+  const refs = [...artJs.matchAll(/new URL\('(\.\.\/img\/[^'…]+\.webp[^']*)'/g)].map(m => m[1]);
+  for (const r of refs) {
+    assert.match(r, /\?v=[0-9a-f]{8}$/, r);
+    assert.ok(existsSync(new URL(`../ghostleg/js/${r.split('?')[0]}`, import.meta.url)), r);
+  }
+  for (const k of ['plain', 'chest', 'deluxe', 'snow']) assert.match(artJs, new RegExp(`${k}: new URL\\('\\.\\./img/prizes/${k}\\.webp`));
+  assert.match(artJs, /BOARD_URL = new URL\('\.\.\/img\/board\.webp\?v=/);
+});

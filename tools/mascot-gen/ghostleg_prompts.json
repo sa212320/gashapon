@@ -1,0 +1,19 @@
+{
+  "animal_ref": "shared/img/mascot/key/idle.webp",
+  "animal_style": "Draw a brand new character in exactly the same art style as <image1>: flat 2D cartoon, thick dark brown outlines, cute chibi proportions with the head about as big as the body. The whole body, head and limbs are filled with plain pure white, no other body colours, no shading, no blush, no pattern. Small solid dark brown dot eyes, mouth closed, not talking. Full body, standing upright, facing the viewer, centered, isolated on a solid flat bright pure green #00FF00 background. Do not draw the fox or the ermine from <image1>.",
+  "snowman": "The character is a cute little snowman made of two round snowballs, a small round head on a bigger round body, two little stick arms, a tiny carrot-shaped nose drawn in white like the rest of the body.",
+  "rabbit": "The character is a cute little rabbit with two long upright ears, a round fluffy tail.",
+  "penguin": "The character is a cute little penguin with small flippers at its sides and two small feet.",
+  "reindeer": "The character is a cute little reindeer with two small branching antlers and small round ears.",
+  "cat": "The character is a cute little cat with two pointed ears and a long curled tail.",
+  "dog": "The character is a cute little puppy with two floppy ears and a short wagging tail.",
+  "picks": {
+    "prizes": {
+      "plain": "picked/prize-plain.png",
+      "chest": "picked/prize-chest.png",
+      "deluxe": "picked/prize-deluxe.png",
+      "snow": "picked/prize-snow.png"
+    },
+    "board": "picked/board-ice.png"
+  }
+}

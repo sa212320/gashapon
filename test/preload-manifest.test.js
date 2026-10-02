@@ -21,6 +21,8 @@ function gashaponRefs() {
   }
   // 一番賞票卡的角色頭(2026-10-02):網址寫在 card-art.js 的 new URL('../img/x.webp?v=…')
   for (const m of read('ichiban/js/card-art.js').matchAll(/['"](\.\.\/img\/[^'"]+\.webp\?v=[0-9a-f]{8})['"]/g)) add('ichiban/js', m[1]);
+  // 阿彌陀籤(2026-10-02):網址寫在 ghostleg/js/art.js
+  for (const m of read('ghostleg/js/art.js').matchAll(/['"](\.\.\/img\/[^'"]+\.webp\?v=[0-9a-f]{8})['"]/g)) add('ghostleg/js', m[1]);
   return out;
 }
 
