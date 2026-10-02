@@ -55,3 +55,43 @@ test('stripData:每點左右各一個頂點,寬度正確', () => {
   assert.ok(close(Math.abs(position[0] - position[3]), 0.2));
   assert.ok(close(position[1], 0.1));
 });
+
+import { tagLift, tagFontSize } from '../ghostleg/js/labels.js';
+import { wanderOffset, createIdleLoop } from '../ghostleg/js/prize-motion.js';
+
+test('tagLift:8 人以內不錯開;超過 8 人相鄰一高一低', () => {
+  assert.deepEqual([0, 1, 2, 3].map(l => tagLift(l, 8)), [0, 0, 0, 0]);
+  assert.deepEqual([0, 1, 2, 3].map(l => tagLift(l, 9)), [0, 1, 0, 1]);
+});
+
+test('tagFontSize:名字越長字越小(最多 10 字)', () => {
+  assert.equal(tagFontSize('小紅'), 30);
+  assert.equal(tagFontSize('五個字名字'), 26);
+  assert.equal(tagFontSize('十個字的名字一二三四'), 22);
+});
+
+test('wanderOffset:有在動、而且每個獎品不一樣、幅度有上限', () => {
+  const a0 = wanderOffset(0, 0, 3), a1 = wanderOffset(0, 1.3, 3), b0 = wanderOffset(1, 0, 3);
+  assert.notDeepEqual(a0, a1);
+  assert.notDeepEqual(a0, b0);
+  for (let t = 0; t < 30; t += 0.37) for (let i = 0; i < 12; i++) {
+    const o = wanderOffset(i, t, 3);
+    assert.ok(Math.abs(o.x) <= 1.8 + 1e-9 && Math.abs(o.y) <= 0.6 + 1e-9 && Math.abs(o.z) <= 0.9 + 1e-9 && Math.abs(o.rot) <= 0.35 + 1e-9);
+  }
+});
+
+test('createIdleLoop:start 之後每格呼叫 step;stop 之後不再呼叫(按開始時一定要停)', () => {
+  const queue = [];
+  const calls = [];
+  const loop = createIdleLoop(t => calls.push(t), cb => { queue.push(cb); return queue.length; }, () => { queue.length = 0; });
+  loop.start();
+  queue.shift()(1000);
+  queue.shift()(1100);
+  assert.deepEqual(calls, [1, 1.1]);
+  loop.stop();
+  assert.equal(loop.running, false);
+  assert.equal(queue.length, 0);
+  loop.start();
+  loop.start();   // 重複 start 不會排兩條
+  assert.equal(queue.length, 1);
+});
