@@ -23,7 +23,30 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
   gap: 10px;
   text-align: center;
 }
-.empty-state__icon { font-size: 54px; }
+/* 空狀態(2026-10-02):小冰板上一隻立牌(玩家色底座)+ 一個空的虛線底座 */
+.empty-scene {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 26px;
+  width: 220px;
+  padding: 16px 0 14px;
+  border: 4px solid var(--ink);
+  border-radius: 22px;
+  background: linear-gradient(#DDF0FB, #BFE1F7);
+  box-shadow: inset 0 0 0 5px #fff;
+}
+.empty-scene__seat { display: grid; justify-items: center; width: 70px; }
+.empty-scene__seat img { height: 90px; width: auto; margin-bottom: -6px; position: relative; }
+.empty-scene__seat::after {
+  content: '';
+  width: 58px;
+  height: 18px;
+  border: 4px solid var(--ink);
+  border-radius: 50%;
+  background: var(--seat, #fff);
+}
+.empty-scene__seat--vacant::after { border-style: dashed; background: transparent; }
 .empty-state__text { margin: 0; font-size: 18px; font-weight: 700; }
 
 /* 結果卡(2026-10-02):冰雪框 + 冰牌標題;依等級排序,頭獎那列微微發光。本身可以捲動,40 個人一定捲得到。 */

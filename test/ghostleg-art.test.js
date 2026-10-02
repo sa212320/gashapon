@@ -82,3 +82,12 @@ test('結果卡用 sortResults 排序,每列有動物、名字、獎品圖、獎
   for (const cls of ['results__animal', 'results__who', 'results__icon', 'results__prize']) assert.match(mainJs, new RegExp(cls));
   assert.match(mainJs, /results__item--deluxe/);
 });
+
+test('空狀態不再用 🪜,改成一塊小冰板 + 一隻立牌 + 一個空位', () => {
+  const html = readFileSync(new URL('../ghostleg/index.html', import.meta.url), 'utf8');
+  const i = html.indexOf('id="emptyState"');
+  const empty = html.slice(i, html.indexOf('</div>', html.indexOf('empty-state__text', i)) + 6);
+  assert.ok(!/🪜/u.test(empty));
+  assert.match(empty, /id="emptyScene"/);
+  assert.match(mainJs, /empty-scene__seat--vacant/);
+});

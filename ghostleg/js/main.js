@@ -39,6 +39,20 @@ function render() {
   $('remaining').textContent = `${n} 個人 · ${setup.prizes.reduce((a, p) => a + p.count, 0)} 個獎`;
   const ready = n >= 2;
   $('emptyState').hidden = ready;
+  if (!ready) {
+    // 只有一個人(或沒人):冰板上站一隻,旁邊空一個位置 —— 就是「還缺一個人」
+    const p = setup.players[0] ?? { color: PALETTE[0], animal: 'rabbit' };
+    const seat = document.createElement('div');
+    seat.className = 'empty-scene__seat';
+    seat.style.setProperty('--seat', p.color);
+    const img = document.createElement('img');
+    img.alt = '';
+    img.src = animalCanvas(getArt().animals[p.animal] ?? null, 160).toDataURL();
+    seat.append(img);
+    const vacant = document.createElement('div');
+    vacant.className = 'empty-scene__seat empty-scene__seat--vacant';
+    $('emptyScene').replaceChildren(seat, vacant);
+  }
   // 吉祥物的待機姿勢只由這裡一個地方決定(空了是 empty,否則 idle)
   // —— 一定要有 else,不然結果揭曉後重新鋪一組設定,
   // 吉祥物會永遠卡在 empty。演出中途的 watch/cheer/aww 是暫時姿勢,
