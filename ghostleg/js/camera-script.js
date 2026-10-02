@@ -19,6 +19,19 @@ export const TOTAL = SHOW + FLY + BACK + RUN + FINISH;
 const lerp = (a, b, k) => a + (b - a) * k;
 const easeInOut = k => (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2);
 
+// 冰板寬度:車道總寬 + 兩側雪邊。scene-parts.js 的 buildBoard 用同一個式子。
+export const boardWidth = (lanes, laneWidth) => lanes * laneWidth + 1.8;
+
+// 開跑前的畫面(2026-10-02):鏡頭拉近,冰板約佔畫面寬八成 —— 原本整組縮在畫面中間一小塊。
+// 以 35° 俯角看向起跑線前方一點,距離由「冰板寬 / 0.8 要剛好塞滿水平視角」反推。
+const IDLE_PITCH = (35 * Math.PI) / 180;
+export function idleFrame({ lanes, laneWidth, rowDepth, aspect, fov = 48 }) {
+  const hfov = 2 * Math.atan(Math.tan((fov * Math.PI) / 360) * aspect);
+  const d = boardWidth(lanes, laneWidth) / 0.8 / (2 * Math.tan(hfov / 2));
+  const look = [0, laneWidth * 0.8, -rowDepth * 1.5];
+  return { pos: [0, look[1] + d * Math.sin(IDLE_PITCH), look[2] + d * Math.cos(IDLE_PITCH)], look };
+}
+
 export function createCameraScript({ camera, ladder, laneWidth: w, rowDepth }) {
   const far = ladder.rows * rowDepth;      // 跑道總長(正值)
   const wide = Math.max(1, ladder.lanes * w);
@@ -55,6 +68,8 @@ export function createCameraScript({ camera, ladder, laneWidth: w, rowDepth }) {
     camera.lookAt(look[0], look[1], look[2]);
   }
 
+  const idle = () => idleFrame({ lanes: ladder.lanes, laneWidth: w, rowDepth, aspect: camera.aspect });
+
   const between = (a, b, k) => [lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k)];
 
   // elapsed:毫秒。runners:setProgress 回傳的每個人此刻的座標。
@@ -63,8 +78,9 @@ export function createCameraScript({ camera, ladder, laneWidth: w, rowDepth }) {
     // 1. 看獎品:獎品浮在角色頭上,鏡頭由下往上看。
     if (elapsed < SHOW) {
       const k = easeInOut(elapsed / SHOW);
-      // 開場先微微推近,不要一動也不動
-      place(between([0, w * 1.1, cloudZ + wide * 1.5 + 5], showPos(), k), showLook());
+      // 從開跑前的構圖(idleFrame)推到「由下往上看獎品」
+      const f = idle();
+      place(between(f.pos, showPos(), k), between(f.look, showLook(), k));
       return { run: 0, fly: 0 };
     }
 

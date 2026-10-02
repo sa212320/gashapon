@@ -95,3 +95,27 @@ test('createIdleLoop:start 之後每格呼叫 step;stop 之後不再呼叫(按�
   loop.start();   // 重複 start 不會排兩條
   assert.equal(queue.length, 1);
 });
+
+import { idleFrame, boardWidth } from '../ghostleg/js/camera-script.js';
+
+// 冰板中心那條橫線在畫面上的寬度比例(透視投影,水平視角由垂直 fov 與 aspect 算)
+function widthRatio(f, { lanes, laneWidth, aspect, fov = 48 }) {
+  const [px, py, pz] = f.pos, [lx, ly, lz] = f.look;
+  const d = Math.hypot(lx - px, ly - py, lz - pz);
+  const hfov = 2 * Math.atan(Math.tan((fov * Math.PI) / 360) * aspect);
+  return boardWidth(lanes, laneWidth) / (2 * d * Math.tan(hfov / 2));
+}
+
+for (const [lanes, lw, aspect] of [[6, 1, 390 / 640], [6, 1, 1440 / 700], [40, 0.34, 390 / 640], [40, 0.34, 1440 / 700]]) {
+  test(`idleFrame:${lanes} 人、aspect ${aspect.toFixed(2)} 時冰板佔畫面寬約八成`, () => {
+    const opts = { lanes, laneWidth: lw, rows: 12, rowDepth: 1.35, aspect };
+    const r = widthRatio(idleFrame(opts), opts);
+    assert.ok(r > 0.74 && r < 0.86, `佔 ${(r * 100).toFixed(0)}%`);
+  });
+}
+
+test('idleFrame:鏡頭在起跑線後上方,往前下方看', () => {
+  const f = idleFrame({ lanes: 6, laneWidth: 1, rows: 12, rowDepth: 1.35, aspect: 0.6 });
+  assert.ok(f.pos[1] > f.look[1]);
+  assert.ok(f.pos[2] > f.look[2]);
+});
