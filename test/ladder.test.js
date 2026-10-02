@@ -264,3 +264,11 @@ test('sortResults:同一級照設定裡的獎項順序,不是照車道順序', (
   const results = [r('a', three), r('b', three), r('c', two)];
   assert.deepEqual(sortResults(results, [two, three]).map(x => x.playerId), ['c', 'a', 'b']);
 });
+
+// 2026-10-02 使用者:「為啥有些橫線在最底下一開始的地方」—— 第 0 列畫在 z = 0,就是起跑線(棋子站的地方)
+test('buildLadder:第 0 列(起跑線)不會有橫槓', () => {
+  for (let seed = 1; seed <= 200; seed++) {
+    const ladder = buildLadder({ lanes: 8, rng: seeded(seed) });
+    assert.ok(ladder.rungs.every(r => r.row >= 1), `seed ${seed}`);
+  }
+});

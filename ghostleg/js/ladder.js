@@ -100,7 +100,9 @@ export function buildLadder({
   rng = Math.random,
 } = {}) {
   const rungs = [];
-  for (let row = 0; row < rows; row++) {
+  // 從第 1 列開始:第 0 列畫在 z = 0,就是起跑線(棋子站的地方),橫槓放那裡看起來像一開始腳下就有橫線
+  //(2026-10-02 使用者回報)。公平性不受影響 —— 它來自兩端的洗牌,不是橫槓。
+  for (let row = 1; row < rows; row++) {
     let left = 0;
     while (left < lanes - 1) {
       if (rng() < density) {
