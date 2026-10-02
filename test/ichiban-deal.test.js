@@ -91,3 +91,8 @@ test('dealPlan 預設就是隨機順序', () => {
   const nos = dealPlan(slots(30), rng).map(p => p.no);
   assert.notDeepEqual(nos, [...nos].sort((a, b) => a - b));
 });
+
+test('dealPlan 參數:flight 可以讓籤飛得更快', () => {
+  const plan = dealPlan(slots(5), Math.random, { flight: 320 });
+  assert.ok(plan.every(p => p.duration === 320));
+});

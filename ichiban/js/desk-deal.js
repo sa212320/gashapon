@@ -12,7 +12,8 @@ const LAST_START_MS = 2500;     // 張數多時,最後一發最晚在搖完後�
 const SPIN = 540;               // 飛行途中轉的角度(一圈半)
 
 // 射法(2026-10-02 一路試出來的):機關槍 = 每發 1~2 張、間隔 40~110ms 隨機。
-// size:每發幾張;gap:發與發的間隔(ms,隨機);spray:同一發裡每張再錯開 0~spray ms(散彈的噴灑感)。
+// size:每發幾張;gap:發與發的間隔(ms,隨機);spray:同一發裡每張再錯開 0~spray ms(散彈的噴灑感);
+// flight:每張飛多久(ms)。
 // order:'random'(預設,使用者 2026-10-02 要隨機)或 'number'(照號碼,從左上角填起)。
 export const MACHINE_GUN = Object.freeze({ size: [1, 2], gap: [40, 110], spray: 0, order: 'random' });
 
@@ -20,6 +21,7 @@ export const MACHINE_GUN = Object.freeze({ size: [1, 2], gap: [40, 110], spray: 
 // rng 給測試固定用。每筆帶 shot(第幾發),桌面靠它讓箱子每發抖一下。
 export function dealPlan(slots, rng = Math.random, {
   size = MACHINE_GUN.size, gap = MACHINE_GUN.gap, spray = MACHINE_GUN.spray, order = MACHINE_GUN.order,
+  flight = FLIGHT_MS,
 } = {}) {
   const sorted = [...slots].sort((a, b) => a.no - b.no);
   if (order === 'random') {
@@ -43,7 +45,7 @@ export function dealPlan(slots, rng = Math.random, {
     ...s,
     shot: k,
     start: Math.round(INTRO_MS + offsets[k] * squeeze + (spray ? rng() * spray : 0)),
-    duration: FLIGHT_MS,
+    duration: flight,
   })));
 }
 
