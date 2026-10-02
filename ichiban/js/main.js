@@ -5,6 +5,7 @@ import { getActive, replaceSetup, addSetup, removeSetup } from '../../shared/js/
 import { drawTicket, refillSetup, createIchibanSetup, createIchibanPrize } from './ichiban.js';
 import { createDeskView, createRevealer, createSettingsDialog } from './ui.js';
 import { tiltFor } from './desk-layout.js';
+import { loadCardArt } from './card-art.js';
 import { createAsk } from '../../shared/js/ask.js';
 import { setEnabled, unlock, sfx } from '../../shared/js/sound.js';
 import { loadPrefs, savePrefs } from '../../shared/js/prefs.js';
@@ -305,4 +306,6 @@ const settings = createSettingsDialog({
 
 $('settingsBtn').addEventListener('click', () => settings.open());
 
+// 角色頭先下載(首頁也預載過的話會直接中快取);桌面在它好了之後自己重畫。
+loadCardArt();
 render();

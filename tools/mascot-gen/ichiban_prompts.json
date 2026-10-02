@@ -1,0 +1,14 @@
+{
+  "stamp_style": "simple flat rubber stamp icon, one solid pure black shape on a plain pure white background, bold chunky rounded shapes, cute chibi style, centered, front view, only the head, no body, no outline color, no gray shading",
+  "fox": "a cute chibi fox head, two big pointed triangle ears, narrow pointy muzzle, two round white dot eyes clearly visible, small white nose, inner ears as white cutouts, mouth closed, not talking",
+  "ermine": "a cute chibi stoat weasel head, slightly long oval head wider than tall, tiny low rounded ears on the sides of the head, two round white dot eyes clearly visible, small white nose, short whiskers as thin white lines, not a bear, not a cat, mouth closed, not talking",
+  "stamp_negative": "text, letters, numbers, body, paws, tail, gray, gradient, color, shading, frame, border, circle background, open mouth, teeth, tongue, talking, bear, raccoon, mask, missing eyes",
+  "picks": {
+    "fox": {
+      "n": 2
+    },
+    "ermine": {
+      "n": 1
+    }
+  }
+}

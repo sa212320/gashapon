@@ -405,6 +405,9 @@ def write_preload_manifest():
     for css, base in [('gashapon/css/style.css', 'gashapon/css'), ('shared/css/prize-frame.css', 'shared/css')]:
         for m in re.finditer(r'url\(\s*["\']?([^"\')#]+)["\']?\s*\)', (ROOT / css).read_text()):
             add(base, m.group(1))
+    # 一番賞票卡的角色頭(2026-10-02):網址寫在 card-art.js 的 new URL('../img/x.webp?v=…')
+    for m in re.finditer(r"""['"](\.\./img/[^'"]+\.webp\?v=[0-9a-f]{8})['"]""", (ROOT / 'ichiban' / 'js' / 'card-art.js').read_text()):
+        add('ichiban/js', m.group(1))
     path = IMG / 'preload.json'
     path.write_text(json.dumps(sorted(refs), indent=2) + '\n')
     print(f'preload.json: {len(refs)} 張')

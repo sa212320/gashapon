@@ -65,11 +65,15 @@ function traceRoundRect(ctx, x, y, w, h, r) {
 const INK = '#574239';
 const FACE = 'system-ui, -apple-system, "PingFang TC", "Noto Sans TC", sans-serif';
 
-/* ---------- 素材(紙紋、角色頭) ---------- */
+/* ---------- 素材(白章角色頭) ---------- */
 // 由 tools/mascot-gen/ichiban.py build 產生;網址的 ?v= 由工具蓋章。
-// 載不到也照畫 —— 少了紙紋跟頭而已,不能讓小孩抽不到籤。
-const ART_URLS = {};
-const art = { paper: null, fox: null, ermine: null };
+// 載不到也照畫 —— 少了頭而已,不能讓小孩抽不到籤。
+// 紙紋(2026-10-02)試過拿掉了:縮到桌上小卡後完全看不出來,加強又顯得髒。
+const ART_URLS = {
+  fox: new URL('../img/fox.webp?v=a76f87af', import.meta.url).href,
+  ermine: new URL('../img/ermine.webp?v=4c6d1de5', import.meta.url).href,
+};
+const art = { fox: null, ermine: null };
 
 export function useCardArt(images) {
   Object.assign(art, images);
@@ -117,13 +121,6 @@ export function traceTicket(ctx, { orientation = 'landscape', w = CARD_W, h = CA
   ctx.restore();
 }
 
-function paperOver(ctx) {
-  if (!art.paper) return;
-  ctx.globalCompositeOperation = 'multiply';
-  ctx.drawImage(art.paper, 0, 0, CARD_W, CARD_H);
-  ctx.globalCompositeOperation = 'source-over';
-}
-
 // 固定種子的假隨機(mulberry32):同一張籤永遠同一組雪花,不同張排法不一樣。
 function seeded(seed) {
   let a = seed >>> 0;
@@ -145,10 +142,20 @@ function snowflake(ctx, x, y, r, turn) {
   ctx.stroke();
 }
 
-// 印在紙上的白色雪花 + 一圈虛線框。紙不是冰:不做透明、亮面(2026-10-02 定案)。
+// 印刷用的墨色:平常是白色;底色太淺(冰白)時白色會看不見,改用淡冰藍(底色與 #7FA6D6 各半)。
+function printInk(color) {
+  const n = parseInt(color.replace('#', ''), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  if (lum < 0.9) return [255, 255, 255];
+  return [[r, 0x7F], [g, 0xA6], [b, 0xD6]].map(([v, k]) => Math.round((v + k) / 2));
+}
+const rgba = (ink, a) => `rgba(${ink.join(',')},${a})`;
+
+// 印在紙上的雪花 + 一圈虛線框(墨色見 printInk)。紙不是冰:不做透明、亮面(2026-10-02 定案)。
 // 雪花不排成格子(使用者:太規則了):每格一朵、在格子裡隨機偏移,大小 / 角度 / 深淺各不同,
 // 偶爾換成小圓點。用格子是為了不會擠成一團或空一大塊。
-function snowPrint(ctx, seed) {
+function snowPrint(ctx, seed, ink) {
   const rand = seeded(seed * 2654435761);
   ctx.lineCap = 'round';
   const CW = 120, CH = 100;
@@ -158,12 +165,12 @@ function snowPrint(ctx, seed) {
       const y = gy + CH * (0.15 + rand() * 0.7);
       const alpha = 0.35 + rand() * 0.4;
       if (rand() < 0.25) {
-        ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(2)})`;
+        ctx.fillStyle = rgba(ink, alpha.toFixed(2));
         ctx.beginPath();
         ctx.arc(x, y, 3 + rand() * 4, 0, Math.PI * 2);
         ctx.fill();
       } else {
-        ctx.strokeStyle = `rgba(255,255,255,${alpha.toFixed(2)})`;
+        ctx.strokeStyle = rgba(ink, alpha.toFixed(2));
         ctx.lineWidth = 4 + rand() * 3;
         snowflake(ctx, x, y, 9 + rand() * 15, rand() * Math.PI);
       }
@@ -171,7 +178,7 @@ function snowPrint(ctx, seed) {
   }
   ctx.setLineDash([22, 16]);
   ctx.lineWidth = 7;
-  ctx.strokeStyle = 'rgba(255,255,255,.9)';
+  ctx.strokeStyle = rgba(ink, '.9');
   traceRoundRect(ctx, CARD_W * 0.07, CARD_H * 0.17, CARD_W * 0.86, CARD_H * 0.66, 30);
   ctx.stroke();
   ctx.setLineDash([]);
@@ -197,16 +204,37 @@ function drawNumber(ctx, no, x, y, r) {
 }
 
 // 白色印章頭(素材本身就是白色 + 透明,工具烘好的)。both = 最後一抽賞兩隻並排。
-function drawHead(ctx, critter, x, y, size) {
+// 墨色不是白色時(冰白底),先把頭染成墨色再貼:offscreen canvas 用 source-in 上色,依墨色快取。
+const tinted = new Map();
+function inked(img, ink) {
+  if (ink.every(v => v === 255) || typeof document === 'undefined') return img;
+  const key = ink.join(',');
+  let byInk = tinted.get(img);
+  if (!byInk) tinted.set(img, (byInk = new Map()));
+  if (!byInk.has(key)) {
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    const x = c.getContext('2d');
+    x.drawImage(img, 0, 0);
+    x.globalCompositeOperation = 'source-in';
+    x.fillStyle = rgba(ink, 1);
+    x.fillRect(0, 0, c.width, c.height);
+    byInk.set(key, c);
+  }
+  return byInk.get(key);
+}
+
+function drawHead(ctx, critter, x, y, size, ink) {
   if (critter === 'both') {
     if (!art.fox || !art.ermine) return;
     const s = size * 0.75;
-    ctx.drawImage(art.fox, x - s * 1.05, y - s / 2, s, s);
-    ctx.drawImage(art.ermine, x + s * 0.05, y - s / 2, s, s);
+    ctx.drawImage(inked(art.fox, ink), x - s * 1.05, y - s / 2, s, s);
+    ctx.drawImage(inked(art.ermine, ink), x + s * 0.05, y - s / 2, s, s);
     return;
   }
   const img = art[critter];
-  if (img) ctx.drawImage(img, x - size / 2, y - size / 2, size, size);
+  if (img) ctx.drawImage(inked(img, ink), x - size / 2, y - size / 2, size, size);
 }
 
 /* ---------- 蓋著的那一面 ---------- */
@@ -214,6 +242,7 @@ function drawHead(ctx, critter, x, y, size) {
 // 不清畫布:桌面是一張 canvas 畫很多張。整面不透明,底下的獎項不能透出來。
 // 號碼跟頭不跟著轉,永遠正立:直卡上下排、橫卡左右排。
 export function drawFace(ctx, { color, no, critter, orientation = 'landscape', w = CARD_W, h = CARD_H }) {
+  const ink = printInk(color);
   ctx.save();
   enterCardSpace(ctx, orientation, w, h);
   traceShape(ctx);
@@ -221,8 +250,7 @@ export function drawFace(ctx, { color, no, critter, orientation = 'landscape', w
   ctx.fill();
   ctx.save();
   ctx.clip();
-  paperOver(ctx);
-  snowPrint(ctx, typeof no === 'number' ? no : 0);
+  snowPrint(ctx, typeof no === 'number' ? no : 0, ink);
   ctx.restore();
   traceShape(ctx);
   ctx.lineJoin = 'round';
@@ -236,7 +264,7 @@ export function drawFace(ctx, { color, no, critter, orientation = 'landscape', w
   const [nx, ny] = portrait ? [w * 0.5, h * 0.34] : [w * 0.36, h * 0.5];
   const [hx, hy] = portrait ? [w * 0.5, h * 0.66] : [w * 0.66, h * 0.5];
   drawNumber(ctx, no, nx, ny, s * 0.27);
-  drawHead(ctx, critter, hx, hy, s * 0.5);
+  drawHead(ctx, critter, hx, hy, s * 0.5, ink);
 }
 
 /* ---------- 獎項那一面 ---------- */
@@ -290,7 +318,6 @@ export function drawPrize(ctx, { color, letter, name, bonus = false }) {
     ctx.fillStyle = fill;
     ctx.fillRect(0, a * CARD_H, CARD_W, (b - a) * CARD_H);
   }
-  paperOver(ctx);
 
   const bx = CARD_W * 0.25;
   const by = CARD_H * 0.61;      // 深色卡身(27%~95%)的中央

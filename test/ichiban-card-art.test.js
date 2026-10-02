@@ -51,28 +51,26 @@ test('最後一抽賞:號碼位置畫 🌟', () => {
 });
 
 test('素材沒載入時照樣畫得完,不呼叫 drawImage', () => {
-  useCardArt({ paper: null, fox: null, ermine: null });
+  useCardArt({ fox: null, ermine: null });
   const ctx = recCtx();
   drawFace(ctx, { color: '#fff', no: 3, critter: 'ermine' });
   drawPrize(ctx, { color: '#FF6F91', letter: 'A', name: '大獎' });
   assert.equal(ctx.calls.filter(c => c[0] === 'drawImage').length, 0);
 });
 
-test('素材載入後:背面畫紙紋 + 角色頭,獎項面只畫紙紋', () => {
-  const paper = { id: 'paper' }, fox = { id: 'fox' }, ermine = { id: 'ermine' };
-  useCardArt({ paper, fox, ermine });
+test('素材載入後:背面畫角色頭,獎項面不畫任何圖(2026-10-02 拿掉紙紋)', () => {
+  const fox = { id: 'fox' }, ermine = { id: 'ermine' };
+  useCardArt({ fox, ermine });
   try {
     const face = recCtx();
     drawFace(face, { color: '#fff', no: 3, critter: 'ermine' });
-    const imgs = face.calls.filter(c => c[0] === 'drawImage').map(c => c[1]);
-    assert.ok(imgs.includes(paper) && imgs.includes(ermine) && !imgs.includes(fox));
+    assert.deepEqual(face.calls.filter(c => c[0] === 'drawImage').map(c => c[1]), [ermine]);
 
     const prize = recCtx();
     drawPrize(prize, { color: '#FF6F91', letter: 'A', name: '大獎' });
-    const pimgs = prize.calls.filter(c => c[0] === 'drawImage').map(c => c[1]);
-    assert.deepEqual(pimgs, [paper], '獎項面不印角色');
+    assert.equal(prize.calls.filter(c => c[0] === 'drawImage').length, 0, '獎項面不印角色');
   } finally {
-    useCardArt({ paper: null, fox: null, ermine: null });
+    useCardArt({ fox: null, ermine: null });
   }
 });
 
@@ -115,4 +113,24 @@ test('雪花紋不規則:每張依號碼散佈不同,同一張永遠一樣', () 
   };
   assert.equal(flakes(3), flakes(3));
   assert.notEqual(flakes(3), flakes(4));
+});
+
+test('loadCardArt 只下載狐狸跟白鼬兩張頭(沒有紙紋),網址帶 ?v= 內容雜湊', async () => {
+  const { loadCardArt } = await import('../ichiban/js/card-art.js');
+  const asked = [];
+  await loadCardArt(url => { asked.push(url); return Promise.resolve({ url }); });
+  assert.equal(asked.length, 2);
+  assert.ok(asked.some(u => /\/img\/fox\.webp\?v=[0-9a-f]{8}$/.test(u)), asked.join());
+  assert.ok(asked.some(u => /\/img\/ermine\.webp\?v=[0-9a-f]{8}$/.test(u)), asked.join());
+  useCardArt({ fox: null, ermine: null });
+});
+
+test('太淺的底色(冰白)印刷改用加深的同色系,白色會看不見', () => {
+  const strokes = color => {
+    const ctx = recCtx();
+    drawFace(ctx, { color, no: 4, critter: 'fox' });
+    return ctx.calls.filter(c => c[0] === 'set:strokeStyle').map(c => c[1]);
+  };
+  assert.ok(strokes('#A9D2F5').some(s => s.startsWith('rgba(255,255,255')), '一般底色用白色印刷');
+  assert.ok(!strokes('#EEF3FA').some(s => s.startsWith('rgba(255,255,255')), '冰白底不能用白色印刷');
 });
