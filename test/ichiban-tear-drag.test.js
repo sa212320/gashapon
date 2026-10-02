@@ -78,3 +78,15 @@ test('沒有 down 的 move 不算數(手指從籤外面滑進來)', () => {
   assert.deepEqual(d.move(0.5).events, []);
   assert.equal(d.progress, 0);
 });
+
+test('curl.js 可以畫到任意進度、從任意進度接著播', () => {
+  const src = read('ichiban/js/curl.js');
+  assert.match(src, /show\(p\) \{/);
+  assert.match(src, /playFrom\(from, ms\) \{/);
+  assert.match(src, /play\(ms\) \{\s*return this\.playFrom\(0, ms\);/);
+});
+
+test('音效庫有短撕紙聲 rip', async () => {
+  const { sfx } = await import('../shared/js/sound.js');
+  assert.equal(typeof sfx.rip, 'function');
+});

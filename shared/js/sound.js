@@ -121,6 +121,10 @@ export const sfx = {
     tone({ freq: 520 + k * 380, to: 150, dur: 0.07, type: 'square', gain: 0.08 + k * 0.1 });
     noise({ dur: 0.06 + k * 0.05, gain: 0.06 + k * 0.12, from: 5000 + k * 4000, to: 500 });
   },
+  // 手指撕籤時每往前一段的短撕紙聲(2026-10-02)。要很短,連續幾下才不會糊在一起
+  rip() {
+    noise({ dur: 0.06, gain: 0.12, from: 5000, to: 1500 });
+  },
   empty() {
     tone({ freq: 300, to: 160, dur: 0.35, type: 'sine', gain: 0.18 });
   },

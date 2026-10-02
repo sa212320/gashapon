@@ -117,11 +117,21 @@ export function createCurlStage(canvas) {
       setProgress(0);
     },
     // 回傳跟 ui.js 的 animate() 一樣的契約:一個 promise,外加一個能立刻結束的 finish()。
+    // 手指撕籤(2026-10-02):直接畫到某個進度
+    show(p) {
+      resize();
+      setProgress(Math.min(1, Math.max(0, p)));
+    },
     play(ms) {
+      return this.playFrom(0, ms);
+    },
+    // 從 from 接著自動撕完(手指撕到 70%、或撕到一半按「撕開」);ms 是從 0 撕到底的時間,按剩下的比例跑
+    playFrom(from, ms) {
       resize();
       let raf = 0;
       let done = null;
       const t0 = performance.now();
+      const left = Math.max(1, ms * (1 - from));
       const finished = new Promise(resolve => { done = resolve; });
       const finish = () => {
         if (!done) return;
@@ -130,7 +140,7 @@ export function createCurlStage(canvas) {
         const r = done; done = null; r();
       };
       const step = now => {
-        const p = Math.min(1, (now - t0) / ms);
+        const p = from + (1 - from) * Math.min(1, (now - t0) / left);
         setProgress(p);
         if (p >= 1) finish();
         else raf = requestAnimationFrame(step);
