@@ -24,9 +24,10 @@ export const boardWidth = (lanes, laneWidth) => lanes * laneWidth + 1.8;
 
 // 開跑前的畫面(2026-10-02):鏡頭拉近,冰板約佔畫面寬八成 —— 原本整組縮在畫面中間一小塊。
 // 以 35° 俯角看向起跑線前方一點,距離由「冰板寬 / 0.8 要剛好塞滿水平視角」反推。
+// 橫向螢幕(桌機)當成正方形算:冰板是直長條,硬撐滿 16:9 的寬度,鏡頭會貼到動物大到塞滿畫面。
 const IDLE_PITCH = (35 * Math.PI) / 180;
 export function idleFrame({ lanes, laneWidth, rowDepth, aspect, fov = 48 }) {
-  const hfov = 2 * Math.atan(Math.tan((fov * Math.PI) / 360) * aspect);
+  const hfov = 2 * Math.atan(Math.tan((fov * Math.PI) / 360) * Math.min(1, aspect));
   const d = boardWidth(lanes, laneWidth) / 0.8 / (2 * Math.tan(hfov / 2));
   const look = [0, laneWidth * 0.8, -rowDepth * 1.5];
   return { pos: [0, look[1] + d * Math.sin(IDLE_PITCH), look[2] + d * Math.cos(IDLE_PITCH)], look };

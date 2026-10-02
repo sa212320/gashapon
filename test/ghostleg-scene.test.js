@@ -106,10 +106,12 @@ function widthRatio(f, { lanes, laneWidth, aspect, fov = 48 }) {
   return boardWidth(lanes, laneWidth) / (2 * d * Math.tan(hfov / 2));
 }
 
+// 直向(手機):冰板佔畫面寬約八成。橫向(桌機):冰板是直長條,硬塞滿寬度的話鏡頭會貼上去、
+// 動物大到塞滿畫面(2026-10-02 桌機截圖)—— 橫向時當成正方形構圖,冰板寬 ≈ 畫面「高度」的八成。
 for (const [lanes, lw, aspect] of [[6, 1, 390 / 640], [6, 1, 1440 / 700], [40, 0.34, 390 / 640], [40, 0.34, 1440 / 700]]) {
-  test(`idleFrame:${lanes} 人、aspect ${aspect.toFixed(2)} 時冰板佔畫面寬約八成`, () => {
+  test(`idleFrame:${lanes} 人、aspect ${aspect.toFixed(2)} 時冰板佔畫面寬約八成(橫向時佔高度的八成)`, () => {
     const opts = { lanes, laneWidth: lw, rows: 12, rowDepth: 1.35, aspect };
-    const r = widthRatio(idleFrame(opts), opts);
+    const r = widthRatio(idleFrame(opts), opts) * Math.max(1, aspect);
     assert.ok(r > 0.74 && r < 0.86, `佔 ${(r * 100).toFixed(0)}%`);
   });
 }
