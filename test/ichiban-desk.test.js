@@ -82,6 +82,7 @@ function el(extra = {}) {
   const e = {
     style: { _v: {}, setProperty(k, v) { this._v[k] = v; }, transform: '' },
     dataset: {}, attrs: {}, children: [], hidden: false,
+    classList: { _s: new Set(), add(...c) { c.forEach(x => this._s.add(x)); }, remove(...c) { c.forEach(x => this._s.delete(x)); }, contains(c) { return this._s.has(c); } },
     setAttribute(k, v) { e.attrs[k] = v; },
     replaceChildren(...k) { e.children = k; },
     addEventListener() {},
@@ -103,7 +104,7 @@ test('桌面:只為還沒抽的籤建按鈕,號碼與歪斜跟著號碼走', asy
   try {
     const { createDeskView } = await import('../ichiban/js/ui.js');
     const pileEl = el();
-    const desk = createDeskView({ deskEl: el(), pileEl, canvasEl: el(), emptyStateEl: el(), onPick() {} });
+    const desk = createDeskView({ deskEl: el(), pileEl, canvasEl: el(), boxEl: el(), emptyStateEl: el(), onPick() {} });
     desk.render({ tickets: [1, 2, 3, 4, 5].map(no => ({ no, prizeId: 'p', drawn: no === 2 })) });
     assert.deepEqual(pileEl.children.map(b => b.dataset.no), ['1', '3', '4', '5']);
     assert.equal(pileEl.children[1].attrs['aria-label'], '抽 3 號籤');
@@ -128,8 +129,9 @@ async function withDesk(fn) {
     const deskEl = el({ clientWidth: 375, addEventListener: (k, f) => { handlers[k] = f; } });
     const canvasEl = el();
     const pileEl = el();
-    const desk = createDeskView({ deskEl, pileEl, canvasEl, emptyStateEl: el(), onPick() {} });
-    return await fn({ desk, deskEl, canvasEl, handlers, made });
+    const boxEl = el({ hidden: true, offsetHeight: 100 });
+    const desk = createDeskView({ deskEl, pileEl, canvasEl, boxEl, emptyStateEl: el(), onPick() {} });
+    return await fn({ desk, deskEl, canvasEl, pileEl, boxEl, handlers, made });
   } finally {
     for (const k of keys) globalThis[k] = saved[k];
   }
@@ -152,5 +154,72 @@ test('canvas 的 CSS 尺寸等於畫的尺寸(有傳統捲軸時不能被拉伸,
     desk.render({ tickets: [{ no: 1, prizeId: 'p', drawn: false }] });
     assert.equal(canvasEl.style.width, '375px');
     assert.equal(canvasEl.style.height, '540px');
+  });
+});
+
+
+// 開場動畫(2026-10-02):rAF 跟時間都由測試推進
+async function withDealDesk(fn) {
+  const queue = [];
+  let now = 0;
+  const savedNow = performance.now;
+  performance.now = () => now;
+  try {
+    await withDesk(async ctx => {
+      globalThis.requestAnimationFrame = f => { queue.push(f); return queue.length; };
+      const tick = ms => { now += ms; const q = queue.splice(0); q.forEach(f => f(now)); };
+      await fn({ ...ctx, tick });
+    });
+  } finally {
+    performance.now = savedNow;
+  }
+}
+
+const tickets = n => Array.from({ length: n }, (_, i) => ({ no: i + 1, prizeId: 'p', drawn: false }));
+
+test('開場動畫:播放中按鈕不能點、盒子出現;播完恢復', async () => {
+  await withDealDesk(async ({ desk, tick, pileEl, boxEl }) => {
+    desk.deal({ tickets: tickets(5) });
+    assert.equal(pileEl.style.pointerEvents, 'none');
+    assert.equal(boxEl.hidden, false);
+    assert.equal(desk.isDealing, true);
+    for (let i = 0; i < 40; i++) tick(50);
+    assert.equal(desk.isDealing, false);
+    assert.equal(pileEl.style.pointerEvents, '');
+  });
+});
+
+test('開場動畫:觸發它的那一下點擊(桌面裡的「重新鋪一桌」)不能把它跳過', async () => {
+  await withDealDesk(async ({ desk, handlers }) => {
+    desk.deal({ tickets: tickets(20) });
+    handlers.click({ target: {} });   // 同一個點擊冒泡到桌面
+    assert.equal(desk.isDealing, true);
+  });
+});
+
+test('開場動畫:點一下桌面就直接全部排好', async () => {
+  await withDealDesk(async ({ desk, handlers, pileEl, tick }) => {
+    desk.deal({ tickets: tickets(20) });
+    tick(16);
+    handlers.click({ target: {} });
+    assert.equal(desk.isDealing, false);
+    assert.equal(pileEl.style.pointerEvents, '');
+  });
+});
+
+test('一般 render 不播開場動畫', async () => {
+  await withDealDesk(async ({ desk, pileEl, boxEl }) => {
+    desk.render({ tickets: tickets(5) });
+    assert.equal(desk.isDealing, false);
+    assert.notEqual(pileEl.style.pointerEvents, 'none');
+    assert.equal(boxEl.hidden, true);
+  });
+});
+
+test('開場動畫中又 render(轉手機、改設定):動畫直接結束', async () => {
+  await withDealDesk(async ({ desk }) => {
+    desk.deal({ tickets: tickets(10) });
+    desk.render({ tickets: tickets(10) });
+    assert.equal(desk.isDealing, false);
   });
 });

@@ -45,8 +45,8 @@ def save_cfg(cfg):
 
 
 def prompt_for(cfg, name):
-    if name == 'empty':
-        return f'{cfg["empty_style"]}, {cfg["empty"]}', cfg['empty_negative'], 768, 640
+    if name in ('empty', 'box'):   # 同一個籤盒:空的(抽完了)/ 裝滿的(開場動畫)
+        return f'{cfg["empty_style"]}, {cfg[name]}', cfg['empty_negative'], 768, 640
     return f'{cfg["stamp_style"]}, {cfg[name]}', cfg['stamp_negative'], 768, 768
 
 
@@ -67,14 +67,14 @@ def bake(name, src):
     return Image.fromarray(stamp_from_gray(gray))
 
 
-def cut_empty(src):
+def cut_empty(src, width=EMPTY_W):
     """綠幕去背、裁掉透明邊。不用 keep_largest:籤盒跟散落的籤是分開的幾塊。"""
     rgb = np.asarray(Image.open(src).convert('RGB'))
     rgba = clear_green_fringe(key_border(rgb))
     img = Image.fromarray(rgba)
     img = img.crop(img.getbbox())
-    h = round(img.height * EMPTY_W / img.width)
-    return img.resize((EMPTY_W, h), Image.LANCZOS)
+    h = round(img.height * width / img.width)
+    return img.resize((width, h), Image.LANCZOS)
 
 
 def cmd_build_empty(args):
@@ -88,12 +88,24 @@ def cmd_build_empty(args):
     print('empty done')
 
 
+def cmd_build_box(args):
+    pick = load_cfg().get('picks', {}).get('box')
+    if not pick:
+        sys.exit('還沒 pick box')
+    path = IMG / 'box.webp'
+    webp(cut_empty(OUT / 'box' / f's{pick["n"]}.png', width=300), path, q=82)   # 畫面上約 150px
+    INDEX.write_text(stamp(INDEX.read_text(), 'img/box.webp', content_hash(path)))
+    write_preload_manifest()
+    print('box done')
+
+
 def cmd_review(args):
     # 每個候選烘成跟正式版一樣的格式,review/ichiban.html 把它們畫在冷色票卡上比較
-    for src in sorted((OUT / 'empty').glob('s*.png')):
-        dst = REVIEW / 'empty' / f'{src.stem}.png'
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        cut_empty(src).save(dst)
+    for scene in ('empty', 'box'):
+        for src in sorted((OUT / scene).glob('s*.png')):
+            dst = REVIEW / scene / f'{src.stem}.png'
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            cut_empty(src).save(dst)
     for name in NAMES:
         for src in sorted((OUT / name).glob('s*.png')):
             dst = REVIEW / name / f'{src.stem}.png'
@@ -124,17 +136,18 @@ def cmd_build(args):
     print('ichiban art done')
 
 
-COMMANDS = {'gen': cmd_gen, 'review': cmd_review, 'pick': cmd_pick, 'build': cmd_build, 'build-empty': cmd_build_empty}
+COMMANDS = {'gen': cmd_gen, 'review': cmd_review, 'pick': cmd_pick, 'build': cmd_build, 'build-empty': cmd_build_empty, 'build-box': cmd_build_box}
 
 
 def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest='cmd', required=True)
-    g = sub.add_parser('gen'); g.add_argument('name', choices=NAMES + ['empty']); g.add_argument('--seeds', help='逗號分隔,例如 44,55,66')
+    g = sub.add_parser('gen'); g.add_argument('name', choices=NAMES + ['empty', 'box']); g.add_argument('--seeds', help='逗號分隔,例如 44,55,66')
     sub.add_parser('review')
-    p = sub.add_parser('pick'); p.add_argument('name', choices=NAMES + ['empty']); p.add_argument('n', type=int)
+    p = sub.add_parser('pick'); p.add_argument('name', choices=NAMES + ['empty', 'box']); p.add_argument('n', type=int)
     sub.add_parser('build')
     sub.add_parser('build-empty')
+    sub.add_parser('build-box')
     args = ap.parse_args()
     COMMANDS[args.cmd](args)
 

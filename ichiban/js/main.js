@@ -33,6 +33,7 @@ const desk = createDeskView({
   deskEl: $('desk'),
   pileEl: $('pile'),
   canvasEl: $('deskCanvas'),
+  boxEl: $('dealBox'),
   emptyStateEl: $('emptyState'),
   onPick: ticketEl => doDraw(ticketEl),
 });
@@ -60,14 +61,16 @@ function setSoundIcon() {
   $('soundBtn').classList.toggle('is-muted', !prefs.soundOn);
 }
 
-function render() {
+// deal = 播開場動畫(籤從盒子裡飛出來)。只有進頁面、鋪新一桌、籤重建、換一組一番賞才播;
+// 抽一張、改音效之類的重畫都不播(2026-10-02 grill)。
+function render({ deal = false } = {}) {
   const setup = getActive(state);
   $('setupName').textContent = setup.name || '一番賞';
   const left = setup.tickets.filter(t => !t.drawn).length;
   $('remaining').textContent = setup.tickets.length === 0
     ? '還沒有獎項,去設定加一個吧!'
     : `還剩 ${left} 張 / 共 ${setup.tickets.length} 張`;
-  desk.render(setup);
+  if (deal) desk.deal(setup); else desk.render(setup);
   setSoundIcon();
 
   // 吉祥物的待機姿勢只由這裡一個地方決定 —— 不要在 closeOverlay()
@@ -76,10 +79,22 @@ function render() {
   mascots.setPose(setup.tickets.length > 0 && left === 0 ? 'empty' : 'idle');
 }
 
-function commit() {
+function commit({ deal = false } = {}) {
   persist(state);
-  render();
+  render({ deal });
 }
+
+// 在設定對話框裡鋪新一桌 / 換一組:動畫等對話框關掉才播,不然會在對話框後面播完
+let pendingDeal = false;
+function commitAndDealLater() {
+  pendingDeal = true;
+  commit();
+}
+$('settingsDialog').addEventListener('close', () => {
+  if (!pendingDeal) return;
+  pendingDeal = false;
+  desk.deal(getActive(state));
+});
 
 /* ---------- 抽獎:拿起 → 猶豫(取消/撕開)→ 撕開 ---------- */
 const overlay = $('overlay');
@@ -226,7 +241,7 @@ document.addEventListener('visibilitychange', () => {
 
 $('refillBtn').addEventListener('click', () => {
   state = replaceSetup(state, refillSetup(getActive(state)));
-  commit();
+  commit({ deal: true });
 });
 
 /* ---------- 音效 ---------- */
@@ -272,22 +287,22 @@ const settings = createSettingsDialog({
 
     switchSetup(id) {
       state = { ...state, activeSetupId: id };
-      commit();
+      commitAndDealLater();
     },
 
     addSetup() {
       state = addSetup(state, createIchibanSetup({ name: '新的一番賞', prizes: [createIchibanPrize({})] }));
-      commit();
+      commitAndDealLater();
     },
 
     deleteSetup(id) {
       state = removeSetup(state, id, () => seedState().setups[0]);
-      commit();
+      commitAndDealLater();
     },
 
     refill() {
       state = replaceSetup(state, refillSetup(getActive(state)));
-      commit();
+      commitAndDealLater();
     },
 
     applyDraft({ name, lastOnePrize, prizes, rebuildTickets, soundOn }) {
@@ -299,7 +314,7 @@ const settings = createSettingsDialog({
         setEnabled(soundOn);
         savePrefs(prefs);
       }
-      commit();
+      if (rebuildTickets) commitAndDealLater(); else commit();
     },
   },
 });
@@ -308,4 +323,4 @@ $('settingsBtn').addEventListener('click', () => settings.open());
 
 // 角色頭先下載(首頁也預載過的話會直接中快取);桌面在它好了之後自己重畫。
 loadCardArt();
-render();
+render({ deal: true });

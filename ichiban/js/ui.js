@@ -5,6 +5,7 @@ import { remaining, needsRebuild, entriesChanged } from '../../shared/js/roster.
 import { createDialogShell } from '../../shared/js/dialog.js';
 import { sfx } from '../../shared/js/sound.js';
 import { faceColorFor, critterFor, tiltFor, layoutDesk } from './desk-layout.js';
+import { dealPlan, dealLength, flightAt } from './desk-deal.js';
 import { loadCardArt, drawFace, traceTicket } from './card-art.js';
 
 // 最後一抽賞永遠是金色,不看賞別 —— 它是額外加碼的驚喜,不是某個賞別的籤。
@@ -14,7 +15,7 @@ const GOLD = Object.freeze({ label: '🌟 最後一抽賞', color: '#FFD24C', gl
 // 按鈕負責排版(CSS grid)、點擊、焦點、飛出起點;canvas 只照著按鈕的位置畫,
 // 而且只畫捲動後看得到的那幾排 —— canvas 永遠只有一個桌面大,張數再多也不會撐爆
 // Safari 的 canvas 像素上限。
-export function createDeskView({ deskEl, pileEl, canvasEl, emptyStateEl, onPick }) {
+export function createDeskView({ deskEl, pileEl, canvasEl, boxEl, emptyStateEl, onPick }) {
   let setup = null;
   let layout = null;
   let slots = [];      // { no, el }
@@ -29,6 +30,8 @@ export function createDeskView({ deskEl, pileEl, canvasEl, emptyStateEl, onPick 
   }
 
   function render(next) {
+    // 開場動畫中又重排(轉手機、改設定):動畫直接結束,畫最終狀態
+    if (dealing) finishDeal();
     setup = next;
     const undrawn = setup.tickets.filter(t => !t.drawn);
     layout = layoutDesk({ count: undrawn.length, ...inner() });
@@ -105,18 +108,83 @@ export function createDeskView({ deskEl, pileEl, canvasEl, emptyStateEl, onPick 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
     const top = deskEl.scrollTop;
+    const elapsed = dealing ? performance.now() - dealing.t0 : 0;
     for (const s of slots) {
       // offsetLeft/Top 是排版位置(不含 rotate),相對於 .desk(position: relative)
       const y = s.el.offsetTop - top;
       if (y + cardH * 1.1 < 0 || y - cardH * 0.1 > h) continue;
       const sprite = spriteFor(s.no, cardW, cardH, dpr);
+      const to = { x: s.el.offsetLeft + cardW / 2, y: y + cardH / 2 };
+      let at = { ...to, scale: 1, rot: tiltFor(s.no) };
+      const flight = dealing?.plan.get(s.no);
+      if (flight) {
+        const t = (elapsed - flight.start) / flight.duration;
+        if (t <= 0) continue;                    // 還在盒子裡
+        if (t < 1) at = flightAt(t, dealing.from, to, tiltFor(s.no));
+      }
       ctx.save();
-      ctx.translate(s.el.offsetLeft + cardW / 2, y + cardH / 2);
-      ctx.rotate((tiltFor(s.no) * Math.PI) / 180);
+      ctx.translate(at.x, at.y);
+      ctx.rotate((at.rot * Math.PI) / 180);
+      ctx.scale(at.scale, at.scale);
       ctx.drawImage(sprite, -cardW / 2, -cardH / 2, cardW, cardH + sprite.pad);
       ctx.restore();
     }
   }
+
+  /* ---------- 開場動畫:籤從盒子裡一張一張飛出來 ---------- */
+  // 只是演出:按鈕已經在最終位置,canvas 照時間表把籤畫在飛行途中。
+  // 播放中按鈕不能點,點桌面任何地方就直接全部排好。
+  let dealing = null;   // { plan: Map(no → { start, duration }), t0, length, from, armed }
+
+  function deal(next) {
+    render(next);
+    const h = deskEl.clientHeight;
+    const top = deskEl.scrollTop;
+    // 只有看得到的籤飛;畫面外的直接在原位,往下捲就會看到
+    const visible = slots.filter(s => {
+      const y = s.el.offsetTop - top;
+      return y + layout.cardH > 0 && y < h;
+    });
+    if (!visible.length) return;
+    const plan = dealPlan(visible);
+    const boxH = boxEl.offsetHeight || 100;
+    dealing = {
+      plan: new Map(plan.map(p => [p.no, p])),
+      t0: performance.now(),
+      length: dealLength(plan),
+      // 盒口:桌面下方中央,盒子上緣往下一點(籤從盒子後面冒出來)
+      from: { x: deskEl.clientWidth / 2, y: h - boxH * 0.65 },
+      // 觸發動畫的那一下點擊(「重新鋪一桌」在桌面裡)會冒泡到桌面;下一幀才開始接受「點一下跳過」
+      armed: false,
+    };
+    pileEl.style.pointerEvents = 'none';
+    boxEl.hidden = false;
+    boxEl.classList.remove('is-out');
+    boxEl.classList.add('is-in');
+    draw();
+    requestAnimationFrame(tick);
+  }
+
+  function tick() {
+    if (!dealing) return;
+    if (performance.now() - dealing.t0 >= dealing.length) { finishDeal(); return; }
+    draw();
+    dealing.armed = true;
+    requestAnimationFrame(tick);
+  }
+
+  function finishDeal() {
+    dealing = null;
+    pileEl.style.pointerEvents = '';
+    boxEl.classList.remove('is-in');
+    boxEl.classList.add('is-out');   // 往下沉、淡出;動畫結束後藏起來(見下面的 animationend)
+    redraw();
+  }
+
+  boxEl.addEventListener('animationend', () => {
+    if (boxEl.classList.contains('is-out')) boxEl.hidden = true;
+  });
+  deskEl.addEventListener('click', () => { if (dealing?.armed) finishDeal(); });
 
   function redraw() {
     if (!frame) frame = requestAnimationFrame(draw);
@@ -131,7 +199,12 @@ export function createDeskView({ deskEl, pileEl, canvasEl, emptyStateEl, onPick 
     if (btn) onPick(btn);
   });
 
-  return { render, redraw };
+  return {
+    render,
+    deal,
+    redraw,
+    get isDealing() { return dealing !== null; },
+  };
 }
 
 /* ---------- 拿起 → 猶豫(取消/撕開)→ 撕開演出 ---------- */

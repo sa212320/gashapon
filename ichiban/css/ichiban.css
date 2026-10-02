@@ -54,6 +54,28 @@ body {
   height: 100%;
   pointer-events: none;
 }
+/* 開場動畫的籤盒(js/ui.js deal):彈出 → 籤飛完 → 往下沉、淡出。
+   疊在桌面上面:籤剛飛出來時會被盒子前緣擋住一點,像從盒子裡冒出來。 */
+.deal-box {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  z-index: 2;
+  width: min(150px, 38vw);
+  height: auto;
+  translate: -50% 0;
+  pointer-events: none;
+}
+.deal-box.is-in { animation: deal-box-in .35s cubic-bezier(.34, 1.4, .64, 1) both; }
+.deal-box.is-out { animation: deal-box-out .45s ease-in both; }
+@keyframes deal-box-in {
+  from { transform: translateY(60%) scale(.6); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes deal-box-out {
+  from { transform: none; opacity: 1; }
+  to { transform: translateY(70%); opacity: 0; }
+}
 .pile {
   display: grid;
   grid-template-columns: repeat(var(--cols, 3), var(--card-w, 96px));
