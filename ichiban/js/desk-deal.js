@@ -8,23 +8,29 @@ export const INTRO_MS = 900;    // 抽獎箱彈出 + 搖一搖,搖完才開始�
 // 搖完、開始飛的同時,箱子往下滑到桌面底部,不擋在籤要飛過去的路上(使用者 2026-10-02)。
 // CSS 的 deal-box-down 動畫要對得上(ichiban.css)。
 export const SLIDE_MS = 400;
-const GAP_MS = 350;             // 張數少時,一發接一發的間隔(拉炮:每一發都要有「砰」的停頓)
+const GAP_MIN_MS = 40;          // 機關槍:每發之間隔 40~110ms 隨機
+const GAP_MAX_MS = 110;
 const LAST_START_MS = 2500;     // 張數多時,最後一發最晚在搖完後這麼久出發
 const SPIN = 540;               // 飛行途中轉的角度(一圈半)
 
-// 像拉炮:每一發 5~8 張同時從洞口噴出來(使用者 2026-10-02,原本一次 1~3 張),整體照號碼。
-// 張數多就縮短發與發的間隔,不讓小孩等十幾秒。rng 給測試固定用。
+// 像機關槍:每發 1~2 張從洞口射出來,發與發的間隔很短而且隨機(使用者 2026-10-02;
+// 試過一次 1~3 張排隊、一次 5~8 張拉炮)。整體照號碼。
+// 張數多到超過 LAST_START_MS 就把所有間隔等比例縮短。rng 給測試固定用。
 export function dealPlan(slots, rng = Math.random) {
   const sorted = [...slots].sort((a, b) => a.no - b.no);
-  const waves = [];
+  const shots = [];
   for (let i = 0; i < sorted.length;) {
-    const size = 5 + Math.min(3, Math.floor(rng() * 4));
-    waves.push(sorted.slice(i, i + size));
+    const size = rng() < 0.5 ? 1 : 2;
+    shots.push(sorted.slice(i, i + size));
     i += size;
   }
-  const gap = waves.length > 1 ? Math.min(GAP_MS, LAST_START_MS / (waves.length - 1)) : 0;
-  return waves.flatMap((wave, w) =>
-    wave.map(s => ({ ...s, start: Math.round(INTRO_MS + w * gap), duration: FLIGHT_MS })));
+  const offsets = [0];
+  for (let k = 1; k < shots.length; k++) {
+    offsets.push(offsets[k - 1] + GAP_MIN_MS + rng() * (GAP_MAX_MS - GAP_MIN_MS));
+  }
+  const squeeze = Math.min(1, LAST_START_MS / (offsets.at(-1) || 1));
+  return shots.flatMap((shot, k) =>
+    shot.map(s => ({ ...s, start: Math.round(INTRO_MS + offsets[k] * squeeze), duration: FLIGHT_MS })));
 }
 
 export function dealLength(plan) {

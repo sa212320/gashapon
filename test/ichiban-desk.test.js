@@ -243,13 +243,13 @@ test('桌面真的變大小(轉手機)才重排,動畫直接結束', async () =>
   });
 });
 
-test('拉炮:每噴一發,箱子就頓一下(後座力)', async () => {
+test('連射:每射一發,箱子就抖一下(後座力)', async () => {
   await withDealDesk(async ({ desk, tick, boxEl }) => {
     const kicks = [];
     boxEl.animate = (frames, opts) => { kicks.push(frames); return { cancel() {} }; };
     desk.deal({ tickets: tickets(20) });
     for (let i = 0; i < 100; i++) tick(50);
-    // 20 張、每發 5~8 張 → 3~4 發
-    assert.ok(kicks.length >= 3 && kicks.length <= 4, `頓了 ${kicks.length} 下`);
+    // 20 張、每發 1~2 張 → 10~20 發
+    assert.ok(kicks.length >= 10 && kicks.length <= 20, `抖了 ${kicks.length} 下`);
   });
 });
