@@ -77,15 +77,6 @@ body {
   display: block;
 }
 
-/* 立體扭蛋機:加一顆高光,做出球體感 */
-/* 阿彌陀籤:一格一格的直排線條 */
-.card__art--ghostleg {
-  background:
-    repeating-linear-gradient(90deg,
-      var(--ink) 0 4px, transparent 4px 20px)
-    var(--blush);
-}
-
 /* 大亂鬥:尖角碰撞的星芒 */
 .card__art--smash {
   border: none;
