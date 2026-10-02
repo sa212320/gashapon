@@ -2,12 +2,12 @@
 // 計算都在 ribbon.js / labels.js / prize-motion.js / camera-script.js(node 測得到),這裡只負責變成網格。
 import * as THREE from 'three';
 import { snowWidth, snowRim, ribbonWidth, offsetRoute, roundCorners, cutAt, stripData } from './ribbon.js';
-import { tagLift, tagFontSize } from './labels.js';
+import { tagLift, tagFontSize, SNOW_H, BASE_H, STANDEE_H, TAG_H, standeeFoot } from './labels.js';
 import { animalCanvas, textColorFor } from './tint.js';
 import { boardWidth } from './camera-script.js';
 
 const INK = 0x574239;
-export const SNOW_H = 0.1;
+export { SNOW_H };
 
 function canvasTexture(c) {
   const t = new THREE.CanvasTexture(c);
@@ -79,7 +79,7 @@ export function ribbonGeometry(route, dist, laneWidth) {
 export function buildStandee(player, laneWidth, image) {
   const g = new THREE.Group();
   const r = laneWidth * 0.32;
-  const baseH = laneWidth * 0.12;
+  const baseH = laneWidth * BASE_H;
   const rimDisk = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.16, r * 1.16, baseH * 0.35, 32), new THREE.MeshBasicMaterial({ color: INK }));
   rimDisk.position.y = SNOW_H + baseH * 0.175;
   const color = new THREE.Color(player.color);
@@ -88,10 +88,10 @@ export function buildStandee(player, laneWidth, image) {
   const disk = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.1, baseH, 32), [side, top, side]);
   disk.position.y = SNOW_H + baseH * 0.5 + baseH * 0.2;
   const c = animalCanvas(image, 256);
-  const h = laneWidth * 1.2;
+  const h = laneWidth * STANDEE_H;
   const s = sprite(canvasTexture(c), h * (c.width / c.height), h);
   s.center.set(0.5, 0);           // 腳踩在底座上
-  s.position.y = SNOW_H + baseH * 1.2;
+  s.position.y = standeeFoot(laneWidth);
   g.add(rimDisk, disk, s);
   g.userData.sprite = s;
   return g;
@@ -116,8 +116,9 @@ export function buildNameTag(player, laneWidth, lane, lanes) {
   ctx.stroke();
   ctx.fillStyle = textColorFor(player.color);
   ctx.fillText(player.name, 150, 37, 260);
-  const s = sprite(canvasTexture(c), laneWidth * 1.3, laneWidth * 0.31);
+  const s = sprite(canvasTexture(c), laneWidth * 1.3, laneWidth * TAG_H);
   s.userData.lift = tagLift(lane, lanes) * laneWidth * 0.34;
+  s.renderOrder = 10;   // 名字永遠畫在最上層:亂飛的獎品、別人的立牌都不能蓋住它
   return s;
 }
 

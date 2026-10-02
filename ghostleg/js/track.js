@@ -10,6 +10,7 @@ import { pathOf } from './race.js';
 import { getArt } from './art.js';
 import { buildBoard, buildSnowPaths, ribbonGeometry, buildStandee, buildNameTag, buildPrizeSprite, SNOW_H } from './scene-parts.js';
 import { wanderOffset } from './prize-motion.js';
+import { tagY } from './labels.js';
 
 export const ROW_D = 1.35;   // 每一列的縱深
 
@@ -195,7 +196,7 @@ export function createTrack(canvas) {
       round.runners[i].position.z = p.z;
       round.shadows[i].position.x = p.x;
       round.shadows[i].position.z = p.z;
-      round.tags[i].position.set(p.x, SNOW_H + w * 1.45 + round.tags[i].userData.lift, p.z);
+      round.tags[i].position.set(p.x, tagY(w, round.tags[i].userData.lift), p.z);
       return p;
     });
   }
