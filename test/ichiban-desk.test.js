@@ -249,7 +249,7 @@ test('連射:每射一發,箱子就抖一下(後座力)', async () => {
     boxEl.animate = (frames, opts) => { kicks.push(frames); return { cancel() {} }; };
     desk.deal({ tickets: tickets(20) });
     for (let i = 0; i < 100; i++) tick(50);
-    // 20 張、每發 1~2 張 → 10~20 發
-    assert.ok(kicks.length >= 10 && kicks.length <= 20, `抖了 ${kicks.length} 下`);
+    // 20 張、每發 1~4 張 → 5~20 發
+    assert.ok(kicks.length >= 5 && kicks.length <= 20, `抖了 ${kicks.length} 下`);
   });
 });

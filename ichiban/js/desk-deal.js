@@ -3,7 +3,7 @@
 // 只是演出,不存任何東西:桌面的最終排列(按鈕位置)在動畫開始前就算好了,
 // 這裡只回答「第幾毫秒、這張籤畫在哪裡」。
 
-export const FLIGHT_MS = 450;   // 每張飛多久
+export const FLIGHT_MS = 500;   // 每張飛多久(使用者 2026-10-02 定案:固定 0.5 秒)
 export const INTRO_MS = 900;    // 抽獎箱彈出 + 搖一搖,搖完才開始飛(CSS 的 deal-box-in 動畫要對得上)
 // 搖完、開始飛的同時,箱子往下滑到桌面底部,不擋在籤要飛過去的路上(使用者 2026-10-02)。
 // CSS 的 deal-box-down 動畫要對得上(ichiban.css)。
@@ -11,11 +11,12 @@ export const SLIDE_MS = 400;
 const LAST_START_MS = 2500;     // 張數多時,最後一發最晚在搖完後這麼久出發
 const SPIN = 540;               // 飛行途中轉的角度(一圈半)
 
-// 射法(2026-10-02 一路試出來的):機關槍 = 每發 1~2 張、間隔 40~110ms 隨機。
+// 射法(2026-10-02 使用者在預覽頁比過排隊 / 拉炮 / 機關槍 / 散彈後定案):散彈機關槍 =
+// 每發 1~4 張、間隔 35~65ms 隨機、同一發錯開 0~20ms、順序隨機。
 // size:每發幾張;gap:發與發的間隔(ms,隨機);spray:同一發裡每張再錯開 0~spray ms(散彈的噴灑感);
 // flight:每張飛多久(ms)。
 // order:'random'(預設,使用者 2026-10-02 要隨機)或 'number'(照號碼,從左上角填起)。
-export const MACHINE_GUN = Object.freeze({ size: [1, 2], gap: [40, 110], spray: 0, order: 'random' });
+export const MACHINE_GUN = Object.freeze({ size: [1, 4], gap: [35, 65], spray: 20, order: 'random' });
 
 // 一發一發射出去。張數多到超過 LAST_START_MS 就把所有間隔等比例縮短。
 // rng 給測試固定用。每筆帶 shot(第幾發),桌面靠它讓箱子每發抖一下。

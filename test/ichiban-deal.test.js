@@ -7,22 +7,22 @@ const slots = n => Array.from({ length: n }, (_, i) => ({ no: n - i }));   // �
 // 依序回傳給定的值,讓「每波幾張」可以預測
 const fixed = (...vals) => { let i = 0; return () => vals[i++ % vals.length]; };
 
-test('dealPlan:先搖箱子,再像機關槍一樣連射;每發 1~2 張,照號碼', () => {
-  // rng 0 → 1 張、0.99 → 2 張
+test('dealPlan:先搖箱子,再像散彈機關槍一樣連射;每發 1~4 張', () => {
+  // rng 0 → 1 張、0.99 → 4 張
   const plan = dealPlan(slots(6), fixed(0, 0.99), { order: 'number' });
   assert.deepEqual(plan.map(p => p.no), [1, 2, 3, 4, 5, 6]);
   const starts = plan.map(p => p.start);
   assert.equal(starts[0], INTRO_MS, '搖完箱子才開始射');
   assert.ok(plan.every(p => p.duration === FLIGHT_MS));
   const sizes = Object.values(plan.reduce((m, p) => ({ ...m, [p.start]: (m[p.start] ?? 0) + 1 }), {}));
-  assert.ok(sizes.every(n => n === 1 || n === 2), sizes.join());
+  assert.ok(sizes.every(n => n >= 1 && n <= 4), sizes.join());
 });
 
-test('dealPlan:連射的間隔很短而且隨機(40~110ms)', () => {
-  const plan = dealPlan(slots(40), Math.random);
+test('dealPlan:連射的間隔很短而且隨機(35~65ms,使用者 2026-10-02 定案)', () => {
+  const plan = dealPlan(slots(40), Math.random, { spray: 0 });
   const shots = [...new Set(plan.map(p => p.start))];
   const gaps = shots.slice(1).map((s, i) => s - shots[i]);
-  assert.ok(gaps.every(g => g >= 39 && g <= 111), gaps.join());
+  assert.ok(gaps.every(g => g >= 34 && g <= 66), gaps.join());
   assert.ok(new Set(gaps).size > 3, '間隔要有變化,不是固定節奏');
 });
 
@@ -95,4 +95,9 @@ test('dealPlan 預設就是隨機順序', () => {
 test('dealPlan 參數:flight 可以讓籤飛得更快', () => {
   const plan = dealPlan(slots(5), Math.random, { flight: 320 });
   assert.ok(plan.every(p => p.duration === 320));
+});
+
+test('dealPlan 預設:每張飛 0.5 秒(使用者 2026-10-02 定案)', () => {
+  assert.equal(FLIGHT_MS, 500);
+  assert.ok(dealPlan(slots(5)).every(p => p.duration === 500));
 });
