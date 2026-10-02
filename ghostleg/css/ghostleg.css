@@ -12,8 +12,9 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
 
 /* 開跑前的大字名牌(2026-10-02):投影上課時後排也看得到。位置由 main.js placeNames 跟著棋子擺,
    字高約畫面 3%;開跑時淡出,換回 3D 底座前的小名牌。 */
-.name-layer { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .35s; overflow: hidden; }
-.name-layer.is-on { opacity: 1; }
+/* 淡入有動畫、收起時直接消失:收起的同時底座前的小名牌就出現了,淡出的話兩組名字會疊在一起 */
+.name-layer { position: fixed; inset: 0; pointer-events: none; opacity: 0; overflow: hidden; }
+.name-layer.is-on { opacity: 1; transition: opacity .35s; }
 .name-layer__tag {
   position: absolute;
   left: 0;

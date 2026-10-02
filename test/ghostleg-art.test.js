@@ -109,3 +109,23 @@ test('3D 畫布和大字名牌層撐滿整個視窗(position: fixed; inset: 0)',
   assert.match(rule('.track'), /position: fixed; inset: 0/);
   assert.match(rule('.name-layer'), /position: fixed; inset: 0/);
 });
+
+// 2026-10-02 使用者:「是按下開始的時候才左右掃描,不是一進來的時候」
+test('進頁面是全景、不掃描;按開始才 2 人特寫掃描,掃完(或點一下跳過)才開跑', () => {
+  const body = name => {
+    const i = mainJs.indexOf(`function ${name}(`);
+    return mainJs.slice(i, mainJs.indexOf('\n}\n', i));
+  };
+  assert.ok(!/scanPass|beginScan|skipHint/.test(body('showIdle')), 'showIdle 不能開始掃描');
+  assert.match(body('start'), /beginScan\(/);
+  assert.match(body('beginScan'), /scanPass\(/);
+  assert.match(body('beginScan'), /beginRace\(/);
+  assert.ok(!/pullT0|PULL/.test(mainJs), '不再有「掃完拉回全景」那一段');
+});
+
+test('大字名牌收起時直接消失(只有淡入才有 transition),不會跟底座前的小名牌疊在一起', () => {
+  const css = readFileSync(new URL('../ghostleg/css/ghostleg.css', import.meta.url), 'utf8');
+  const rule = sel => css.slice(css.indexOf(`${sel} {`), css.indexOf('}', css.indexOf(`${sel} {`)));
+  assert.ok(!/transition/.test(rule('.name-layer')));
+  assert.match(rule('.name-layer.is-on'), /transition: opacity/);
+});

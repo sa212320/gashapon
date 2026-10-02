@@ -63,7 +63,7 @@ function render() {
   $('track').hidden = !ready;
   $('startBtn').disabled = !ready;
   $('soundIcon').setAttribute('href', `../shared/img/icons.svg#${prefs.soundOn ? 'sound-on' : 'sound-off'}`);
-  if (!ready) { idle.stop(); $('nameLayer').classList.remove('is-on'); }
+  if (!ready) idle.stop();
   if (ready && !running) showIdle();
 }
 
@@ -72,19 +72,17 @@ function render() {
 let running = false;
 let raf = 0;
 let current = null;
-// 開跑前獎品在上空亂飛,要一直畫。start() 一開始就 stop,不然兩條 rAF 搶著畫、獎品會抖。
+// 開跑前獎品在上空亂飛,要一直畫。按開始時一定要 stop,不然兩條 rAF 搶著畫、獎品會抖。
 const idle = createIdleLoop(tSec => {
-  if (plan) placeIdleCamera(tSec);
   track.setPrizeFly(0, tSec);
   track.render();
-  placeNames();
 });
 
-// 開跑前的構圖:一律是起跑線的特寫,名字全名;框不下全部的人才左右來回掃(namePlan → frameLanes)。
+// 進頁面是整塊冰板的全景(底座前的小名牌);按「開始」才 2 人特寫從左掃到右、名字放大(點一下跳過),
+// 掃完才開跑(2026-10-02 使用者:「是按下開始的時候才左右掃描,不是一進來的時候」)。
 let plan = null;
-let scanT0 = 0;
-let pullT0 = null;     // 掃完(或被跳過)開始拉回全景的時間;null = 還在掃
-const PULL = 1.0;      // 拉回全景要幾秒
+let scanning = false;
+let scanSkip = null;   // 掃描中點一下 → 直接開跑
 let idlePose = null;   // 開跑那一刻的機位,演出從這裡接著推
 
 function idleOpts(extra = {}) {
@@ -99,33 +97,7 @@ function place(f) {
   idlePose = f;
 }
 
-// 開跑前:先 2 人特寫從左掃到右一趟(看清楚名字),掃完或點一下跳過 → 1 秒拉回整塊冰板、大字名牌收起來
-function placeIdleCamera(tSec) {
-  const ladder = current.ladder;
-  const w = laneWidth(ladder.lanes);
-  const overview = idleFrame(idleOpts());
-  if (pullT0 === null) {
-    const pass = scanPass(Math.max(0, tSec - scanT0), { lanes: ladder.lanes, frameLanes: plan.frameLanes, laneWidth: w });
-    place(idleFrame(idleOpts({ frameLanes: plan.frameLanes, centerX: pass.x })));
-    if (pass.done) endScan(tSec);
-    return;
-  }
-  const k = Math.min(1, (tSec - pullT0) / PULL);
-  const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
-  const from = scanEndPose;
-  place({ pos: from.pos.map((v, i) => v + (overview.pos[i] - v) * e), look: from.look.map((v, i) => v + (overview.look[i] - v) * e) });
-}
-
-let scanEndPose = null;
-function endScan(tSec = performance.now() / 1000) {
-  if (pullT0 !== null) return;
-  pullT0 = tSec;
-  scanEndPose = idlePose;
-  $('skipHint').hidden = true;
-  hideNames();   // 學生看過自己站哪了,之後會自己盯自己的棋子;換回底座前的小名牌
-}
-
-function planIdle() {
+function planNames() {
   const layer = $('nameLayer');
   plan = namePlan({
     viewW: layer.clientWidth || innerWidth,
@@ -133,22 +105,14 @@ function planIdle() {
     lanes: current.ladder.lanes,
     longestChars: Math.max(1, ...current.players.map(p => [...p.name].length)),
   });
-  scanT0 = performance.now() / 1000;
-  pullT0 = null;
-  $('skipHint').hidden = plan.frameLanes >= current.ladder.lanes;
-  placeIdleCamera(scanT0);
 }
 
-// 開跑前的大字名牌(HTML 疊在畫面上,字不會被透視縮小)。開跑後收起來,換回底座前的小名牌 ——
-// 學生開跑前看清楚自己站哪,之後會自己盯自己的棋子(2026-10-02)。
+// 開跑前的大字名牌(HTML 疊在畫面上,字不會被透視縮小),只在按下開始後的掃描時出現 ——
+// 學生看清楚自己站哪,之後會自己盯自己的棋子(2026-10-02)。
 let nameEls = [];
 function placeNames() {
   const layer = $('nameLayer');
-  // 演出中、結果卡打開時都不放(resize 也會叫到這裡)
-  // 拉回全景的那 1 秒還要跟著棋子走(同時淡出),不然大字名牌會卡在特寫時的位置(使用者截圖)
-  const pulling = pullT0 !== null;
-  if (!current || !plan || running || !$('results').hidden) return;
-  if (pulling && performance.now() / 1000 - pullT0 > PULL) return;
+  if (!current || !plan || !scanning) return;
   const anchors = track.nameAnchors();
   if (nameEls.length !== anchors.length) {
     nameEls = current.players.map(p => {
@@ -164,20 +128,19 @@ function placeNames() {
   const { fontPx, rows } = plan;
   anchors.forEach((a, i) => {
     const el = nameEls[i];
-    const down = (i % rows) * fontPx * 1.7;   // 一前一後(最多三排)錯開;名字一律全名,不截短
+    const down = (i % rows) * fontPx * 1.7;   // 一前一後錯開;名字一律全名,不截短
     el.style.fontSize = `${fontPx}px`;
     const x = clampTagX(a.x, el.offsetWidth, layer.clientWidth);
     el.hidden = x === null;
     if (x !== null) el.style.transform = `translate(${x}px, ${a.y + down}px) translate(-50%, 0)`;
   });
-  if (!pulling) layer.classList.add('is-on');
+  layer.classList.add('is-on');
 }
 
 function hideNames() {
   $('nameLayer').classList.remove('is-on');
   track.setTagsVisible(true);
 }
-
 
 function newRound() {
   const setup = getActive(state);
@@ -194,20 +157,17 @@ function showIdle() {
   track.build(current);
   track.resize();
   nameEls = [];
-  track.setTagsVisible(false);
+  hideNames();
   track.setProgress(0);
-  planIdle();
+  place(idleFrame(idleOpts()));
   track.setPrizeFly(0, performance.now() / 1000);
   track.render();   // 先畫一格:分頁在背景時 rAF 不跑,不能等閒置迴圈
-  placeNames();
   idle.start();
 }
 
 function start() {
   if (running) return;
   idle.stop();
-  hideNames();
-  $('skipHint').hidden = true;
   running = true;
   $('results').hidden = true;
   $('startBtn').disabled = true;
@@ -216,14 +176,49 @@ function start() {
   // 小孩可能略過「再跑一次」直接按「開始」,所以 start() 自己要把吉祥物
   // 從上一輪的 cheer/aww 切到 watch,不能假設使用者一定按過「再跑一次」。
   mascots.setPose('watch');
+  beginScan(current);
+}
 
+// 2 人特寫從左掃到右一趟,名字放大;掃完或點一下跳過 → beginRace 從當下的機位接著推
+function beginScan(round) {
+  planNames();
+  scanning = true;
+  nameEls = [];
+  track.setTagsVisible(false);
+  $('skipHint').hidden = false;
+  const t0 = performance.now() / 1000;
+  const w = laneWidth(round.ladder.lanes);
+  let done = false;
+  const end = () => {
+    if (done) return;
+    done = true;
+    scanning = false;
+    scanSkip = null;
+    cancelAnimationFrame(raf);
+    $('skipHint').hidden = true;
+    hideNames();
+    beginRace(round);
+  };
+  scanSkip = end;
+  const frame = now => {
+    const tSec = now / 1000;
+    const pass = scanPass(Math.max(0, tSec - t0), { lanes: round.ladder.lanes, frameLanes: plan.frameLanes, laneWidth: w });
+    place(idleFrame(idleOpts({ frameLanes: plan.frameLanes, centerX: pass.x })));
+    track.setPrizeFly(0, tSec);
+    track.render();
+    placeNames();
+    if (pass.done) end(); else raf = requestAnimationFrame(frame);
+  };
+  frame(performance.now());
+}
+
+function beginRace(round) {
   // 待機時擺出來的那一局就是要跑的這一局 —— 重新產一局的話,
   // 使用者剛剛看到的梯子跟等一下跑的會是兩張不同的圖。
-  const round = current;
   const script = createCameraScript({
     camera: track.camera, ladder: round.ladder,
     laneWidth: laneWidth(round.ladder.lanes), rowDepth: ROW_D,
-    from: idlePose,   // 從開跑前那一刻的機位接著推(人多時鏡頭可能正掃到一半)
+    from: idlePose,   // 從掃描結束(或被跳過)那一刻的機位接著推
   });
 
   const t0 = performance.now();
@@ -295,7 +290,7 @@ function finish(round) {
 
 $('startBtn').addEventListener('click', start);
 // 掃描中點一下畫面就跳過,直接拉回全景
-$('track').addEventListener('click', () => { if (!running && pullT0 === null && plan) endScan(); });
+$('track').addEventListener('click', () => scanSkip?.());
 $('againBtn').addEventListener('click', () => {
   $('results').hidden = true;
   mascots.setPose('idle');
@@ -309,6 +304,11 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden' && running) {
     cancelAnimationFrame(raf);
     running = false;
+    // 掃描到一半切走:掃描也一起收掉(大字名牌、「點一下跳過」)
+    scanning = false;
+    scanSkip = null;
+    $('skipHint').hidden = true;
+    hideNames();
     track.setProgress(1);
     track.render();
     finish(current);
@@ -317,7 +317,7 @@ document.addEventListener('visibilitychange', () => {
 
 addEventListener('resize', () => {
   track.resize();
-  if (current && !running && $('results').hidden && pullT0 === null) planIdle();
+  if (current && !running) place(idleFrame(idleOpts()));
   track.render();
   placeNames();
 });
