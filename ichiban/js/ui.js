@@ -163,6 +163,9 @@ export function createDeskView({ deskEl, pileEl, canvasEl, boxEl, emptyStateEl, 
       holeBottom: h - 8 - boxH / 2 - boxH * 0.28,
       // 觸發動畫的那一下點擊(「重新鋪一桌」在桌面裡)會冒泡到桌面;下一幀才開始接受「點一下跳過」
       armed: false,
+      // 每一發的出發時間(拉炮:每噴一發箱子頓一下);fired 記到第幾發了
+      shots: [...new Set(plan.map(p => p.start))],
+      fired: 0,
     };
     pileEl.style.pointerEvents = 'none';
     boxEl.hidden = false;
@@ -174,10 +177,22 @@ export function createDeskView({ deskEl, pileEl, canvasEl, boxEl, emptyStateEl, 
 
   function tick() {
     if (!dealing) return;
-    if (performance.now() - dealing.t0 >= dealing.length) { finishDeal(); return; }
+    const elapsed = performance.now() - dealing.t0;
+    if (elapsed >= dealing.length) { finishDeal(); return; }
+    while (dealing.fired < dealing.shots.length && elapsed >= dealing.shots[dealing.fired]) {
+      dealing.fired++;
+      kick();
+    }
     draw();
     dealing.armed = true;
     requestAnimationFrame(tick);
+  }
+
+  // 後座力:箱子被壓扁一下再彈回來。用 scale 屬性,不跟 CSS 動畫的 transform 打架。
+  function kick() {
+    boxEl.animate?.(
+      [{ scale: '1' }, { scale: '1.14 0.86' }, { scale: '1' }],
+      { duration: 220, easing: 'ease-out' });
   }
 
   function finishDeal() {

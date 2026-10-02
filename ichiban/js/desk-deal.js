@@ -8,17 +8,17 @@ export const INTRO_MS = 900;    // 抽獎箱彈出 + 搖一搖,搖完才開始�
 // 搖完、開始飛的同時,箱子往下滑到桌面底部,不擋在籤要飛過去的路上(使用者 2026-10-02)。
 // CSS 的 deal-box-down 動畫要對得上(ichiban.css)。
 export const SLIDE_MS = 400;
-const GAP_MS = 180;             // 張數少時,一波接一波的間隔
-const LAST_START_MS = 2500;     // 張數多時,最後一波最晚在搖完後這麼久出發
+const GAP_MS = 350;             // 張數少時,一發接一發的間隔(拉炮:每一發都要有「砰」的停頓)
+const LAST_START_MS = 2500;     // 張數多時,最後一發最晚在搖完後這麼久出發
 const SPIN = 540;               // 飛行途中轉的角度(一圈半)
 
-// 一波 1~3 張同時從洞口飛出來(使用者:不用排隊,一次飛個 1~3 張),整體照號碼。
-// 張數多就縮短波與波的間隔,不讓小孩等十幾秒。rng 給測試固定用。
+// 像拉炮:每一發 5~8 張同時從洞口噴出來(使用者 2026-10-02,原本一次 1~3 張),整體照號碼。
+// 張數多就縮短發與發的間隔,不讓小孩等十幾秒。rng 給測試固定用。
 export function dealPlan(slots, rng = Math.random) {
   const sorted = [...slots].sort((a, b) => a.no - b.no);
   const waves = [];
   for (let i = 0; i < sorted.length;) {
-    const size = 1 + Math.min(2, Math.floor(rng() * 3));
+    const size = 5 + Math.min(3, Math.floor(rng() * 4));
     waves.push(sorted.slice(i, i + size));
     i += size;
   }

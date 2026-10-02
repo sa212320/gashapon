@@ -7,22 +7,23 @@ const slots = n => Array.from({ length: n }, (_, i) => ({ no: n - i }));   // �
 // 依序回傳給定的值,讓「每波幾張」可以預測
 const fixed = (...vals) => { let i = 0; return () => vals[i++ % vals.length]; };
 
-test('dealPlan:先搖箱子,再一波一波飛;每波 1~3 張同時出發,照號碼', () => {
-  // rng 0 → 1 張、0.5 → 2 張、0.99 → 3 張
-  const plan = dealPlan(slots(6), fixed(0, 0.5, 0.99));
-  assert.deepEqual(plan.map(p => p.no), [1, 2, 3, 4, 5, 6]);
+test('dealPlan:先搖箱子,再像拉炮一樣一發一發噴;每發 5~8 張同時出發,照號碼', () => {
+  // rng 0 → 5 張、0.99 → 8 張
+  const plan = dealPlan(slots(20), fixed(0, 0.99, 0.99));
+  assert.deepEqual(plan.map(p => p.no), Array.from({ length: 20 }, (_, i) => i + 1));
   const starts = plan.map(p => p.start);
-  assert.equal(starts[0], INTRO_MS, '搖完箱子才開始飛');
-  assert.equal(starts[1], starts[2], '第二波 2 張同時');
-  assert.ok(starts[1] > starts[0]);
-  assert.ok(starts[3] === starts[4] && starts[4] === starts[5], '第三波 3 張同時');
+  assert.equal(starts[0], INTRO_MS, '搖完箱子才開始噴');
+  assert.ok(starts.slice(0, 5).every(s => s === starts[0]), '第一發 5 張同時');
+  assert.ok(starts.slice(5, 13).every(s => s === starts[5]) && starts[5] > starts[0], '第二發 8 張同時');
+  assert.ok(starts.slice(13).every(s => s === starts[13]), '最後一發剩下的 7 張');
   assert.ok(plan.every(p => p.duration === FLIGHT_MS));
 });
 
-test('dealPlan:每波一定是 1~3 張', () => {
+test('dealPlan:每發最多 8 張,只有最後一發可以少於 5 張', () => {
   const plan = dealPlan(slots(60), Math.random);
   const sizes = Object.values(plan.reduce((m, p) => ({ ...m, [p.start]: (m[p.start] ?? 0) + 1 }), {}));
-  assert.ok(sizes.every(n => n >= 1 && n <= 3), sizes.join());
+  assert.ok(sizes.every(n => n >= 1 && n <= 8), sizes.join());
+  assert.ok(sizes.slice(0, -1).every(n => n >= 5), sizes.join());
 });
 
 test('dealPlan:張數多就縮短間隔,最後一波在搖完後 2.5 秒內出發', () => {
