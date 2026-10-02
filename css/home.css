@@ -78,27 +78,6 @@ body {
 }
 
 /* 立體扭蛋機:加一顆高光,做出球體感 */
-/* 一番賞:一張直立的籤紙,右上角折角 */
-.card__art--ichiban {
-  width: 52px;
-  height: 68px;
-  border-radius: 10px;
-  background: var(--sun);
-  position: relative;
-  overflow: hidden;
-}
-.card__art--ichiban::after {
-  content: "";
-  position: absolute;
-  top: -14px;
-  right: -14px;
-  width: 26px;
-  height: 26px;
-  background: var(--cream);
-  border: var(--stroke) solid var(--ink);
-  transform: rotate(45deg);
-}
-
 /* 阿彌陀籤:一格一格的直排線條 */
 .card__art--ghostleg {
   background:

@@ -4,7 +4,7 @@
   "cards": {
     "gashapon": "an empty snowy landscape scene only: soft snowy ground, gentle snowy hills, a few snowy pine trees far in the back, pale icy blue sky, a few small colorful round capsule toys lying on the snow in the bottom corners, the whole middle of the picture is just empty flat snow, no animals, no characters, no creatures, no machine",
     "gashapon3d": "a round icy blue ice tray with a fluffy white snow rim on soft snowy ground, seen from the front at a slight angle from above, many perfectly round spherical capsule balls scattered on the tray, every ball is a perfect circle like a ping pong ball, not oval, not egg shaped, not elongated, each ball has a colorful top half and a white bottom half split by a straight horizontal line, pink orange yellow mint sky blue and lavender capsules, a couple of balls bouncing in the air, pale icy blue sky, a few snowy pine trees far in the back, sparkling snowflakes, no machine, no characters",
-    "ichiban": "a fan of colorful lottery tickets with perforated edges spread on a cozy wooden desk, one ticket with its corner peeled open, a few snowflakes around",
+    "ichiban": "one small open cardboard lottery ticket box made of pale icy blue paper with fluffy snow on its rim, sitting on soft snowy ground, many small rectangular paper lottery tickets flying up out of the box in a happy arc, each ticket is a pastel cold color (sky blue, lavender, mint, periwinkle, glacier blue), each ticket has a row of tiny round perforation holes along its long top and bottom edges and tiny white snowflake prints, pale icy blue sky, a few snowy pine trees far in the back, sparkling snowflakes, no text, no letters, no numbers, no characters",
     "ghostleg": "a ladder lottery drawn on a sheet of paper: several colorful vertical lines connected by short horizontal rungs, small wrapped gift boxes with ribbons at the bottom of the lines, snowy background",
     "smash": "a round frozen ice rink seen from above at an angle, colorful round curling stones sliding on the shiny ice, snowy pine trees around the rink"
   },
@@ -13,7 +13,9 @@
   "picks": {
     "sign": 3,
     "gashapon": 2,
-    "gashapon3d": 4
+    "gashapon3d": 4,
+    "ichiban": 5
   },
-  "gashapon3d_style_note": "gashapon3d 這張是用 gashapon_prompts.json 的 style 接在前面生的(冰雪色調),不是這個檔的 style;picks 4 = out/gashapon3d/home-card-round/s2.png(2026-10-02 使用者選定)"
+  "gashapon3d_style_note": "gashapon3d 這張是用 gashapon_prompts.json 的 style 接在前面生的(冰雪色調),不是這個檔的 style;picks 4 = out/gashapon3d/home-card-round/s2.png(2026-10-02 使用者選定)",
+  "ichiban_style_note": "ichiban 這張跟 gashapon3d 一樣用 gashapon_prompts.json 的 style 接在前面生(冰雪色調)"
 }
