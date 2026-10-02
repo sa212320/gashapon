@@ -35,9 +35,8 @@ const ask = createAsk({ dialog: $('askDialog'), text: $('askText'), yes: $('askY
 
 function render() {
   const setup = getActive(state);
-  $('setupName').textContent = setup.name || '爬格子';
+  // 標題列、人數小字都拿掉了(2026-10-02 使用者:「爬格子小字也不用」)
   const n = setup.players.length;
-  $('remaining').textContent = `${n} 個人 · ${setup.prizes.reduce((a, p) => a + p.count, 0)} 個獎`;
   const ready = n >= 2;
   $('emptyState').hidden = ready;
   if (!ready) {

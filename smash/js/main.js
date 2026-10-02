@@ -40,10 +40,10 @@ const nameMap = () => new Map(getActive(state).fighters.map(f => [f.id, f]));
 
 function render() {
   const setup = getActive(state);
-  $('setupName').textContent = setup.name || '大亂鬥';
   const teams = setup.fighters.filter(f => f.count > 0);
   const people = teams.reduce((a, f) => a + f.count, 0);
-  $('remaining').textContent = `${teams.length} 隊 · ${people} 個人`;
+  // 標題列拿掉了(跟扭蛋機一致),人數改成開始鈕旁的小標籤
+  $('remainTag').textContent = `${teams.length} 隊 · ${people} 個人`;
   const ready = teams.length >= 2;
   $('emptyState').hidden = ready;
   // 吉祥物的待機姿勢只由這裡一個地方決定(空了是 empty,否則 idle)

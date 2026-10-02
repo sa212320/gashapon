@@ -42,7 +42,6 @@ const read = p => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 test('畫面上的名字是「爬格子」(頁面標題、標題列、設定、首頁卡片)', () => {
   const page = read('ghostleg/index.html');
   assert.match(page, /<title>爬格子<\/title>/);
-  assert.match(page, /id="setupName">爬格子</);
   assert.match(page, /<h2>爬格子設定<\/h2>/);
   assert.match(page, /placeholder="我的爬格子"/);
   assert.match(read('index.html'), /<span class="card__name">爬格子<\/span>/);

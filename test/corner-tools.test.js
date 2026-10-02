@@ -46,3 +46,29 @@ for (const mode of ['ichiban', 'ghostleg', 'smash']) {
 test('一番賞的底部工具列已經空了,整個拿掉', () => {
   assert.ok(!/<footer class="toolbar">/.test(read('ichiban/index.html')));
 });
+
+// 2026-10-02 使用者:「功能內標題是不是也都統一拔了?」「一番賞小字感覺沒用,可以拔了」
+// 跟扭蛋機、立體扭蛋機一樣:沒有標題列;人數那行小字變成開始鈕旁的 remain-tag(一番賞不要)
+for (const mode of ['ichiban', 'ghostleg', 'smash']) {
+  test(`${mode}:沒有標題列`, () => {
+    const html = read(`${mode}/index.html`);
+    assert.ok(!/class="topbar"/.test(html));
+    assert.ok(!/id="setupName"|id="remaining"/.test(html));
+    assert.ok(!/\$\('setupName'\)|\$\('remaining'\)/.test(read(`${mode}/js/main.js`)));
+  });
+}
+
+for (const mode of ['smash']) {
+  test(`${mode}:人數小字是開始鈕旁的 remain-tag`, () => {
+    const toolbar = between(read(`${mode}/index.html`), '<footer class="toolbar">', '</footer>');
+    assert.match(toolbar, /<p class="remain-tag" id="remainTag">/);
+    assert.match(read(`${mode}/js/main.js`), /\$\('remainTag'\)\.textContent = /);
+  });
+}
+
+test('一番賞、爬格子不顯示人數 / 張數小字(使用者:「小字沒用」「爬格子小字也不用」)', () => {
+  for (const mode of ['ichiban', 'ghostleg']) {
+    assert.ok(!/remainTag|remain-tag/.test(read(`${mode}/index.html`)), mode);
+    assert.ok(!/remainTag/.test(read(`${mode}/js/main.js`)), mode);
+  }
+});
