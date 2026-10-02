@@ -2,8 +2,10 @@
 import { store, seedState } from './store.js';
 import {
   createPlayer, createGhostPrize, pickColor, lineup, bottomSlots,
-  buildLadder, assign, MAX_PLAYERS,
+  buildLadder, assign, MAX_PLAYERS, ANIMALS, TIERS, pickAnimal,
 } from './ladder.js';
+import { tintedAnimal } from './tint.js';
+import { loadArt, getArt, ANIMAL_LABEL, TIER_LABEL, PRIZE_URLS } from './art.js';
 import { createTrack, laneWidth, ROW_D } from './track.js';
 import { createCameraScript, TOTAL } from './camera-script.js';
 import { getActive, replaceSetup, addSetup, removeSetup, entriesChanged } from '../../shared/js/roster.js';
@@ -178,8 +180,53 @@ addEventListener('resize', () => { track.resize(); track.render(); });
 /* ---------- 設定 ---------- */
 
 let draft = null;
+// 設定清單裡同一時間只開一個選擇器:{ kind: 'animal' | 'tier', index }
+let openPicker = null;
+
+function pickButton(label, child, onClick) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'edit-row__pick';
+  b.setAttribute('aria-label', label);
+  b.append(child);
+  b.addEventListener('click', e => { e.stopPropagation(); onClick(); });
+  return b;
+}
+
+function animalThumb(animal, color) {
+  const c = tintedAnimal(getArt().animals[animal] ?? null, color, 96);
+  const img = document.createElement('img');
+  img.className = 'edit-row__thumb';
+  img.alt = '';
+  img.src = c.toDataURL();
+  return img;
+}
+
+function tierThumb(tier) {
+  const img = document.createElement('img');
+  img.className = 'edit-row__thumb';
+  img.alt = '';
+  if (PRIZE_URLS[tier]) img.src = PRIZE_URLS[tier];
+  return img;
+}
+
+// 展開在那一列下面的一排選項
+function pickerRow(options) {
+  const li = document.createElement('li');
+  li.className = 'picker-row';
+  li.append(...options);
+  return li;
+}
+
+document.addEventListener('click', e => {
+  if (!openPicker || e.target.closest('.picker-row, .edit-row__pick')) return;
+  openPicker = null;
+  renderPlayers();
+  renderPrizes();
+});
 
 function snapshot() {
+  openPicker = null;
   const s = getActive(state);
   draft = {
     name: s.name,
@@ -202,12 +249,16 @@ function renderPlayers() {
     ? `已經到上限 ${MAX_PLAYERS} 個人了`
     : `${draft.players.length} 個人(最多 ${MAX_PLAYERS} 個)`;
   $('addPlayerBtn').disabled = draft.players.length >= MAX_PLAYERS;
-  $('playerList').replaceChildren(...draft.players.map((p, i) => {
+  $('playerList').replaceChildren(...draft.players.flatMap((p, i) => {
     const li = document.createElement('li');
     li.className = 'edit-row';
     const dot = document.createElement('span');
     dot.className = 'edit-row__dot';
     dot.style.background = p.color;
+    const pick = pickButton(`${p.name || '玩家'}的動物:${ANIMAL_LABEL[p.animal]}`, animalThumb(p.animal, p.color), () => {
+      openPicker = openPicker?.kind === 'animal' && openPicker.index === i ? null : { kind: 'animal', index: i };
+      renderPlayers();
+    });
     const name = document.createElement('input');
     name.className = 'field__input edit-row__name';
     name.value = p.name;
@@ -217,9 +268,18 @@ function renderPlayers() {
     del.className = 'chip chip--danger';
     del.type = 'button';
     del.textContent = '刪';
-    del.addEventListener('click', () => { draft.players.splice(i, 1); renderPlayers(); });
-    li.append(dot, name, del);
-    return li;
+    del.addEventListener('click', () => { draft.players.splice(i, 1); openPicker = null; renderPlayers(); });
+    li.append(dot, pick, name, del);
+    if (openPicker?.kind !== 'animal' || openPicker.index !== i) return [li];
+    return [li, pickerRow(ANIMALS.map(a => {
+      const b = pickButton(ANIMAL_LABEL[a], animalThumb(a, p.color), () => {
+        draft.players[i].animal = a;
+        openPicker = null;
+        renderPlayers();
+      });
+      b.classList.toggle('is-current', a === p.animal);
+      return b;
+    }))];
   }));
 }
 
@@ -229,9 +289,13 @@ function renderPrizes() {
   $('prizeHint').textContent = total >= n
     ? `${total} 個獎,${n} 個人 —— 每局隨機挑 ${n} 個上場`
     : `${total} 個獎,${n} 個人 —— 不夠的 ${n - total} 個會補「銘謝惠顧」`;
-  $('prizeList').replaceChildren(...draft.prizes.map((p, i) => {
+  $('prizeList').replaceChildren(...draft.prizes.flatMap((p, i) => {
     const li = document.createElement('li');
     li.className = 'edit-row';
+    const pick = pickButton(`${p.name || '獎項'}的等級:${TIER_LABEL[p.tier]}`, tierThumb(p.tier), () => {
+      openPicker = openPicker?.kind === 'tier' && openPicker.index === i ? null : { kind: 'tier', index: i };
+      renderPrizes();
+    });
     const name = document.createElement('input');
     name.className = 'field__input edit-row__name';
     name.value = p.name;
@@ -252,9 +316,24 @@ function renderPrizes() {
     del.className = 'chip chip--danger';
     del.type = 'button';
     del.textContent = '刪';
-    del.addEventListener('click', () => { draft.prizes.splice(i, 1); renderPrizes(); });
-    li.append(name, count, del);
-    return li;
+    del.addEventListener('click', () => { draft.prizes.splice(i, 1); openPicker = null; renderPrizes(); });
+    li.append(pick, name, count, del);
+    if (openPicker?.kind !== 'tier' || openPicker.index !== i) return [li];
+    return [li, pickerRow(TIERS.map(t => {
+      const label = document.createElement('span');
+      label.className = 'picker-row__label';
+      label.textContent = TIER_LABEL[t];
+      const wrap = document.createElement('span');
+      wrap.className = 'picker-row__opt';
+      wrap.append(tierThumb(t), label);
+      const b = pickButton(TIER_LABEL[t], wrap, () => {
+        draft.prizes[i].tier = t;
+        openPicker = null;
+        renderPrizes();
+      });
+      b.classList.toggle('is-current', t === p.tier);
+      return b;
+    }))];
   }));
 }
 
@@ -321,7 +400,7 @@ $('nameInput').addEventListener('input', () => { draft.name = $('nameInput').val
 $('soundInput').addEventListener('change', () => { draft.soundOn = $('soundInput').checked; });
 $('addPlayerBtn').addEventListener('click', () => {
   if (draft.players.length >= MAX_PLAYERS) return;
-  draft.players.push(createPlayer({ name: `玩家${draft.players.length + 1}`, color: pickColor(draft.players) }));
+  draft.players.push(createPlayer({ name: `玩家${draft.players.length + 1}`, color: pickColor(draft.players), animal: pickAnimal(draft.players) }));
   renderPlayers();
   renderPrizes();
 });
@@ -344,4 +423,5 @@ document.addEventListener('click', () => unlock(), { once: true });
 const loadingEl = $('loading');
 if (loadingEl) loadingEl.hidden = true;
 
+await loadArt();
 render();

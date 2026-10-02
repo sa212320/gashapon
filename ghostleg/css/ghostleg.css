@@ -91,6 +91,32 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
   border-radius: 50%;
   border: 3px solid var(--ink);
 }
+/* 動物 / 等級選擇器(2026-10-02):點小圖在那一列下面展開一排選項 */
+.edit-row__pick {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  padding: 2px;
+  display: grid;
+  place-items: center;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #EAF5FC;
+  cursor: pointer;
+}
+.edit-row__pick.is-current { outline: 3px solid var(--sun); outline-offset: 1px; }
+.edit-row__thumb { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
+.picker-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--cream-deep);
+}
+.picker-row__opt { display: grid; justify-items: center; gap: 2px; }
+.picker-row__label { font-size: 12px; font-weight: 700; }
+.picker-row .edit-row__pick:has(.picker-row__opt) { width: 64px; height: 64px; }
 /* width: 0 —— input 天生約 20 個字寬(~208px),會被算進 grid 欄的 min-content,
    手機上整列撐出對話框、「刪」被擠到外面;min-width: 0 擋不住這個。 */
 .edit-row__name { flex: 1; min-width: 0; width: 0; }

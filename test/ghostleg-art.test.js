@@ -30,3 +30,21 @@ test('每種動物、每個等級都有中文標籤', () => {
   for (const t of TIERS) assert.ok(TIER_LABEL[t], t);
   assert.deepEqual(TIER_LABEL, { plain: '一般', chest: '大獎', deluxe: '頭獎' });
 });
+
+import { readFileSync } from 'node:fs';
+const mainJs = readFileSync(new URL('../ghostleg/js/main.js', import.meta.url), 'utf8');
+
+test('設定:新增玩家時用 pickAnimal 配動物', () => {
+  assert.match(mainJs, /draft\.players\.push\(createPlayer\(\{.*animal: pickAnimal\(draft\.players\) \}\)\)/);
+});
+
+test('設定:動物 / 等級選擇器是有 aria-label 的 button', () => {
+  assert.match(mainJs, /className = 'edit-row__pick'/);
+  assert.match(mainJs, /b\.setAttribute\('aria-label', label\)/);
+  assert.match(mainJs, /pickButton\(`\$\{p\.name \|\| '玩家'\}的動物:\$\{ANIMAL_LABEL\[p\.animal\]\}`/);
+  assert.match(mainJs, /pickButton\(`\$\{p\.name \|\| '獎項'\}的等級:\$\{TIER_LABEL\[p\.tier\]\}`/);
+});
+
+test('頁面等素材載完才畫第一格', () => {
+  assert.match(mainJs, /await loadArt\(\);\s*\n\s*render\(\);\s*$/);
+});
