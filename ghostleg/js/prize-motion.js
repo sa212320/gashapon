@@ -12,7 +12,8 @@ export function wanderOffset(i, tSec, spanX) {
 
 // 閒置時的繪製迴圈。開跑時一定要 stop —— 兩條 rAF 同時畫,獎品會一格在亂飛、一格在飛向終點,看起來在抖。
 // 分頁切到背景時瀏覽器本來就會暫停 rAF,不用另外處理。
-export function createIdleLoop(step, raf = requestAnimationFrame, caf = cancelAnimationFrame) {
+// raf / caf 每次都去找全域的(不在建立時就綁死),測試或錄影時換掉 window.requestAnimationFrame 才有效
+export function createIdleLoop(step, raf = cb => requestAnimationFrame(cb), caf = id => cancelAnimationFrame(id)) {
   let id = 0;
   const loop = {
     running: false,

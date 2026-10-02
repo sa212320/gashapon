@@ -7,9 +7,9 @@ import {
 import { animalCanvas, textColorFor } from './tint.js';
 import { loadArt, getArt, ANIMAL_LABEL, TIER_LABEL, PRIZE_URLS } from './art.js';
 import { createTrack, laneWidth, ROW_D } from './track.js';
-import { createCameraScript, TOTAL } from './camera-script.js';
+import { createCameraScript, TOTAL, idleFrame, scanX } from './camera-script.js';
 import { createIdleLoop } from './prize-motion.js';
-import { overlayLayout } from './labels.js';
+import { namePlan } from './labels.js';
 import { getActive, replaceSetup, addSetup, removeSetup, entriesChanged } from '../../shared/js/roster.js';
 import { createDialogShell } from '../../shared/js/dialog.js';
 import { createAsk } from '../../shared/js/ask.js';
@@ -74,7 +74,50 @@ let running = false;
 let raf = 0;
 let current = null;
 // 開跑前獎品在上空亂飛,要一直畫。start() 一開始就 stop,不然兩條 rAF 搶著畫、獎品會抖。
-const idle = createIdleLoop(tSec => { track.setPrizeFly(0, tSec); track.render(); placeNames(); });
+const idle = createIdleLoop(tSec => {
+  if (plan?.scan) placeIdleCamera(tSec - scanT0);
+  track.setPrizeFly(0, tSec);
+  track.render();
+  placeNames();
+});
+
+// 開跑前的構圖。全名放得下就看整塊冰板;放不下(人多、手機)就拉近、左右來回掃(namePlan → scan)。
+let plan = null;
+let scanT0 = 0;
+let idlePose = null;   // 開跑那一刻的機位,演出從這裡接著推
+
+function idleOpts(extra = {}) {
+  const ladder = current.ladder;
+  return { lanes: ladder.lanes, laneWidth: laneWidth(ladder.lanes), rowDepth: ROW_D, aspect: track.camera.aspect, ...extra };
+}
+
+function place(f) {
+  track.camera.position.set(...f.pos);
+  track.camera.lookAt(...f.look);
+  track.camera.updateMatrixWorld();
+  idlePose = f;
+}
+
+function placeIdleCamera(tSec) {
+  const frameLanes = plan.visibleLanes;
+  place(idleFrame(idleOpts({ frameLanes, centerX: scanX(Math.max(0, tSec), { lanes: current.ladder.lanes, frameLanes, laneWidth: laneWidth(current.ladder.lanes) }) })));
+}
+
+// 先用整塊冰板的構圖量車道在畫面上的間距,再決定要不要掃
+function planIdle() {
+  place(idleFrame(idleOpts()));
+  const a = track.nameAnchors();
+  const spacing = a.length > 1 ? Math.abs(a[1].x - a[0].x) : 400;
+  const layer = $('nameLayer');
+  plan = namePlan({
+    viewW: layer.clientWidth || innerWidth,
+    viewH: layer.clientHeight || innerHeight,
+    laneSpacingPx: spacing,
+    longestChars: Math.max(1, ...current.players.map(p => [...p.name].length)),
+  });
+  scanT0 = performance.now() / 1000;
+  if (plan.scan) placeIdleCamera(0);
+}
 
 // 開跑前的大字名牌(HTML 疊在畫面上,字不會被透視縮小)。開跑後收起來,換回底座前的小名牌 ——
 // 學生開跑前看清楚自己站哪,之後會自己盯自己的棋子(2026-10-02)。
@@ -82,7 +125,7 @@ let nameEls = [];
 function placeNames() {
   const layer = $('nameLayer');
   // 演出中、結果卡打開時都不放(resize 也會叫到這裡)
-  if (!current || running || !$('results').hidden) return;
+  if (!current || !plan || running || !$('results').hidden) return;
   const anchors = track.nameAnchors();
   if (nameEls.length !== anchors.length) {
     nameEls = current.players.map(p => {
@@ -95,13 +138,11 @@ function placeNames() {
     });
     layer.replaceChildren(...nameEls);
   }
-  const spacing = anchors.length > 1 ? Math.abs(anchors[1].x - anchors[0].x) : 400;
-  const { fontPx, rows, maxWidthPx } = overlayLayout({ viewH: layer.clientHeight || innerHeight, laneSpacingPx: spacing });
+  const { fontPx, rows } = plan;
   anchors.forEach((a, i) => {
     const el = nameEls[i];
-    const down = (i % rows) * fontPx * 1.7;   // 一前一後(最多三排)錯開
+    const down = (i % rows) * fontPx * 1.7;   // 一前一後(最多三排)錯開;名字一律全名,不截短
     el.style.fontSize = `${fontPx}px`;
-    el.style.maxWidth = `${maxWidthPx}px`;
     el.style.transform = `translate(${a.x}px, ${a.y + down}px) translate(-50%, 0)`;
   });
   layer.classList.add('is-on');
@@ -130,11 +171,7 @@ function showIdle() {
   nameEls = [];
   track.setTagsVisible(false);
   track.setProgress(0);
-  const script = createCameraScript({
-    camera: track.camera, ladder: current.ladder,
-    laneWidth: laneWidth(current.ladder.lanes), rowDepth: ROW_D,
-  });
-  script(0, []);
+  planIdle();
   track.setPrizeFly(0, performance.now() / 1000);
   track.render();   // 先畫一格:分頁在背景時 rAF 不跑,不能等閒置迴圈
   placeNames();
@@ -160,6 +197,7 @@ function start() {
   const script = createCameraScript({
     camera: track.camera, ladder: round.ladder,
     laneWidth: laneWidth(round.ladder.lanes), rowDepth: ROW_D,
+    from: idlePose,   // 從開跑前那一刻的機位接著推(人多時鏡頭可能正掃到一半)
   });
 
   const t0 = performance.now();
@@ -249,7 +287,12 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-addEventListener('resize', () => { track.resize(); track.render(); placeNames(); });
+addEventListener('resize', () => {
+  track.resize();
+  if (current && !running && $('results').hidden) planIdle();
+  track.render();
+  placeNames();
+});
 
 /* ---------- 設定 ---------- */
 

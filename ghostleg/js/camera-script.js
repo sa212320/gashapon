@@ -26,20 +26,41 @@ export const boardWidth = (lanes, laneWidth) => lanes * laneWidth + 1.8;
 // 以 35° 俯角看向起跑線前方一點,距離由「冰板寬 / 0.8 要剛好塞滿水平視角」反推。
 // 橫向螢幕(桌機)當成正方形算:冰板是直長條,硬撐滿 16:9 的寬度,鏡頭會貼到動物大到塞滿畫面。
 const IDLE_PITCH = (35 * Math.PI) / 180;
-export function idleFrame({ lanes, laneWidth, rowDepth, aspect, fov = 48 }) {
-  const hfov = 2 * Math.atan(Math.tan((fov * Math.PI) / 360) * Math.min(1, aspect));
-  const d = boardWidth(lanes, laneWidth) / 0.8 / (2 * Math.tan(hfov / 2));
-  const look = [0, laneWidth * 0.8, -rowDepth * 1.5];
-  return { pos: [0, look[1] + d * Math.sin(IDLE_PITCH), look[2] + d * Math.cos(IDLE_PITCH)], look };
+//
+// 人多、全名放不下時(labels.js namePlan 的 scan):只框 frameLanes 條車道,看向 centerX(scanX 左右來回)。
+// 這時以畫面寬度為準(不套用橫向的正方形構圖),名字才夠寬。
+export function idleFrame({ lanes, laneWidth, rowDepth, aspect, fov = 48, frameLanes = null, centerX = 0 }) {
+  const scan = frameLanes && frameLanes < lanes;
+  const hfov = 2 * Math.atan(Math.tan((fov * Math.PI) / 360) * (scan ? aspect : Math.min(1, aspect)));
+  const frameW = scan ? frameLanes * laneWidth : boardWidth(lanes, laneWidth) / 0.8;
+  const d = frameW / (2 * Math.tan(hfov / 2));
+  // 掃描時鏡頭很近,看向起跑線前方的話棋子和名字會掉到畫面外 —— 直接看著起跑線
+  const look = scan ? [centerX, laneWidth * 0.7, 0] : [0, laneWidth * 0.8, -rowDepth * 1.5];
+  return { pos: [look[0], look[1] + d * Math.sin(IDLE_PITCH), look[2] + d * Math.cos(IDLE_PITCH)], look };
 }
 
-export function createCameraScript({ camera, ladder, laneWidth: w, rowDepth }) {
+// 開跑前左右來回掃的位置:從最左邊開始,兩端各停 1.2 秒,中間每秒走 1.5 條車道寬。
+export function scanX(tSec, { lanes, frameLanes, laneWidth }) {
+  const travel = (Math.max(0, lanes - frameLanes) * laneWidth) / 2;
+  if (travel === 0) return 0;
+  const hold = 1.2;
+  const move = (2 * travel) / (1.5 * laneWidth);
+  const period = 2 * (hold + move);
+  const t = tSec % period;
+  const ease = k => (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2);
+  if (t < hold) return -travel;
+  if (t < hold + move) return -travel + 2 * travel * ease((t - hold) / move);
+  if (t < 2 * hold + move) return travel;
+  return travel - 2 * travel * ease((t - 2 * hold - move) / move);
+}
+
+export function createCameraScript({ camera, ladder, laneWidth: w, rowDepth, from = null }) {
   const far = ladder.rows * rowDepth;      // 跑道總長(正值)
   const wide = Math.max(1, ladder.lanes * w);
 
   // 獎品開跑前浮在起跑線上方(track.js 的 prizeFrom 就是以這一帶為中心)
   const cloudY = w * 2.7;
-  const cloudZ = rowDepth * 0.9;
+  const cloudZ = -rowDepth * 1.15;   // 獎品的起飛點在起跑線後方(track.js prizeFrom)
 
   // 俯視要能框住**整條**跑道 —— 含近處的起跑線跟遠處的獎品。
   const fit = () => Math.max(far * 0.95, wide / Math.max(0.5, camera.aspect) * 1.15);
@@ -69,7 +90,8 @@ export function createCameraScript({ camera, ladder, laneWidth: w, rowDepth }) {
     camera.lookAt(look[0], look[1], look[2]);
   }
 
-  const idle = () => idleFrame({ lanes: ladder.lanes, laneWidth: w, rowDepth, aspect: camera.aspect });
+  // from:開跑那一刻的機位(人多時開跑前會左右掃,不一定停在正中間)
+  const idle = () => from ?? idleFrame({ lanes: ladder.lanes, laneWidth: w, rowDepth, aspect: camera.aspect });
 
   const between = (a, b, k) => [lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k)];
 

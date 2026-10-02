@@ -27,9 +27,7 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
   border-radius: 999px;
   font-weight: 800;
   line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: nowrap;   /* 名字一律全名,不截短(「王…」看不出是誰)*/
   box-sizing: border-box;
 }
 

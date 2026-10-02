@@ -34,12 +34,14 @@ export function tagPlace(w, stagger = 0) {
 // 開跑前疊在畫面上的大字名牌(HTML,不受 3D 透視縮小)。2026-10-02:投影到黑板時 3D 名牌只剩 10px,
 // 後排學生看不到;開跑前看清楚「誰站哪裡」就好,開跑後學生會自己盯自己的棋子(收回成底座前的小名牌)。
 //   字高 = 畫面高度 3%(1080p ≈ 32px),手機至少 16px
-//   一條車道放不下約 4 個字 → 錯開成 2~3 排(相鄰一前一後),每個名字可用「排數 × 車道」的寬度
-//   (只錯兩排的話,手機上「玩家7」會被截成「玩…」)
-//   字再大也不能超過「可用寬度放得下 2 個字」,40 人時自動縮字;更長的名字由 CSS 截成「…」
-export function overlayLayout({ viewH, laneSpacingPx }) {
-  const base = Math.max(16, viewH * 0.03);
-  const rows = Math.min(3, Math.max(1, Math.ceil((base * 4) / Math.max(1, laneSpacingPx))));
-  const maxWidthPx = laneSpacingPx * rows * 0.95;
-  return { fontPx: Math.min(base, maxWidthPx / 2), rows, maxWidthPx };
+//   名字一律全名 —— 截成「王…」看不出是誰(使用者)
+//   全名在 3 排內(相鄰一前一後錯開)放得下 → 整塊冰板一起看
+//   放不下 → scan:鏡頭拉近、左右來回掃(camera-script.js scanX),一次框 visibleLanes 條車道,錯開兩排
+export function namePlan({ viewW, viewH, laneSpacingPx, longestChars }) {
+  const fontPx = Math.max(16, viewH * 0.03);
+  const nameW = longestChars * fontPx + fontPx * 0.7 + 6;   // 字 + 左右各 .35em 內距 + 框 3px×2
+  const need = nameW / (Math.max(1, laneSpacingPx) * 0.95);
+  if (need <= 3) return { scan: false, fontPx, rows: Math.max(1, Math.ceil(need)) };
+  const spacing = nameW / (2 * 0.95);
+  return { scan: true, fontPx, rows: 2, visibleLanes: Math.max(2, Math.floor((viewW * 0.92) / spacing)) };
 }

@@ -147,34 +147,65 @@ test('人多時名牌一前一後錯開(不是一高一低,高了會擋到棋子
   assert.equal(tagPlace(w, 1).y, tagPlace(w, 0).y);
 });
 
-import { overlayLayout } from '../ghostleg/js/labels.js';
+import { namePlan } from '../ghostleg/js/labels.js';
+import { scanX } from '../ghostleg/js/camera-script.js';
 
-// 開跑前疊在畫面上的大字名牌(2026-10-02:投影到黑板,後排學生要看得到;開跑後學生自己盯自己的棋子)
-test('overlayLayout:人少時字高約畫面高度 3%(1080p ≈ 32px),不用錯開', () => {
-  const l = overlayLayout({ viewH: 1080, laneSpacingPx: 220, lanes: 6 });
-  assert.ok(l.fontPx >= 30 && l.fontPx <= 34, `${l.fontPx}`);
-  assert.equal(l.rows, 1);
+// 開跑前的大字名牌(2026-10-02):投影到黑板,後排學生要看得到;名字一律全名 ——
+// 「王…」看不出是誰(使用者)。全名在 3 排以內放得下就整塊冰板一起看;放不下就拉近、左右來回掃。
+const nameW = (chars, f) => chars * f + f * 0.7 + 6;
+
+test('namePlan:人少時不用掃,字高約畫面 3%(1080p ≈ 32px)', () => {
+  const p = namePlan({ viewW: 1920, viewH: 1080, laneSpacingPx: 220, longestChars: 3 });
+  assert.equal(p.scan, false);
+  assert.ok(p.fontPx >= 30 && p.fontPx <= 34);
+  assert.equal(p.rows, 1);
 });
 
-test('overlayLayout:手機上也至少 16px', () => {
-  assert.ok(overlayLayout({ viewH: 640, laneSpacingPx: 50, lanes: 6 }).fontPx >= 16);
+test('namePlan:手機上字也至少 16px', () => {
+  assert.ok(namePlan({ viewW: 390, viewH: 640, laneSpacingPx: 50, longestChars: 3 }).fontPx >= 16);
 });
 
-test('overlayLayout:車道太窄就錯開成 2~3 排,每個名字可用寬度 = 排數 × 車道', () => {
-  const two = overlayLayout({ viewH: 1080, laneSpacingPx: 80, lanes: 12 });
-  assert.equal(two.rows, 2);
-  assert.ok(Math.abs(two.maxWidthPx - 80 * 2 * 0.95) < 1e-9);
-  const three = overlayLayout({ viewH: 1080, laneSpacingPx: 40, lanes: 40 });
-  assert.equal(three.rows, 3);
+test('namePlan:車道窄但 3 排內放得下全名 → 錯開、不掃,每排都放得下全名', () => {
+  const p = namePlan({ viewW: 390, viewH: 640, laneSpacingPx: 37, longestChars: 3 });
+  assert.equal(p.scan, false);
+  assert.ok(p.rows >= 2 && p.rows <= 3);
+  assert.ok(p.rows * 37 * 0.95 >= nameW(3, p.fontPx) - 1e-9);
 });
 
-test('overlayLayout:手機 7 人時「玩家7」這種 3 個字的名字放得下(扣掉內距後至少 3 個字寬)', () => {
-  const l = overlayLayout({ viewH: 640, laneSpacingPx: 37, lanes: 7 });
-  const padding = l.fontPx * 0.7 + 6;   // CSS:左右各 .35em + 框 3px×2
-  assert.ok(l.maxWidthPx - padding >= l.fontPx * 3, `${l.maxWidthPx} - ${padding} < ${l.fontPx * 3}`);
+test('namePlan:3 排也放不下全名 → 掃;一次框的車道數讓兩排錯開剛好放得下全名', () => {
+  const p = namePlan({ viewW: 390, viewH: 640, laneSpacingPx: 15, longestChars: 3 });
+  assert.equal(p.scan, true);
+  assert.equal(p.rows, 2);
+  const spacing = (390 * 0.92) / p.visibleLanes;
+  assert.ok(spacing * 2 * 0.95 >= nameW(3, p.fontPx) - 1e-9, `${spacing}`);
+  assert.ok(p.visibleLanes >= 2);
 });
 
-test('overlayLayout:字不能比可用寬度能放下 2 個字還大(40 人時自動縮字)', () => {
-  const l = overlayLayout({ viewH: 1080, laneSpacingPx: 20, lanes: 40 });
-  assert.ok(l.fontPx * 2 <= l.maxWidthPx + 1e-9, `${l.fontPx} × 2 > ${l.maxWidthPx}`);
+test('namePlan:名字一律全名,不截短(沒有 maxWidth 這種東西)', () => {
+  assert.ok(!('maxWidthPx' in namePlan({ viewW: 390, viewH: 640, laneSpacingPx: 15, longestChars: 10 })));
+});
+
+test('scanX:在左右兩端之間來回,不超出冰板;從最左邊開始;兩端會停一下', () => {
+  const lanes = 24, frame = 6, w = 0.34;
+  const travel = ((lanes - frame) * w) / 2;
+  assert.ok(Math.abs(scanX(0, { lanes, frameLanes: frame, laneWidth: w }) + travel) < 1e-9);
+  let min = Infinity, max = -Infinity;
+  for (let t = 0; t < 60; t += 0.05) {
+    const x = scanX(t, { lanes, frameLanes: frame, laneWidth: w });
+    min = Math.min(min, x); max = Math.max(max, x);
+  }
+  assert.ok(min >= -travel - 1e-9 && max <= travel + 1e-9);
+  assert.ok(max > travel - 1e-6, '有掃到最右邊');
+  assert.equal(scanX(0.3, { lanes, frameLanes: frame, laneWidth: w }), scanX(0, { lanes, frameLanes: frame, laneWidth: w }), '起點先停一下');
+});
+
+test('scanX:框得下全部車道時不動', () => {
+  assert.equal(scanX(5, { lanes: 6, frameLanes: 6, laneWidth: 1 }), 0);
+});
+
+test('idleFrame 掃描模式:鏡頭看著起跑線(z = 0),跟著 centerX 左右移', () => {
+  const f = idleFrame({ lanes: 24, laneWidth: 0.34, rows: 12, rowDepth: 1.35, aspect: 0.5, frameLanes: 6, centerX: 1.2 });
+  assert.equal(f.look[2], 0);
+  assert.equal(f.look[0], 1.2);
+  assert.equal(f.pos[0], 1.2);
 });

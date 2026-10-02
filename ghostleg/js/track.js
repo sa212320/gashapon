@@ -151,7 +151,8 @@ export function createTrack(canvas) {
     r.prizeFrom = slots.map((_, i) => new THREE.Vector3(
       laneX(i, lanes, w) + (pseudoRandom(i * 7 + 1) - 0.5) * w * 0.7,
       w * (3.4 + pseudoRandom(i * 7 + 2) * 1.4),
-      ROW_D * (0.4 + pseudoRandom(i * 7 + 3) * 1.1)));
+      // z 在起跑線後方(冰板上空):放在前面的話,人多時開跑前鏡頭拉近掃描,雪球會大到蓋住畫面
+      -ROW_D * (0.6 + pseudoRandom(i * 7 + 3) * 1.1)));
     setPrizeFly(0, 0);
   }
 
