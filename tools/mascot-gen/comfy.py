@@ -125,3 +125,54 @@ def graph_edit(ref_names, prompt, seed, prefix, steps=25, resolution=1024):
         g[f'10{i}'] = {'class_type': 'LoadImage', 'inputs': {'image': name}}
         g['5']['inputs'][f'images.image_{i}'] = [f'10{i}', 0]
     return g
+
+
+def graph_to3d(image_name, prefix, faces=50000, texture=2048, seed=42):
+    """Pixal3D + TRELLIS.2 圖轉 3D:單張圖 → 帶貼圖的 GLB(存在 ComfyUI output/3d/)。
+    照官方範本 3d_pixal3d_trellis2_image_to_model 的預設路徑(Pixal3D 模型、MoGe 估視角),
+    但只烤 base color,不接 AO / 法線貼圖(站上平塗,不打光),並把面數壓到 faces。
+    減面用 qem:midpoint 壓到 2 萬面時臉和尾巴會整片崩掉,qem 在 2 萬面仍完整。"""
+    pixal = ['1', 0]
+    return {
+        '1': {'class_type': 'UNETLoader', 'inputs': {'unet_name': 'pixal3d_int8_convrot.safetensors', 'weight_dtype': 'default'}},
+        '2': {'class_type': 'VAELoader', 'inputs': {'vae_name': 'trellis_2_shape_vae_bf16.safetensors'}},
+        '3': {'class_type': 'VAELoader', 'inputs': {'vae_name': 'trellis_2_texture_vae_bf16.safetensors'}},
+        '4': {'class_type': 'CLIPVisionLoader', 'inputs': {'clip_name': 'dino_v3_L_naf_fp32.safetensors'}},
+        '5': {'class_type': 'LoadMoGeModel', 'inputs': {'model_name': 'moge_2_vitl_normal_fp16.safetensors'}},
+        '6': {'class_type': 'LoadBackgroundRemovalModel', 'inputs': {'bg_removal_name': 'birefnet.safetensors'}},
+        # 去背 → 以主體為中心裁成 1024 方圖(黑底)
+        '10': {'class_type': 'LoadImage', 'inputs': {'image': image_name}},
+        '11': {'class_type': 'RemoveBackground', 'inputs': {'bg_removal_model': ['6', 0], 'image': ['10', 0]}},
+        '12': {'class_type': 'ImageCropToMask', 'inputs': {'images': ['10', 0], 'masks': ['11', 0], 'width': 1024, 'height': 1024, 'pad_factor': 1.1, 'grow_mask': 0, 'background': '#000000'}},
+        '13': {'class_type': 'MoGeInference', 'inputs': {'moge_model': ['5', 0], 'image': ['12', 0], 'resolution_level': 9, 'fov_x_degrees': 0.0, 'batch_size': 4, 'force_projection': True, 'apply_mask': True, 'refine_steps': 3}},
+        '14': {'class_type': 'MoGeGeometryToFOV', 'inputs': {'moge_geometry': ['13', 0], 'axis': 'horizontal', 'unit': 'degrees'}},
+        '15': {'class_type': 'Pixal3DConditioning', 'inputs': {'clip_vision_model': ['4', 0], 'image': ['12', 0], 'camera_angle_x': ['14', 0]}},
+        # 1. 結構(體素)
+        '20': {'class_type': 'CFGOverride', 'inputs': {'model': pixal, 'cfg': 1.0, 'start_percent': 0.667, 'end_percent': 1.0}},
+        '21': {'class_type': 'RescaleCFG', 'inputs': {'model': ['20', 0], 'multiplier': 0.7}},
+        '22': {'class_type': 'ModelSamplingSD3', 'inputs': {'model': ['21', 0], 'shift': 5.0}},
+        '23': {'class_type': 'EmptyTrellis2LatentStructure', 'inputs': {'batch_size': 1}},
+        '24': {'class_type': 'KSampler', 'inputs': {'model': ['22', 0], 'seed': seed + 14, 'steps': 12, 'cfg': 7.5, 'sampler_name': 'euler', 'scheduler': 'normal', 'positive': ['15', 0], 'negative': ['15', 1], 'latent_image': ['23', 0], 'denoise': 1.0}},
+        '25': {'class_type': 'VaeDecodeStructureTrellis2', 'inputs': {'samples': ['24', 0], 'vae': ['2', 0], 'resolution': '32'}},
+        # 2. 形狀(先低解析,再放大到 1536)
+        '30': {'class_type': 'CFGOverride', 'inputs': {'model': pixal, 'cfg': 1.0, 'start_percent': 0.769, 'end_percent': 1.0}},
+        '31': {'class_type': 'RescaleCFG', 'inputs': {'model': ['30', 0], 'multiplier': 0.5}},
+        '32': {'class_type': 'Trellis2ShapeStage', 'inputs': {'positive': ['15', 0], 'negative': ['15', 1], 'voxel': ['25', 0]}},
+        '33': {'class_type': 'KSampler', 'inputs': {'model': ['31', 0], 'seed': seed, 'steps': 20, 'cfg': 7.5, 'sampler_name': 'euler', 'scheduler': 'normal', 'positive': ['32', 0], 'negative': ['32', 1], 'latent_image': ['32', 2], 'denoise': 1.0}},
+        '34': {'class_type': 'Trellis2UpsampleStage', 'inputs': {'positive': ['32', 0], 'negative': ['32', 1], 'shape_latent': ['33', 0], 'vae': ['2', 0], 'target_resolution': '1536'}},
+        '35': {'class_type': 'KSampler', 'inputs': {'model': ['31', 0], 'seed': seed, 'steps': 12, 'cfg': 7.5, 'sampler_name': 'euler', 'scheduler': 'simple', 'positive': ['34', 0], 'negative': ['34', 1], 'latent_image': ['34', 2], 'denoise': 1.0}},
+        '36': {'class_type': 'VaeDecodeShapeTrellis', 'inputs': {'samples': ['35', 0], 'vae': ['2', 0]}},
+        # 3. 顏色(體素色)
+        '40': {'class_type': 'Trellis2TextureStage', 'inputs': {'positive': ['34', 0], 'negative': ['34', 1], 'shape_latent': ['35', 0]}},
+        '41': {'class_type': 'KSampler', 'inputs': {'model': pixal, 'seed': seed + 1, 'steps': 12, 'cfg': 1.0, 'sampler_name': 'euler', 'scheduler': 'normal', 'positive': ['40', 0], 'negative': ['40', 1], 'latent_image': ['40', 2], 'denoise': 1.0}},
+        '42': {'class_type': 'VaeDecodeTextureTrellis', 'inputs': {'samples': ['41', 0], 'vae': ['3', 0], 'shape_subdivides': ['36', 1]}},
+        # 4. 網格整理 → 展 UV → 烤 base color → GLB
+        '50': {'class_type': 'RemeshMesh', 'inputs': {'mesh': ['36', 0], 'resolution': 768, 'sign_mode': 'udf', 'sign_mode.qef': False, 'sign_mode.drop_inverted_components': False, 'sign_mode.drop_enclosed_components': False, 'band': 1.0, 'project_back': 0.0, 'fix_poles': False, 'smooth_iters': 20, 'drop_small_components': 0.01, 'precluster_max_verts': 20000000}},
+        '51': {'class_type': 'DecimateMesh', 'inputs': {'mesh': ['50', 0], 'target_face_count': faces, 'placement_mode': 'qem', 'placement_mode.line_quadric_weight': 0.0, 'placement_mode.feature_edge_quadric_weight': 0.0, 'placement_mode.feature_edge_min_dihedral_deg': 30.0, 'placement_mode.clamp_v_to_edge': True}},
+        '52': {'class_type': 'MeshSmoothNormals', 'inputs': {'mesh': ['51', 0], 'crease_angle': 180.0}},
+        '53': {'class_type': 'UnwrapMesh', 'inputs': {'mesh': ['52', 0], 'segmenter': 'pec', 'resolution': texture, 'padding': 1, 'weld_distance': 0.0002}},
+        '54': {'class_type': 'BakeTextureFromVoxel', 'inputs': {'mesh': ['53', 0], 'voxel_colors': ['42', 0], 'texture_size': texture, 'reference_mesh': ['36', 0]}},
+        '55': {'class_type': 'ApplyTextureToMesh', 'inputs': {'mesh': ['53', 0], 'base_color': ['54', 0]}},
+        '56': {'class_type': 'SaveGLB', 'inputs': {'mesh': ['55', 0], 'filename_prefix': f'3d/{prefix}'}},
+        '57': {'class_type': 'PreviewImage', 'inputs': {'images': ['12', 0]}},
+    }
