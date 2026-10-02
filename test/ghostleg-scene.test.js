@@ -148,7 +148,7 @@ test('人多時名牌一前一後錯開(不是一高一低,高了會擋到棋子
 });
 
 import { namePlan } from '../ghostleg/js/labels.js';
-import { scanX } from '../ghostleg/js/camera-script.js';
+import { scanPass, scanDuration } from '../ghostleg/js/camera-script.js';
 
 // 開跑前的大字名牌(2026-10-02):投影到黑板,後排學生要看得到;名字一律全名 ——
 // 「王…」看不出是誰(使用者)。全名在 3 排以內放得下就整塊冰板一起看;放不下就拉近、左右來回掃。
@@ -162,40 +162,36 @@ test('namePlan:一律是特寫;字高約畫面 3%(1080p ≈ 32px),手機至少 1
 });
 
 // 使用者:「特寫會放大,不應該是停在中間吧」—— 特寫一次最多框一半的人(上限 8 條),4 人以上一定會掃
-test('namePlan:特寫一次最多框一半的人、上限 8 條車道', () => {
-  assert.equal(namePlan({ viewW: 1920, viewH: 1080, lanes: 6, longestChars: 3 }).frameLanes, 3);
-  assert.equal(namePlan({ viewW: 1920, viewH: 1080, lanes: 7, longestChars: 3 }).frameLanes, 4);
-  assert.equal(namePlan({ viewW: 1920, viewH: 1080, lanes: 40, longestChars: 3 }).frameLanes, 8);
-  assert.equal(namePlan({ viewW: 1920, viewH: 1080, lanes: 2, longestChars: 3 }).frameLanes, 2);
+// 使用者:「我以為最多框 2 人,掃描久一點沒關係,可以點一下跳過」
+test('namePlan:特寫一次最多框 2 個人', () => {
+  for (const lanes of [2, 6, 40]) assert.equal(namePlan({ viewW: 1920, viewH: 1080, lanes, longestChars: 3 }).frameLanes, 2);
+  assert.equal(namePlan({ viewW: 390, viewH: 640, lanes: 24, longestChars: 10 }).frameLanes, 2);
 });
 
-test('namePlan:人多時只框一部分車道;框的車道數讓兩排錯開剛好放得下全名', () => {
-  const p = namePlan({ viewW: 390, viewH: 640, lanes: 24, longestChars: 3 });
-  assert.ok(p.frameLanes < 24 && p.frameLanes >= 2);
-  assert.ok(((390 * 0.92) / p.frameLanes) * p.rows * 0.95 >= nameW(3, p.fontPx) - 1e-9);
-  assert.ok(p.rows <= 2);
+test('namePlan:框 2 個人時,10 個字的全名在手機上也放得下(必要時兩排錯開)', () => {
+  const p = namePlan({ viewW: 390, viewH: 640, lanes: 24, longestChars: 10 });
+  assert.ok(((390 * 0.92) / p.frameLanes) * p.rows * 0.95 >= nameW(10, p.fontPx) - 1e-9);
 });
 
 test('namePlan:名字一律全名,不截短(沒有 maxWidth 這種東西)', () => {
   assert.ok(!('maxWidthPx' in namePlan({ viewW: 390, viewH: 640, lanes: 40, longestChars: 10 })));
 });
 
-test('scanX:在左右兩端之間來回,不超出冰板;從最左邊開始;兩端會停一下', () => {
-  const lanes = 24, frame = 6, w = 0.34;
-  const travel = ((lanes - frame) * w) / 2;
-  assert.ok(Math.abs(scanX(0, { lanes, frameLanes: frame, laneWidth: w }) + travel) < 1e-9);
-  let min = Infinity, max = -Infinity;
-  for (let t = 0; t < 60; t += 0.05) {
-    const x = scanX(t, { lanes, frameLanes: frame, laneWidth: w });
-    min = Math.min(min, x); max = Math.max(max, x);
-  }
-  assert.ok(min >= -travel - 1e-9 && max <= travel + 1e-9);
-  assert.ok(max > travel - 1e-6, '有掃到最右邊');
-  assert.equal(scanX(0.3, { lanes, frameLanes: frame, laneWidth: w }), scanX(0, { lanes, frameLanes: frame, laneWidth: w }), '起點先停一下');
+test('scanPass:從最左邊開始,掃一趟到最右邊就結束;兩端各停一下;人越多掃越久', () => {
+  const opts = { lanes: 24, frameLanes: 2, laneWidth: 0.34 };
+  const travel = ((24 - 2) * 0.34) / 2;
+  const a = scanPass(0, opts);
+  assert.ok(Math.abs(a.x + travel) < 1e-9 && !a.done);
+  assert.equal(scanPass(0.3, opts).x, a.x, '起點先停一下');
+  const end = scanPass(scanDuration(opts) + 0.01, opts);
+  assert.ok(Math.abs(end.x - travel) < 1e-9 && end.done);
+  let last = -Infinity;
+  for (let t = 0; t <= scanDuration(opts); t += 0.05) { const x = scanPass(t, opts).x; assert.ok(x >= last - 1e-9, '一直往右,不回頭'); last = x; }
+  assert.ok(scanDuration({ lanes: 40, frameLanes: 2, laneWidth: 0.34 }) > scanDuration({ lanes: 6, frameLanes: 2, laneWidth: 1 }));
 });
 
-test('scanX:框得下全部車道時不動', () => {
-  assert.equal(scanX(5, { lanes: 6, frameLanes: 6, laneWidth: 1 }), 0);
+test('scanPass:兩個人時不用掃,馬上結束', () => {
+  assert.equal(scanPass(0, { lanes: 2, frameLanes: 2, laneWidth: 1 }).done, true);
 });
 
 test('idleFrame 掃描模式:鏡頭看著起跑線(z = 0),跟著 centerX 左右移', () => {
@@ -211,7 +207,7 @@ test('獎品大小依等級:雪球最小(盒子一半)、寶箱比盒子大、�
   const near = (a, b) => Math.abs(a - b) < 1e-9;
   assert.ok(near(prizeSize(1, 'plain'), 1.05));
   assert.ok(near(prizeSize(1, null), 1.05 * 0.5), '雪球 = 銘謝惠顧(沒有 tier)');
-  assert.ok(near(prizeSize(1, 'chest'), 1.05 * 1.25));
-  assert.ok(near(prizeSize(1, 'deluxe'), 1.05 * 1.45));
-  assert.ok(near(prizeSize(0.34, 'deluxe'), 0.34 * 1.05 * 1.45), '跟著車道寬縮放');
+  assert.ok(near(prizeSize(1, 'chest'), 1.05 * 1.5));
+  assert.ok(near(prizeSize(1, 'deluxe'), 1.05 * 1.8));
+  assert.ok(near(prizeSize(0.34, 'deluxe'), 0.34 * 1.05 * 1.8), '跟著車道寬縮放');
 });

@@ -27,7 +27,7 @@ export const boardWidth = (lanes, laneWidth) => lanes * laneWidth + 1.8;
 // 橫向螢幕(桌機)當成正方形算:冰板是直長條,硬撐滿 16:9 的寬度,鏡頭會貼到動物大到塞滿畫面。
 const IDLE_PITCH = (35 * Math.PI) / 180;
 //
-// 人多、全名放不下時(labels.js namePlan 的 scan):只框 frameLanes 條車道,看向 centerX(scanX 左右來回)。
+// 開跑前的特寫(labels.js namePlan):只框 frameLanes 條車道,看向 centerX(scanPass 從左掃到右)。
 // 這時以畫面寬度為準(不套用橫向的正方形構圖),名字才夠寬。
 export function idleFrame({ lanes, laneWidth, rowDepth, aspect, fov = 48, frameLanes = null, centerX = 0 }) {
   const scan = Boolean(frameLanes);   // 開跑前一律特寫(人少時 frameLanes = 人數,不用掃)
@@ -39,19 +39,27 @@ export function idleFrame({ lanes, laneWidth, rowDepth, aspect, fov = 48, frameL
   return { pos: [look[0], look[1] + d * Math.sin(IDLE_PITCH), look[2] + d * Math.cos(IDLE_PITCH)], look };
 }
 
-// 開跑前左右來回掃的位置:從最左邊開始,兩端各停 1.2 秒,中間每秒走 1.5 條車道寬。
-export function scanX(tSec, { lanes, frameLanes, laneWidth }) {
-  const travel = (Math.max(0, lanes - frameLanes) * laneWidth) / 2;
-  if (travel === 0) return 0;
-  const hold = 1.2;
-  const move = (2 * travel) / (1.5 * laneWidth);
-  const period = 2 * (hold + move);
-  const t = tSec % period;
-  const ease = k => (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2);
-  if (t < hold) return -travel;
-  if (t < hold + move) return -travel + 2 * travel * ease((t - hold) / move);
-  if (t < 2 * hold + move) return travel;
-  return travel - 2 * travel * ease((t - 2 * hold - move) / move);
+// 開跑前的掃描(2026-10-02 使用者:「最多框 2 人,掃描久一點沒關係,可以點一下跳過」):
+// 從最左邊開始,先停 1.2 秒,每秒走 0.8 條車道寬一路掃到最右邊,再停 1.2 秒就結束(done)。
+// 結束或被點一下跳過之後,main.js 把鏡頭拉回整塊冰板。
+const SCAN_HOLD = 1.2;
+const SCAN_SPEED = 0.8;   // 車道 / 秒
+const scanTravel = ({ lanes, frameLanes, laneWidth }) => (Math.max(0, lanes - frameLanes) * laneWidth) / 2;
+
+export function scanDuration(opts) {
+  const travel = scanTravel(opts);
+  return travel === 0 ? 0 : 2 * SCAN_HOLD + (2 * travel) / (SCAN_SPEED * opts.laneWidth);
+}
+
+export function scanPass(tSec, opts) {
+  const travel = scanTravel(opts);
+  const total = scanDuration(opts);
+  const done = tSec >= total;
+  if (travel === 0) return { x: 0, done };
+  const move = total - 2 * SCAN_HOLD;
+  const k = Math.min(1, Math.max(0, (tSec - SCAN_HOLD) / move));
+  const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+  return { x: -travel + 2 * travel * e, done };
 }
 
 export function createCameraScript({ camera, ladder, laneWidth: w, rowDepth, from = null }) {

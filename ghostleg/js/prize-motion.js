@@ -37,5 +37,5 @@ export function createIdleLoop(step, raf = cb => requestAnimationFrame(cb), caf 
 
 // 獎品圖的大小(× 車道寬),依等級:雪球(銘謝惠顧,tier = null)只有盒子的一半(0.7 時還是太搶眼),
 // 寶箱比盒子大、頭獎最大(2026-10-02 使用者:「雪球再小一點」「寶箱希望大一點」)
-const PRIZE_SCALE = { plain: 1, chest: 1.25, deluxe: 1.45 };
+const PRIZE_SCALE = { plain: 1, chest: 1.5, deluxe: 1.8 };   // 「寶箱再大一點」
 export const prizeSize = (laneWidth, tier) => laneWidth * 1.05 * (tier ? PRIZE_SCALE[tier] ?? 1 : 0.5);

@@ -7,7 +7,7 @@ import {
 import { animalCanvas, textColorFor } from './tint.js';
 import { loadArt, getArt, ANIMAL_LABEL, TIER_LABEL, PRIZE_URLS } from './art.js';
 import { createTrack, laneWidth, ROW_D } from './track.js';
-import { createCameraScript, TOTAL, idleFrame, scanX } from './camera-script.js';
+import { createCameraScript, TOTAL, idleFrame, scanPass } from './camera-script.js';
 import { createIdleLoop } from './prize-motion.js';
 import { namePlan } from './labels.js';
 import { getActive, replaceSetup, addSetup, removeSetup, entriesChanged } from '../../shared/js/roster.js';
@@ -75,7 +75,7 @@ let raf = 0;
 let current = null;
 // 開跑前獎品在上空亂飛,要一直畫。start() 一開始就 stop,不然兩條 rAF 搶著畫、獎品會抖。
 const idle = createIdleLoop(tSec => {
-  if (plan) placeIdleCamera(tSec - scanT0);
+  if (plan) placeIdleCamera(tSec);
   track.setPrizeFly(0, tSec);
   track.render();
   placeNames();
@@ -84,6 +84,8 @@ const idle = createIdleLoop(tSec => {
 // 開跑前的構圖:一律是起跑線的特寫,名字全名;框不下全部的人才左右來回掃(namePlan → frameLanes)。
 let plan = null;
 let scanT0 = 0;
+let pullT0 = null;     // 掃完(或被跳過)開始拉回全景的時間;null = 還在掃
+const PULL = 1.0;      // 拉回全景要幾秒
 let idlePose = null;   // 開跑那一刻的機位,演出從這裡接著推
 
 function idleOpts(extra = {}) {
@@ -98,9 +100,30 @@ function place(f) {
   idlePose = f;
 }
 
+// 開跑前:先 2 人特寫從左掃到右一趟(看清楚名字),掃完或點一下跳過 → 1 秒拉回整塊冰板、大字名牌收起來
 function placeIdleCamera(tSec) {
-  const frameLanes = plan.frameLanes;
-  place(idleFrame(idleOpts({ frameLanes, centerX: scanX(Math.max(0, tSec), { lanes: current.ladder.lanes, frameLanes, laneWidth: laneWidth(current.ladder.lanes) }) })));
+  const ladder = current.ladder;
+  const w = laneWidth(ladder.lanes);
+  const overview = idleFrame(idleOpts());
+  if (pullT0 === null) {
+    const pass = scanPass(Math.max(0, tSec - scanT0), { lanes: ladder.lanes, frameLanes: plan.frameLanes, laneWidth: w });
+    place(idleFrame(idleOpts({ frameLanes: plan.frameLanes, centerX: pass.x })));
+    if (pass.done) endScan(tSec);
+    return;
+  }
+  const k = Math.min(1, (tSec - pullT0) / PULL);
+  const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+  const from = scanEndPose;
+  place({ pos: from.pos.map((v, i) => v + (overview.pos[i] - v) * e), look: from.look.map((v, i) => v + (overview.look[i] - v) * e) });
+}
+
+let scanEndPose = null;
+function endScan(tSec = performance.now() / 1000) {
+  if (pullT0 !== null) return;
+  pullT0 = tSec;
+  scanEndPose = idlePose;
+  $('skipHint').hidden = true;
+  hideNames();   // 學生看過自己站哪了,之後會自己盯自己的棋子;換回底座前的小名牌
 }
 
 function planIdle() {
@@ -112,7 +135,9 @@ function planIdle() {
     longestChars: Math.max(1, ...current.players.map(p => [...p.name].length)),
   });
   scanT0 = performance.now() / 1000;
-  placeIdleCamera(0);
+  pullT0 = null;
+  $('skipHint').hidden = plan.frameLanes >= current.ladder.lanes;
+  placeIdleCamera(scanT0);
 }
 
 // 開跑前的大字名牌(HTML 疊在畫面上,字不會被透視縮小)。開跑後收起來,換回底座前的小名牌 ——
@@ -121,7 +146,7 @@ let nameEls = [];
 function placeNames() {
   const layer = $('nameLayer');
   // 演出中、結果卡打開時都不放(resize 也會叫到這裡)
-  if (!current || !plan || running || !$('results').hidden) return;
+  if (!current || !plan || pullT0 !== null || running || !$('results').hidden) return;
   const anchors = track.nameAnchors();
   if (nameEls.length !== anchors.length) {
     nameEls = current.players.map(p => {
@@ -178,6 +203,7 @@ function start() {
   if (running) return;
   idle.stop();
   hideNames();
+  $('skipHint').hidden = true;
   running = true;
   $('results').hidden = true;
   $('startBtn').disabled = true;
@@ -264,6 +290,8 @@ function finish(round) {
 }
 
 $('startBtn').addEventListener('click', start);
+// 掃描中點一下畫面就跳過,直接拉回全景
+$('track').addEventListener('click', () => { if (!running && pullT0 === null && plan) endScan(); });
 $('againBtn').addEventListener('click', () => {
   $('results').hidden = true;
   mascots.setPose('idle');
@@ -285,7 +313,7 @@ document.addEventListener('visibilitychange', () => {
 
 addEventListener('resize', () => {
   track.resize();
-  if (current && !running && $('results').hidden) planIdle();
+  if (current && !running && $('results').hidden && pullT0 === null) planIdle();
   track.render();
   placeNames();
 });
