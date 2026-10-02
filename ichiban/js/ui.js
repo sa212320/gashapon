@@ -535,7 +535,7 @@ export function createRevealer(els) {
 
     // 等使用者撕(2026-10-02 手指撕籤,grill 定案):手指從籤上任何地方往右拉,或按「撕開」。
     //   拉超過 3% 就算抽走 → onCommit(main.js 在這裡存檔),「取消」同時消失;之後拉回 0% 也一樣
-    //   放開停在原地,可以往回拉;到 70% 或按「撕開」→ resolve { from },由 tear(from) 自動撕完
+    //   放開停在原地,可以往回拉;到 90% 或按「撕開」→ resolve { from },由 tear(from) 自動撕完
     //   沒拉就按「取消」→ resolve 'cancel'
     // stopPropagation 是必要的,不是保險:這些元素都在 overlay 裡面,overlay 上掛著「播放中就快轉」。
     // 瀏覽器每呼叫完一個 listener 就清一次 microtask,resolve 的後續(playTear 會把 playing 設成 true)

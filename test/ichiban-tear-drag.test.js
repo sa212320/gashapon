@@ -7,7 +7,7 @@ import { createTearDrag, COMMIT_AT, AUTO_AT, RIP_STEP } from '../ichiban/js/tear
 const read = p => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 
 test('常數是定案的值', () => {
-  assert.deepEqual([COMMIT_AT, AUTO_AT, RIP_STEP], [0.03, 0.7, 0.08]);
+  assert.deepEqual([COMMIT_AT, AUTO_AT, RIP_STEP], [0.03, 0.9, 0.08]);   // AUTO_AT:2026-10-02 使用者 70% → 90%
 });
 
 test('單點(沒拉動)不算撕', () => {
@@ -53,14 +53,16 @@ test('撕紙聲:往前每 8% 一聲,往回不出聲,再往前又會響', () => {
   assert.equal(rips(0.20), 1);
 });
 
-test('到 70% 自動撕完;之後拖曳無效', () => {
+test('到 90% 自動撕完(89% 還不會);之後拖曳無效', () => {
   const d = createTearDrag();
   d.down(0);
-  const r = d.move(0.71);
+  assert.ok(!d.move(0.89).events.includes('auto'));
+  d.move(0);
+  const r = d.move(0.91);
   assert.ok(r.events.includes('auto') && r.events.includes('commit'));
   assert.equal(d.auto, true);
   assert.deepEqual(d.move(0.1).events, []);
-  assert.ok(Math.abs(d.progress - 0.71) < 1e-9);
+  assert.ok(Math.abs(d.progress - 0.91) < 1e-9);
 });
 
 test('按「撕開」:任何進度都直接 auto(還沒 commit 的也一起 commit);只算一次', () => {

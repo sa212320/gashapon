@@ -1,10 +1,10 @@
 // 一番賞手指撕籤的規則(2026-10-02 grill 定案)。不碰 DOM、不碰 three,node 測得到。
 //   進度 = 往右拉的距離 / 籤寬;放開停在原地,下一次從目前進度接著拉;可以往回拉
 //   拉超過 3% 就算抽走(commit,這時還看不到獎項),之後拉回 0% 也一樣 —— 不能偷看再取消
-//   往前每 8% 一聲撕紙聲,往回不出聲;到 70% 自動撕完(auto),之後拖曳無效
+//   往前每 8% 一聲撕紙聲,往回不出聲;到 90% 自動撕完(auto),之後拖曳無效
 //   「撕開」按鈕:任何進度都直接 auto
 export const COMMIT_AT = 0.03;
-export const AUTO_AT = 0.7;
+export const AUTO_AT = 0.9;   // 2026-10-02 使用者:70% → 90%
 export const RIP_STEP = 0.08;
 
 export function createTearDrag() {

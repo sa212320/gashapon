@@ -123,7 +123,7 @@ test('取消:票卡飛回去,不會丟例外', async () => {
 const tearEls = () => Object.fromEntries(EL_KEYS.map(k => [k, stubEl()]));
 const ev = (clientX = 0) => ({ clientX, pointerId: 1, button: 0, isPrimary: true, stopPropagation() {}, preventDefault() {} });
 
-test('waitForTear:手指拉超過 3% 呼叫 onCommit 一次、收起取消;拉到 70% resolve { from }', async () => {
+test('waitForTear:手指拉超過 3% 呼叫 onCommit 一次、收起取消;拉到 90% resolve { from }', async () => {
   await withDomStubs(async () => {
     const { createRevealer } = await import('../ichiban/js/ui.js');
     const els = tearEls();
@@ -138,9 +138,9 @@ test('waitForTear:手指拉超過 3% 呼叫 onCommit 一次、收起取消;拉�
     assert.equal(commits, 1);
     assert.equal(els.holdCancelBtn.hidden, true);
     assert.equal(els.tearHint.hidden, true);
-    els.tearCard.dispatch('pointermove', ev(340 * 0.75));
+    els.tearCard.dispatch('pointermove', ev(340 * 0.95));
     const res = await p;
-    assert.ok(Math.abs(res.from - 0.75) < 1e-9);
+    assert.ok(Math.abs(res.from - 0.95) < 1e-9);
     assert.equal(commits, 1);
     await r.tear(res.from);
   });
@@ -160,7 +160,7 @@ test('waitForTear:沒拉就按取消 → resolve cancel、不 commit', async () 
   });
 });
 
-test('waitForTear:撕到一半按撕開 → 從目前進度;連按、70% 同時按都只 resolve 一次', async () => {
+test('waitForTear:撕到一半按撕開 → 從目前進度;連按、90% 同時按都只 resolve 一次', async () => {
   await withDomStubs(async () => {
     const { createRevealer } = await import('../ichiban/js/ui.js');
     const els = tearEls();
