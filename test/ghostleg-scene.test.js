@@ -262,14 +262,15 @@ test('scanPass:兩個人時鏡頭不用移動,但還是停 2.4 秒讓大家看�
 
 // review Important:錯開兩排時名牌可以比車道寬,最左 / 最右的會凸出畫面被切掉
 import { clampTagX } from '../ghostleg/js/labels.js';
-// 名牌整塊放得下才顯示,放不下就先藏起來(等掃過去再出現)。往內夾的話會撞到隔壁的名牌(2026-10-02 實測)
-test('clampTagX:整塊在畫面裡(左右各留 6px)才回傳 x;凸出去或棋子在畫面外都回 null', () => {
+// 使用者:「左右掃描的時候名字碰到邊界會突然消失,而不是繼續滑過去」——
+// 名牌跟著棋子走、滑到邊緣就被畫面切掉;整塊離開畫面才藏(省得一直排版)。不往內推,所以不會撞到隔壁
+test('clampTagX:只要還有一部分在畫面裡就照棋子位置顯示(不夾、不推);整塊離開畫面才回 null', () => {
   assert.equal(clampTagX(195, 100, 390), 195);
-  assert.equal(clampTagX(56, 100, 390), 56);
-  assert.equal(clampTagX(50, 100, 390), null, '凸出左邊');
-  assert.equal(clampTagX(350, 100, 390), null, '凸出右邊');
-  assert.equal(clampTagX(-120, 200, 390), null);
-  assert.equal(clampTagX(390 + 120, 200, 390), null);
+  assert.equal(clampTagX(20, 100, 390), 20, '凸出左邊:照樣顯示,讓畫面切掉');
+  assert.equal(clampTagX(380, 100, 390), 380, '凸出右邊:照樣顯示');
+  assert.equal(clampTagX(-49, 100, 390), -49, '還剩一點點在畫面裡');
+  assert.equal(clampTagX(-51, 100, 390), null, '整塊離開左邊');
+  assert.equal(clampTagX(390 + 51, 100, 390), null, '整塊離開右邊');
 });
 
 // 鏡頭為了塞進安全範圍退遠時,畫面上的車道比 namePlan 估的窄,長名字會互相疊住 —— 每格照實際間距縮字

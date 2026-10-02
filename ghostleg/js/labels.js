@@ -51,11 +51,12 @@ export function namePlan({ viewW, viewH, lanes, longestChars }) {
   return { fontPx, rows, frameLanes };
 }
 
-// 名牌整塊放得下(左右各留 6px)才回傳 x,不然回 null 先藏起來,等鏡頭掃過去、棋子移進來再出現。
-// 往內夾回畫面的做法會撞到隔壁的名牌(2026-10-02 實測);棋子在畫面外時當然也是 null。
+// 名牌跟著棋子走,滑到邊緣就讓畫面(.name-layer 的 overflow: hidden)切掉;整塊離開畫面才回 null 藏起來。
+// 不夾回畫面、也不提早藏:往內夾會撞到隔壁的名牌,整塊放不下就藏則是「碰到邊界突然消失」(使用者)。
+// 名字一律縮到一條車道放得下(fitFont),所以照棋子位置擺,同一排不會互相疊。
 export function clampTagX(x, tagW, layerW) {
-  const half = tagW / 2 + 6;
-  return x - half >= 0 && x + half <= layerW ? x : null;
+  const half = tagW / 2;
+  return x + half > 0 && x - half < layerW ? x : null;
 }
 
 // 特寫的安全範圍(畫面高度的比例,給 camera-script.js idleFrame 的 safe):
