@@ -121,7 +121,9 @@ def cmd_build(args):
         webp(fit_height(Image.fromarray(cut_white(np.asarray(Image.open(OUT / rel).convert('RGB')))), 256), path, q=80)
         prize_lines.append(url_line(tier, f'../img/prizes/{tier}.webp', content_hash(path)))
     board = IMG / 'board.webp'
-    webp(Image.open(OUT / picks['board']).convert('RGB').resize((512, 896), Image.LANCZOS), board, q=78)
+    # 冰板原圖四周是白底:去背後才貼得上雪地,不會多出一圈白色梯形
+    cut = Image.fromarray(cut_white(np.asarray(Image.open(OUT / picks['board']).convert('RGB'))))
+    webp(cut.crop(cut.getbbox()).resize((512, 896), Image.LANCZOS), board, q=78)
     text = ART_JS.read_text()
     text = re.sub(r'export const ANIMAL_URLS = \{[^}]*\};', 'export const ANIMAL_URLS = {\n' + '\n'.join(animal_lines) + '\n};', text)
     text = re.sub(r'export const PRIZE_URLS = \{[^}]*\};', 'export const PRIZE_URLS = {\n' + '\n'.join(prize_lines) + '\n};', text)

@@ -8,6 +8,7 @@ import { tintedAnimal } from './tint.js';
 import { loadArt, getArt, ANIMAL_LABEL, TIER_LABEL, PRIZE_URLS } from './art.js';
 import { createTrack, laneWidth, ROW_D } from './track.js';
 import { createCameraScript, TOTAL } from './camera-script.js';
+import { createIdleLoop } from './prize-motion.js';
 import { getActive, replaceSetup, addSetup, removeSetup, entriesChanged } from '../../shared/js/roster.js';
 import { createDialogShell } from '../../shared/js/dialog.js';
 import { createAsk } from '../../shared/js/ask.js';
@@ -48,6 +49,7 @@ function render() {
   $('track').hidden = !ready;
   $('startBtn').disabled = !ready;
   $('soundIcon').setAttribute('href', `../shared/img/icons.svg#${prefs.soundOn ? 'sound-on' : 'sound-off'}`);
+  if (!ready) idle.stop();
   if (ready && !running) showIdle();
 }
 
@@ -56,6 +58,8 @@ function render() {
 let running = false;
 let raf = 0;
 let current = null;
+// 開跑前獎品在上空亂飛,要一直畫。start() 一開始就 stop,不然兩條 rAF 搶著畫、獎品會抖。
+const idle = createIdleLoop(tSec => { track.setPrizeFly(0, tSec); track.render(); });
 
 function newRound() {
   const setup = getActive(state);
@@ -77,12 +81,14 @@ function showIdle() {
     laneWidth: laneWidth(current.ladder.lanes), rowDepth: ROW_D,
   });
   script(0, []);
-  track.setPrizeFly(0);
-  track.render();
+  track.setPrizeFly(0, performance.now() / 1000);
+  track.render();   // 先畫一格:分頁在背景時 rAF 不跑,不能等閒置迴圈
+  idle.start();
 }
 
 function start() {
   if (running) return;
+  idle.stop();
   running = true;
   $('results').hidden = true;
   $('startBtn').disabled = true;
@@ -108,7 +114,7 @@ function start() {
     const elapsed = now - t0;
     // 先用上一格的位置擺鏡頭拿到進度,更新位置後再擺一次 —— 不然鏡頭永遠落後一格。
     const { run: t, fly } = script(elapsed, round.runners.map(s => s.position));
-    track.setPrizeFly(fly);
+    track.setPrizeFly(fly, now / 1000);
     const here = track.setProgress(t);
     script(elapsed, here);
     track.render();

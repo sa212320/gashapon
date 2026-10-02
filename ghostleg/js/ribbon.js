@@ -6,6 +6,8 @@
 
 export const snowWidth = laneW => laneW * 0.3;
 export const ribbonWidth = laneW => laneW * 0.17;
+// 雪路的深棕外框(每邊)。寫死成 0.07 的話,40 人(車道 0.34)時外框比雪還粗,整片冰板變成黑格子
+export const snowRim = laneW => laneW * 0.07;
 
 export function offsetRoute(pts, off) {
   const out = pts.map(p => ({ ...p }));

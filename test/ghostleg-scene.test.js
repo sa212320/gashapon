@@ -119,3 +119,10 @@ test('idleFrame:鏡頭在起跑線後上方,往前下方看', () => {
   assert.ok(f.pos[1] > f.look[1]);
   assert.ok(f.pos[2] > f.look[2]);
 });
+
+import { snowRim } from '../ghostleg/js/ribbon.js';
+
+test('雪路外框也跟著車道寬縮放:40 人時不會比雪路本身還粗', () => {
+  assert.ok(close(snowRim(1), 0.07));
+  assert.ok(snowRim(0.34) * 2 < snowWidth(0.34));
+});

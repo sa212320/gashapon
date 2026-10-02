@@ -9,7 +9,7 @@ export const PRIZE_URLS = {
   deluxe: new URL('../img/prizes/deluxe.webp?v=80310a54', import.meta.url).href,
   snow: new URL('../img/prizes/snow.webp?v=d1afd51e', import.meta.url).href,
 };
-export const BOARD_URL = new URL('../img/board.webp?v=e3b16d46', import.meta.url).href;
+export const BOARD_URL = new URL('../img/board.webp?v=7c49e668', import.meta.url).href;
 
 export const ANIMAL_LABEL = { snowman: '雪人', rabbit: '兔子', penguin: '企鵝', reindeer: '馴鹿', cat: '貓', dog: '狗' };
 export const TIER_LABEL = { plain: '一般', chest: '大獎', deluxe: '頭獎' };
