@@ -35,6 +35,8 @@
 
 <main class="stage">
   <canvas class="track" id="track"></canvas>
+  <!-- 開跑前的大字名牌:投影到黑板時後排也要看得到(3D 名牌會跟著透視縮小) -->
+  <div class="name-layer" id="nameLayer" aria-hidden="true"></div>
   <p class="loading" id="loading">載入中…</p>
 
   <div class="empty-state" id="emptyState" hidden>

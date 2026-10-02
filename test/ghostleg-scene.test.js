@@ -146,3 +146,35 @@ test('人多時名牌一前一後錯開(不是一高一低,高了會擋到棋子
   assert.ok(tagPlace(w, 1).z > tagPlace(w, 0).z + TAG_H * w * 0.9);
   assert.equal(tagPlace(w, 1).y, tagPlace(w, 0).y);
 });
+
+import { overlayLayout } from '../ghostleg/js/labels.js';
+
+// 開跑前疊在畫面上的大字名牌(2026-10-02:投影到黑板,後排學生要看得到;開跑後學生自己盯自己的棋子)
+test('overlayLayout:人少時字高約畫面高度 3%(1080p ≈ 32px),不用錯開', () => {
+  const l = overlayLayout({ viewH: 1080, laneSpacingPx: 220, lanes: 6 });
+  assert.ok(l.fontPx >= 30 && l.fontPx <= 34, `${l.fontPx}`);
+  assert.equal(l.rows, 1);
+});
+
+test('overlayLayout:手機上也至少 16px', () => {
+  assert.ok(overlayLayout({ viewH: 640, laneSpacingPx: 50, lanes: 6 }).fontPx >= 16);
+});
+
+test('overlayLayout:車道太窄就錯開成 2~3 排,每個名字可用寬度 = 排數 × 車道', () => {
+  const two = overlayLayout({ viewH: 1080, laneSpacingPx: 80, lanes: 12 });
+  assert.equal(two.rows, 2);
+  assert.ok(Math.abs(two.maxWidthPx - 80 * 2 * 0.95) < 1e-9);
+  const three = overlayLayout({ viewH: 1080, laneSpacingPx: 40, lanes: 40 });
+  assert.equal(three.rows, 3);
+});
+
+test('overlayLayout:手機 7 人時「玩家7」這種 3 個字的名字放得下(扣掉內距後至少 3 個字寬)', () => {
+  const l = overlayLayout({ viewH: 640, laneSpacingPx: 37, lanes: 7 });
+  const padding = l.fontPx * 0.7 + 6;   // CSS:左右各 .35em + 框 3px×2
+  assert.ok(l.maxWidthPx - padding >= l.fontPx * 3, `${l.maxWidthPx} - ${padding} < ${l.fontPx * 3}`);
+});
+
+test('overlayLayout:字不能比可用寬度能放下 2 個字還大(40 人時自動縮字)', () => {
+  const l = overlayLayout({ viewH: 1080, laneSpacingPx: 20, lanes: 40 });
+  assert.ok(l.fontPx * 2 <= l.maxWidthPx + 1e-9, `${l.fontPx} × 2 > ${l.maxWidthPx}`);
+});

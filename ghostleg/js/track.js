@@ -10,7 +10,7 @@ import { pathOf } from './race.js';
 import { getArt } from './art.js';
 import { buildBoard, buildSnowPaths, ribbonGeometry, buildStandee, buildNameTag, buildPrizeSprite, SNOW_H } from './scene-parts.js';
 import { wanderOffset } from './prize-motion.js';
-import { tagPlace } from './labels.js';
+import { tagPlace, BASE_R } from './labels.js';
 
 export const ROW_D = 1.35;   // 每一列的縱深
 
@@ -202,6 +202,25 @@ export function createTrack(canvas) {
     });
   }
 
+  // 每個立牌底座正前方在畫面上的位置(canvas 的 CSS px)—— 開跑前的大字名牌(HTML)貼在這裡
+  const v = new THREE.Vector3();
+  function nameAnchors() {
+    if (!round) return [];
+    const w = laneWidth(round.ladder.lanes);
+    const cw = canvas.clientWidth || 1;
+    const ch = canvas.clientHeight || 1;
+    camera.updateMatrixWorld();
+    return round.runners.map(r => {
+      v.set(r.position.x, SNOW_H, r.position.z + BASE_R * w * 1.16).project(camera);
+      return { x: (v.x + 1) / 2 * cw, y: (1 - v.y) / 2 * ch };
+    });
+  }
+
+  // 開跑前用大字名牌時,3D 的小名牌先收起來(不然同一個名字出現兩次)
+  function setTagsVisible(on) {
+    for (const t of round?.tags ?? []) t.visible = on;
+  }
+
   function resize() {
     const w = canvas.clientWidth || 1;
     const h = canvas.clientHeight || 1;
@@ -220,6 +239,8 @@ export function createTrack(canvas) {
     build,
     setProgress,
     setPrizeFly,
+    nameAnchors,
+    setTagsVisible,
     resize,
     render,
     dispose() {
