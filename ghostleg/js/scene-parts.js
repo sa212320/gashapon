@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { snowWidth, snowRim, ribbonWidth, offsetRoute, roundCorners, cutAt, stripData } from './ribbon.js';
 import { tagLift, tagFontSize } from './labels.js';
-import { tintedAnimal, textColorFor } from './tint.js';
+import { animalCanvas, textColorFor } from './tint.js';
 import { boardWidth } from './camera-script.js';
 
 const INK = 0x574239;
@@ -75,19 +75,23 @@ export function ribbonGeometry(route, dist, laneWidth) {
   return geo;
 }
 
-// 桌遊立牌:染色動物(billboard)+ 玩家色小圓座(外圈深棕)
+// 桌遊立牌:動物(原色,billboard)站在戰棋底座上 —— 加厚、上窄下寬的斜邊圓座,底座是玩家色、底下一圈深棕
 export function buildStandee(player, laneWidth, image) {
   const g = new THREE.Group();
-  const c = tintedAnimal(image, player.color, 256);
+  const r = laneWidth * 0.32;
+  const baseH = laneWidth * 0.12;
+  const rimDisk = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.16, r * 1.16, baseH * 0.35, 32), new THREE.MeshBasicMaterial({ color: INK }));
+  rimDisk.position.y = SNOW_H + baseH * 0.175;
+  const color = new THREE.Color(player.color);
+  const top = new THREE.MeshBasicMaterial({ color });
+  const side = new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(0.78) });   // 側面暗一階,平塗也看得出厚度
+  const disk = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.1, baseH, 32), [side, top, side]);
+  disk.position.y = SNOW_H + baseH * 0.5 + baseH * 0.2;
+  const c = animalCanvas(image, 256);
   const h = laneWidth * 1.2;
   const s = sprite(canvasTexture(c), h * (c.width / c.height), h);
   s.center.set(0.5, 0);           // 腳踩在底座上
-  s.position.y = SNOW_H + 0.06;
-  const r = laneWidth * 0.3;
-  const rimDisk = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.12, r * 1.12, 0.05, 28), new THREE.MeshBasicMaterial({ color: INK }));
-  rimDisk.position.y = SNOW_H + 0.025;
-  const disk = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.06, 28), new THREE.MeshBasicMaterial({ color: new THREE.Color(player.color) }));
-  disk.position.y = SNOW_H + 0.04;
+  s.position.y = SNOW_H + baseH * 1.2;
   g.add(rimDisk, disk, s);
   g.userData.sprite = s;
   return g;

@@ -6,8 +6,9 @@ import { ANIMALS } from '../ghostleg/js/ladder.js';
 
 const raw = (players, prizes = []) => ({ id: 'gs1', name: 'x', players, prizes });
 
-test('舊存檔沒有 animal:照順序補 ANIMALS[i % 6]', () => {
-  const s = sanitizeSetup(raw(Array.from({ length: 8 }, (_, i) => ({ id: `p${i}`, name: `n${i}`, color: '#E4572E' }))));
+test('舊存檔沒有 animal:照順序補 ANIMALS[i % ANIMALS.length]', () => {
+  const n = ANIMALS.length + 2;
+  const s = sanitizeSetup(raw(Array.from({ length: n }, (_, i) => ({ id: `p${i}`, name: `n${i}`, color: '#E4572E' }))));
   assert.deepEqual(s.players.map(p => p.animal), [...ANIMALS, ANIMALS[0], ANIMALS[1]]);
 });
 
@@ -28,8 +29,8 @@ test('舊存檔沒有 tier 或 tier 不合法:補 plain;合法的保留', () => 
   assert.deepEqual(s.prizes.map(p => p.tier), ['plain', 'plain', 'chest']);
 });
 
-test('種子資料:6 個人各配一種動物,獎項都是 plain', () => {
+test('種子資料:6 個人各配一種不同的動物,獎項都是 plain', () => {
   const setup = seedState().setups[0];
-  assert.deepEqual(setup.players.map(p => p.animal), [...ANIMALS]);
+  assert.deepEqual(setup.players.map(p => p.animal), ANIMALS.slice(0, 6));
   assert.ok(setup.prizes.every(p => p.tier === 'plain'));
 });

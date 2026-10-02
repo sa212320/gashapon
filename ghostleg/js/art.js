@@ -11,7 +11,10 @@ export const PRIZE_URLS = {
 };
 export const BOARD_URL = new URL('../img/board.webp?v=7c49e668', import.meta.url).href;
 
-export const ANIMAL_LABEL = { snowman: '雪人', rabbit: '兔子', penguin: '企鵝', reindeer: '馴鹿', cat: '貓', dog: '狗' };
+export const ANIMAL_LABEL = {
+  snowman: '雪人', rabbit: '兔子', penguin: '企鵝', reindeer: '馴鹿', cat: '貓',
+  dog: '狗', bear: '北極熊', seal: '海豹', owl: '雪鴞', hamster: '倉鼠',
+};
 export const TIER_LABEL = { plain: '一般', chest: '大獎', deluxe: '頭獎' };
 
 let loaded = { animals: {}, prizes: {}, board: null };

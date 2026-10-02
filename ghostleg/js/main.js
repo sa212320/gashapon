@@ -4,7 +4,7 @@ import {
   createPlayer, createGhostPrize, pickColor, lineup, bottomSlots,
   buildLadder, assign, MAX_PLAYERS, ANIMALS, TIERS, pickAnimal,
 } from './ladder.js';
-import { tintedAnimal } from './tint.js';
+import { animalCanvas } from './tint.js';
 import { loadArt, getArt, ANIMAL_LABEL, TIER_LABEL, PRIZE_URLS } from './art.js';
 import { createTrack, laneWidth, ROW_D } from './track.js';
 import { createCameraScript, TOTAL } from './camera-script.js';
@@ -189,18 +189,20 @@ let draft = null;
 // 設定清單裡同一時間只開一個選擇器:{ kind: 'animal' | 'tier', index }
 let openPicker = null;
 
-function pickButton(label, child, onClick) {
+function pickButton(label, child, onClick, color = null) {
   const b = document.createElement('button');
   b.type = 'button';
   b.className = 'edit-row__pick';
+  // 動物不染色了,玩家色放在小圖的底上,設定裡才看得到「這個人 = 這個顏色 + 這隻動物」
+  if (color) b.style.background = color;
   b.setAttribute('aria-label', label);
   b.append(child);
   b.addEventListener('click', e => { e.stopPropagation(); onClick(); });
   return b;
 }
 
-function animalThumb(animal, color) {
-  const c = tintedAnimal(getArt().animals[animal] ?? null, color, 96);
+function animalThumb(animal) {
+  const c = animalCanvas(getArt().animals[animal] ?? null, 96);
   const img = document.createElement('img');
   img.className = 'edit-row__thumb';
   img.alt = '';
@@ -261,10 +263,10 @@ function renderPlayers() {
     const dot = document.createElement('span');
     dot.className = 'edit-row__dot';
     dot.style.background = p.color;
-    const pick = pickButton(`${p.name || '玩家'}的動物:${ANIMAL_LABEL[p.animal]}`, animalThumb(p.animal, p.color), () => {
+    const pick = pickButton(`${p.name || '玩家'}的動物:${ANIMAL_LABEL[p.animal]}`, animalThumb(p.animal), () => {
       openPicker = openPicker?.kind === 'animal' && openPicker.index === i ? null : { kind: 'animal', index: i };
       renderPlayers();
-    });
+    }, p.color);
     const name = document.createElement('input');
     name.className = 'field__input edit-row__name';
     name.value = p.name;
@@ -278,11 +280,11 @@ function renderPlayers() {
     li.append(dot, pick, name, del);
     if (openPicker?.kind !== 'animal' || openPicker.index !== i) return [li];
     return [li, pickerRow(ANIMALS.map(a => {
-      const b = pickButton(ANIMAL_LABEL[a], animalThumb(a, p.color), () => {
+      const b = pickButton(ANIMAL_LABEL[a], animalThumb(a), () => {
         draft.players[i].animal = a;
         openPicker = null;
         renderPlayers();
-      });
+      }, p.color);
       b.classList.toggle('is-current', a === p.animal);
       return b;
     }))];

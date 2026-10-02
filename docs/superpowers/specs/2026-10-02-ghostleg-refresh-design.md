@@ -6,9 +6,9 @@
 
 ## 確認過的模型(原文,不要改寫)
 
-- **實體**:`Player { id, name, color, animal }`(animal ∈ `snowman / rabbit / penguin / reindeer / cat / dog`);`GhostPrize { id, name, count, tier }`(tier ∈ `plain / chest / deluxe`);`Slot { prizeId | null, name }`(null = 銘謝惠顧)
+- **實體**:`Player { id, name, color, animal }`(animal ∈ `snowman / rabbit / penguin / reindeer / cat / dog / bear / seal / owl / hamster`,2026-10-02 檢查點 3 改成 10 種);`GhostPrize { id, name, count, tier }`(tier ∈ `plain / chest / deluxe`);`Slot { prizeId | null, name }`(null = 銘謝惠顧)
 - **數量**:Setup 1:N Player、1:N GhostPrize;Player 1:1 animal(存在 Player,可重複);GhostPrize 1:1 tier(存在 prize);GhostPrize 1:N Slot(依 count 展開)
-- **看到 vs 存下**:染色立牌 / 名牌 / 結果小圖都由 animal+color 或 tier 即時畫,不存圖;新增玩家自動配最少用的動物;舊資料照順序補動物、tier 補 plain;結果卡依等級排序只是顯示,不改存檔順序
+- **看到 vs 存下**:立牌(動物原色 + 玩家色戰棋底座)/ 名牌 / 結果小圖都由 animal+color 或 tier 即時畫,不存圖;**動物本身不染色**(2026-10-02 檢查點 3:使用者選吉祥物畫風 B,玩家色只在底座、名牌、緞帶);新增玩家自動配最少用的動物;舊資料照順序補動物、tier 補 plain;結果卡依等級排序只是顯示,不改存檔順序
 - **三個最可能的錯(錯誤版本,看到就要警覺)**:
   - ❌「動物每局依車道 / 順序重新分配」—— 動物存在玩家身上,跟著人走
   - ❌「等級從 count 或清單順序推算」—— tier 是每個獎項手動選的欄位,預設 plain
@@ -21,8 +21,8 @@
 | 梯子底板 | 冰板:生成的冰面貼圖(z_image t2i,seed 11,見下方提示詞),雪邊外框 |
 | 梯子的路 | 雪路:冰面上鼓起的白雪帶 + 深棕粗外框;寬度隨車道寬縮放 |
 | 走過的軌跡 | 細緞帶疊在雪路上(比預覽的 0.13 粗),轉角圓角;橫槓上兩人的緞帶並排 |
-| 玩家 | 桌遊立牌:2D 動物圖(billboard)+ 3D 小圓底座,底座也是玩家色 |
-| 動物 | 雪人、兔子、企鵝、馴鹿、貓、狗;Q 版全身正面站姿,頭身比約 1:1;**輪廓線以內整隻染玩家色**(雪人也是),只有深棕線條 / 眼睛不變 |
+| 玩家 | 桌遊立牌:2D 動物圖(billboard)+ 3D 戰棋底座(加厚、斜邊),**底座是玩家色** |
+| 動物 | 雪人、兔子、企鵝、馴鹿、貓、狗、北極熊、海豹、雪鴞、倉鼠(10 種);Q 版全身正面站姿;**跟吉祥物同一套畫風、自己的毛色,不染色**(2026-10-02 檢查點 3 推翻原本的「整隻染色」:染色版跟狐狸不搭) |
 | 名牌 | 只有名字(不要編號);玩家色底,字色依底色亮度白 / 深棕;超過 8 人時相鄰一高一低 |
 | 獎品(這輪 2D) | 一般 = 素面冰盒(保留冰藍蝴蝶結,使用者明確允許);大獎 = 冰寶箱;頭獎 = 豪華發光冰寶箱;銘謝惠顧 = 雪球(比盒子小) |
 | 獎品動態 | 開跑前在上空亂飛(左右繞、上下浮、晃動,不只上下);按開始後幅度收斂、飛到終點各格 |

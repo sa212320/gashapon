@@ -61,3 +61,18 @@ test('art.js 引用的圖都存在、網址都帶 8 碼雜湊,而且三種獎品
   for (const k of ['plain', 'chest', 'deluxe', 'snow']) assert.match(artJs, new RegExp(`${k}: new URL\\('\\.\\./img/prizes/${k}\\.webp`));
   assert.match(artJs, /BOARD_URL = new URL\('\.\.\/img\/board\.webp\?v=/);
 });
+
+test('動物不染色(2026-10-02 檢查點 3):只有 animalCanvas,沒有 multiply 染色', async () => {
+  const tint = await import('../ghostleg/js/tint.js');
+  assert.equal(typeof tint.animalCanvas, 'function');
+  assert.equal(tint.tintedAnimal, undefined);
+  const src = readFileSync(new URL('../ghostleg/js/tint.js', import.meta.url), 'utf8');
+  assert.ok(!/multiply/.test(src));
+  for (const f of ['main.js', 'scene-parts.js']) {
+    assert.ok(!/tintedAnimal/.test(readFileSync(new URL(`../ghostleg/js/${f}`, import.meta.url), 'utf8')), f);
+  }
+});
+
+test('設定的動物小圖放在玩家色的底上(玩家色不在動物身上了,要在旁邊看得到)', () => {
+  assert.match(mainJs, /b\.style\.background = color/);
+});

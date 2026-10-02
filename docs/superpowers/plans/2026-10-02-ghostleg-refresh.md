@@ -12,9 +12,9 @@
 
 ## 確認過的模型(原文,不要改寫)
 
-- **實體**:`Player { id, name, color, animal }`(animal ∈ `snowman / rabbit / penguin / reindeer / cat / dog`);`GhostPrize { id, name, count, tier }`(tier ∈ `plain / chest / deluxe`);`Slot { prizeId | null, name }`(null = 銘謝惠顧)
+- **實體**:`Player { id, name, color, animal }`(animal ∈ `snowman / rabbit / penguin / reindeer / cat / dog / bear / seal / owl / hamster`,2026-10-02 檢查點 3 改成 10 種);`GhostPrize { id, name, count, tier }`(tier ∈ `plain / chest / deluxe`);`Slot { prizeId | null, name }`(null = 銘謝惠顧)
 - **數量**:Setup 1:N Player、1:N GhostPrize;Player 1:1 animal(存在 Player,可重複);GhostPrize 1:1 tier(存在 prize);GhostPrize 1:N Slot(依 count 展開)
-- **看到 vs 存下**:染色立牌 / 名牌 / 結果小圖都由 animal+color 或 tier 即時畫,不存圖;新增玩家自動配最少用的動物;舊資料照順序補動物、tier 補 plain;結果卡依等級排序只是顯示,不改存檔順序
+- **看到 vs 存下**:立牌(動物原色 + 玩家色戰棋底座)/ 名牌 / 結果小圖都由 animal+color 或 tier 即時畫,不存圖;**動物本身不染色**(2026-10-02 檢查點 3:使用者選吉祥物畫風 B,玩家色只在底座、名牌、緞帶);新增玩家自動配最少用的動物;舊資料照順序補動物、tier 補 plain;結果卡依等級排序只是顯示,不改存檔順序
 - **三個最可能的錯(錯誤版本,看到就要警覺)**:
   - ❌「動物每局依車道 / 順序重新分配」—— 動物存在玩家身上,跟著人走
   - ❌「等級從 count 或清單順序推算」—— tier 是每個獎項手動選的欄位,預設 plain

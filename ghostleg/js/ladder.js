@@ -27,8 +27,10 @@ export function pickColor(existing) {
 }
 
 // 玩家的動物(2026-10-02 改版)。存在玩家身上、跟著人走 —— 小孩會認「我是兔子」,
-// 每局換來換去就沒意義了。6 種給最多 40 人用,會重複,名字才是識別。
-export const ANIMALS = Object.freeze(['snowman', 'rabbit', 'penguin', 'reindeer', 'cat', 'dog']);
+// 每局換來換去就沒意義了。動物畫成吉祥物同一套畫風、不染色(染色版跟狐狸不搭),
+// 玩家色在底座、名牌、緞帶上;所以同一種動物看起來一模一樣,種類多一點(10 種)人少時才不會撞。
+// 最多 40 人一定會重複,名字才是識別。新增種類只能加在尾端 —— 舊存檔是照這個順序補的。
+export const ANIMALS = Object.freeze(['snowman', 'rabbit', 'penguin', 'reindeer', 'cat', 'dog', 'bear', 'seal', 'owl', 'hamster']);
 
 export function pickAnimal(existing) {
   const used = new Map(ANIMALS.map(a => [a, 0]));

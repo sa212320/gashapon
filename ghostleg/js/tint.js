@@ -1,9 +1,8 @@
-// 動物立牌的染色。生成圖是「白身體 + 深棕外框」,multiply 上玩家色之後
-// 白的地方變成玩家色、深棕幾乎不變,再用原圖的 alpha 剪回輪廓。
-// 同一組 (圖, 顏色, 尺寸) 只畫一次 —— 40 個人、設定小圖、結果卡都共用。
+// 動物立牌的圖。2026-10-02 檢查點 3:動物畫成吉祥物同一套畫風、自己的毛色,**不染色**
+// (原本「白身體疊上玩家色」的做法跟狐狸不搭,使用者打槍)。玩家色改在底座、名牌、緞帶上。
+// 同一組 (圖, 尺寸) 只畫一次 —— 40 個人、設定小圖、結果卡都共用。
 const INK = '#574239';
 const cache = new Map();
-
 // WCAG 相對亮度與對比。白字、深棕字各算一次,挑對比高的那個 ——
 // 固定亮度閾值會在中間調(例如 #3FA7A0 青綠)選錯,白字只剩 2.8:1。
 function luminance(hex) {
@@ -18,7 +17,7 @@ export function textColorFor(hex) {
   return contrast(L, luminance('#FFFFFF')) >= contrast(L, luminance(INK)) ? '#FFFFFF' : INK;
 }
 
-// 圖還沒載完 / 載不到時的暫代:白色圓頭小人(跟舊版同型),一樣走染色
+// 圖還沒載完 / 載不到時的暫代:白色圓頭小人(跟舊版同型)
 function placeholder(size) {
   const c = document.createElement('canvas');
   c.width = size;
@@ -38,23 +37,14 @@ function placeholder(size) {
   return c;
 }
 
-export function tintedAnimal(img, color, size = 256) {
-  const key = `${img?.src ?? 'placeholder'}|${color}|${size}`;
+export function animalCanvas(img, size = 256) {
+  const key = `${img?.src ?? 'placeholder'}|${size}`;
   if (cache.has(key)) return cache.get(key);
   const src = img ?? placeholder(size);
   const c = document.createElement('canvas');
-  const h = size;
-  const w = Math.round(size * (src.width / src.height));
-  c.width = w;
-  c.height = h;
-  const ctx = c.getContext('2d');
-  ctx.drawImage(src, 0, 0, w, h);
-  ctx.globalCompositeOperation = 'multiply';
-  ctx.fillStyle = color;
-  ctx.fillRect(0, 0, w, h);
-  ctx.globalCompositeOperation = 'destination-in';
-  ctx.drawImage(src, 0, 0, w, h);
-  ctx.globalCompositeOperation = 'source-over';
+  c.height = size;
+  c.width = Math.round(size * (src.width / src.height));
+  c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
   cache.set(key, c);
   return c;
 }

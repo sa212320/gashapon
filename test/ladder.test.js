@@ -197,7 +197,7 @@ test('assign 把結果對上玩家與格子', () => {
 /* ---------- 動物與獎品等級(2026-10-02 改版) ---------- */
 
 test('ANIMALS / TIERS 是定案的那幾個', () => {
-  assert.deepEqual([...ANIMALS], ['snowman', 'rabbit', 'penguin', 'reindeer', 'cat', 'dog']);
+  assert.deepEqual([...ANIMALS], ['snowman', 'rabbit', 'penguin', 'reindeer', 'cat', 'dog', 'bear', 'seal', 'owl', 'hamster']);
   assert.deepEqual([...TIERS], ['plain', 'chest', 'deluxe']);
 });
 
