@@ -70,7 +70,7 @@
   - 線寬、字級依卡片短邊等比例,28px 寬仍可讀
   - 不透明:底下的獎項不能透出來(現有規則)
 - `drawPrize(ctx, { color, letter, name, bonus })`:色帶結構保留;左側徽章(冰晶外框圓章,外框賞別色,中間大字母;bonus 金色 + 🌟);右側白字名稱,量字寬過長縮字級;疊同一張紙紋。`badge` 文字參數改成 `letter`(呼叫端 `ui.js` 與 `curl.js` 一起改;螢幕閱讀器文字 `cardBadge` 仍用 `meta.label`)。
-- 印章頭:生成的灰階圖在載入時轉成「白色 + alpha」的 offscreen canvas 快取,畫時 `drawImage`。
+- 印章頭:生成「白底黑色印章圖」,由工具在 build 時烘成「白色 + alpha」webp(同扭蛋殼花紋的做法),執行時直接 `drawImage`。
 - `loadCardArt()`:預載紙紋與兩顆頭,回傳 promise;未就緒時 `drawFace` / `drawPrize` 畫沒有紙紋與頭的版本;就緒後通知桌面與大卡重畫。
 - `curl.js`:只改 `setCard` 傳的參數(`faceColor` → `drawFace` 的 `{ color, no, critter }`),捲曲與紙背(底色壓深平塗)不動。沒有 WebGL 的退路 `drawStatic` 一樣走 `drawPrize`。
 
@@ -85,7 +85,7 @@
 ### 4. 素材(`tools/mascot-gen/`)
 
 - 新增 `ichiban.py` + `ichiban_prompts.json`(照 `gashapon.py` 寫法):
-  - 紙紋:z_image t2i,灰階可無縫拼接霧面紙纖維,壓小 webp
+  - 紙紋:z_image t2i 一張 1024×448 灰階霧面紙纖維,整張拉伸鋪滿票卡(不需無縫拼接),壓淡後存 webp
   - 角色頭:狐狸 / 白鼬各 3 版,正面 Q 版粗輪廓、`mouths closed`、綠幕;每角色固定 seed;去背後轉印章 mask
 - 候選畫在冷色卡上(小卡 + 大卡)截圖給使用者挑,挑完才接進程式
 - 輸出到 `ichiban/img/`,網址帶 `?v=<sha1>`;加進首頁 `gashapon/img/preload.json`(`write_preload_manifest()`)+ 一番賞頁啟動時 `loadCardArt()` 預熱
