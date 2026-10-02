@@ -56,8 +56,8 @@ body {
 }
 .pile {
   display: grid;
-  grid-template-columns: repeat(var(--cols, 5), var(--card-w, 56px));
-  grid-auto-rows: var(--card-h, 127px);
+  grid-template-columns: repeat(var(--cols, 3), var(--card-w, 96px));
+  grid-auto-rows: var(--card-h, 42px);
   gap: var(--gap, 12px);
   justify-content: center;
   align-content: start;
@@ -67,7 +67,7 @@ body {
   height: 100%;
   padding: 0;
   border: 0;
-  border-radius: 12% / 5%;
+  border-radius: 5% / 12%;
   background: transparent;
   cursor: pointer;
 }

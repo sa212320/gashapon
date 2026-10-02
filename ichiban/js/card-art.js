@@ -100,23 +100,17 @@ export function loadCardArt(load = loadImage) {
 }
 
 /* ---------- 共用座標 ---------- */
-// 票卡的一切都畫在「橫式票卡座標」(CARD_W×CARD_H)裡,再對應進呼叫者給的 w×h 框。
-// portrait = 順時針轉 90°:左緣的半圓耳轉到上面。w:h 必須是 15:34(直)或 34:15(橫),
-// 兩軸縮放才會一致 —— desk-layout 的 CARD_ASPECT 保證這件事。
-function enterCardSpace(ctx, orientation, w, h) {
-  if (orientation === 'portrait') {
-    ctx.translate(w, 0);
-    ctx.rotate(Math.PI / 2);
-    ctx.scale(h / CARD_W, w / CARD_H);
-  } else {
-    ctx.scale(w / CARD_W, h / CARD_H);
-  }
+// 票卡的一切都畫在票卡座標(CARD_W×CARD_H)裡,再縮放進呼叫者給的 w×h 框。
+// 桌上小卡跟大卡一模一樣、都是橫的,只差大小(2026-10-02 使用者更正:原本桌上直放)。
+// w:h 必須是 34:15 —— desk-layout 的 CARD_ASPECT 保證這件事。
+function enterCardSpace(ctx, w, h) {
+  ctx.scale(w / CARD_W, h / CARD_H);
 }
 
 // 只建路徑(路徑在建立時就套用了當下的變換,restore 之後還在)。桌面拿它畫影子。
-export function traceTicket(ctx, { orientation = 'landscape', w = CARD_W, h = CARD_H } = {}) {
+export function traceTicket(ctx, { w = CARD_W, h = CARD_H } = {}) {
   ctx.save();
-  enterCardSpace(ctx, orientation, w, h);
+  enterCardSpace(ctx, w, h);
   traceShape(ctx);
   ctx.restore();
 }
@@ -178,18 +172,12 @@ function snowPrint(ctx, seed, ink) {
   ctx.setLineDash([]);
 }
 
+// 號碼:白色印刷的大數字,跟雪花、角色頭同一種白(2026-10-02 使用者選 B;原本白圓圈 + 粗棕框太重)。
 function drawNumber(ctx, no, x, y, r) {
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fillStyle = '#fff';
-  ctx.fill();
-  ctx.lineWidth = Math.max(1, r * 0.14);
-  ctx.strokeStyle = INK;
-  ctx.stroke();
   const text = no === '★' ? '🌟' : String(no);
-  const size = r * (text.length >= 3 ? 0.78 : 1.1);
-  ctx.fillStyle = INK;
+  const size = r * (text.length >= 3 ? 1.15 : 1.6);
+  ctx.save();
+  ctx.fillStyle = '#fff';
   ctx.font = `900 ${size.toFixed(1)}px ${FACE}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -211,13 +199,12 @@ function drawHead(ctx, critter, x, y, size) {
 }
 
 /* ---------- 蓋著的那一面 ---------- */
-// 桌上小卡(portrait)跟大卡(landscape)共用這一支 —— 兩邊長一樣,只差比例。
+// 桌上小卡跟大卡共用這一支 —— 兩邊長一樣,只差大小。
 // 不清畫布:桌面是一張 canvas 畫很多張。整面不透明,底下的獎項不能透出來。
-// 號碼跟頭不跟著轉,永遠正立:直卡上下排、橫卡左右排。
-export function drawFace(ctx, { color, no, critter, orientation = 'landscape', w = CARD_W, h = CARD_H }) {
+export function drawFace(ctx, { color, no, critter, w = CARD_W, h = CARD_H }) {
   const ink = INK_WHITE;
   ctx.save();
-  enterCardSpace(ctx, orientation, w, h);
+  enterCardSpace(ctx, w, h);
   traceShape(ctx);
   ctx.fillStyle = color;
   ctx.fill();
@@ -232,12 +219,8 @@ export function drawFace(ctx, { color, no, critter, orientation = 'landscape', w
   ctx.stroke();
   ctx.restore();
 
-  const portrait = orientation === 'portrait';
-  const s = Math.min(w, h);
-  const [nx, ny] = portrait ? [w * 0.5, h * 0.34] : [w * 0.36, h * 0.5];
-  const [hx, hy] = portrait ? [w * 0.5, h * 0.66] : [w * 0.66, h * 0.5];
-  drawNumber(ctx, no, nx, ny, s * 0.27);
-  drawHead(ctx, critter, hx, hy, s * 0.5);
+  drawNumber(ctx, no, w * 0.36, h * 0.5, h * 0.27);
+  drawHead(ctx, critter, w * 0.66, h * 0.5, h * 0.5);
 }
 
 /* ---------- 獎項那一面 ---------- */

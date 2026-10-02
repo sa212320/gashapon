@@ -56,14 +56,14 @@ export function createDeskView({ deskEl, pileEl, canvasEl, emptyStateEl, onPick 
   // 每張卡先畫成一張小圖(含影子),捲動時只把小圖貼上去 —— 每格都重畫整張票卡
   // (雪花、號碼、頭)在手機上會跟不上捲動(review 2026-10-02)。卡片尺寸、dpr、
   // 素材載好時整批作廢重畫。
-  const SHADOW = 0.05;           // 影子往下偏移,卡寬的比例
+  const SHADOW = 0.1;            // 影子往下偏移,卡高的比例
   let sprites = new Map();
   let spriteKey = '';
 
   function spriteFor(no, cardW, cardH, dpr) {
     let s = sprites.get(no);
     if (s) return s;
-    const pad = Math.ceil(Math.max(1.5, cardW * SHADOW));
+    const pad = Math.ceil(Math.max(1.5, cardH * SHADOW));
     s = document.createElement('canvas');
     s.width = Math.ceil(cardW * dpr);
     s.height = Math.ceil((cardH + pad) * dpr);
@@ -72,13 +72,12 @@ export function createDeskView({ deskEl, pileEl, canvasEl, emptyStateEl, onPick 
     // 跟以前 box-shadow 一樣的下方實影
     ctx.save();
     ctx.translate(0, pad);
-    traceTicket(ctx, { orientation: 'portrait', w: cardW, h: cardH });
+    traceTicket(ctx, { w: cardW, h: cardH });
     ctx.fillStyle = 'rgba(87, 66, 57, .35)';
     ctx.fill();
     ctx.restore();
     drawFace(ctx, {
-      color: faceColorFor(no), no, critter: critterFor(no),
-      orientation: 'portrait', w: cardW, h: cardH,
+      color: faceColorFor(no), no, critter: critterFor(no), w: cardW, h: cardH,
     });
     s.pad = pad;
     sprites.set(no, s);
@@ -288,13 +287,13 @@ export function createRevealer(els) {
   let pending = null;
 
   // 起 —— 票券從桌面飛到畫面正中央,亮出賞別顏色,但還沒撕開(名字沒揭曉)。
-  // 桌上那張是直放的(轉 90°)而且歪了 tilt 度;飛到中央時轉回橫的、放到全尺寸。
+  // 桌上那張歪了 tilt 度;飛到中央時轉正、放到全尺寸。
   function liftFrom(origin) {
     if (!origin) return { x: 0, y: 0, scale: 0.4, rot: -8 };
     const { x, y } = originOffset(origin.rect);
     const full = els.tearCard.offsetWidth || 340;
-    const scale = Math.max(origin.rect.width, origin.rect.height) / full;
-    return { x, y, scale, rot: 90 + (origin.tilt ?? 0) };
+    const scale = origin.rect.width / full;
+    return { x, y, scale, rot: origin.tilt ?? 0 };
   }
 
   async function playHold({ level, color, glow, card }, origin) {

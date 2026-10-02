@@ -15,9 +15,10 @@ export const DESK_COLORS = Object.freeze([
   '#E8C9EE', // 霜紫粉
 ]);
 
-export const MIN_CARD_W = 28;
-export const MAX_CARD_W = 56;
-export const CARD_ASPECT = 34 / 15; // 直放:高 / 寬
+// 桌上小卡跟大卡一樣是橫的(34:15),只差大小。最小 62×27:號碼約 8px、還認得出。
+export const MIN_CARD_W = 62;
+export const MAX_CARD_W = 96;
+export const CARD_ASPECT = 15 / 34; // 高 / 寬
 
 // 同一個號碼永遠得到同一個值(sine hash),不用 Math.random()。
 function pseudoRandom(seed) {
@@ -42,7 +43,7 @@ export function tiltFor(no) {
 export function layoutDesk({ count, width, height }) {
   const fit = cardW => {
     const cardH = Math.round(cardW * CARD_ASPECT);
-    const gap = Math.max(6, Math.round(cardW * 0.22));
+    const gap = Math.max(6, Math.round(cardW * 0.12));
     let cols = Math.max(1, Math.floor((width + gap) / (cardW + gap)));
     // 顏色 7 個一輪:欄數是 7 的倍數時同一欄上下同色,相鄰就分不出來了
     if (count > cols && cols > 1 && cols % DESK_COLORS.length === 0) cols -= 1;

@@ -37,6 +37,12 @@ test('角色兩隻都會出現,歪斜在 ±4 度內', () => {
   assert.deepEqual([...kinds].sort(), ['ermine', 'fox']);
 });
 
+test('桌上小卡跟大卡一樣是橫的(34:15),只差大小', () => {
+  const l = layoutDesk({ count: 30, width: 358, height: 500 });
+  assert.ok(l.cardW > l.cardH);
+  assert.equal(l.cardH, Math.round(l.cardW * 15 / 34));
+});
+
 test('layoutDesk:張數少就用最大卡', () => {
   const l = layoutDesk({ count: 5, width: 358, height: 500 });
   assert.equal(l.cardW, MAX_CARD_W);

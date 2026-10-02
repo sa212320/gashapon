@@ -13,13 +13,16 @@ function recCtx() {
 }
 const texts = ctx => ctx.calls.filter(c => c[0] === 'fillText').map(c => c[1]);
 
-test('drawFace 橫 / 直都畫出號碼', () => {
-  for (const orientation of ['landscape', 'portrait']) {
-    const ctx = recCtx();
-    const [w, h] = orientation === 'portrait' ? [30, 68] : [CARD_W, CARD_H];
-    drawFace(ctx, { color: '#A9D2F5', no: 7, critter: 'fox', orientation, w, h });
-    assert.ok(texts(ctx).includes('7'), orientation);
-  }
+test('號碼是白色印刷的大數字,沒有圓圈(2026-10-02 使用者選 B)', () => {
+  const ctx = recCtx();
+  drawFace(ctx, { color: '#A9D2F5', no: 7, critter: 'fox', w: 62, h: 27 });
+  const at = ctx.calls.findIndex(c => c[0] === 'fillText' && c[1] === '7');
+  assert.ok(at > 0, '有畫號碼');
+  const fill = ctx.calls.slice(0, at).filter(c => c[0] === 'set:fillStyle').at(-1)[1];
+  assert.equal(fill, '#fff');
+  // 號碼前後不能有白底圓圈:最後一次 fill 是卡面或雪花,不是 #fff 的圓
+  const fills = ctx.calls.filter(c => c[0] === 'set:fillStyle' && c[1] === '#fff');
+  assert.equal(fills.length, 1, '白色只用在號碼字上');
 });
 
 test('drawFace 不清畫布(桌面一張 canvas 上畫很多張)', () => {
@@ -37,7 +40,7 @@ test('drawFace 的底色是傳進來的裝飾色(不是賞別色)', () => {
 test('三位數號碼縮字', () => {
   const size = no => {
     const ctx = recCtx();
-    drawFace(ctx, { color: '#fff', no, critter: 'fox', orientation: 'portrait', w: 28, h: 63 });
+    drawFace(ctx, { color: '#A9D2F5', no, critter: 'fox', w: 62, h: 27 });
     const f = ctx.calls.filter(c => c[0] === 'set:font').map(c => parseFloat(c[1].match(/(\d+(\.\d+)?)px/)[1]));
     return Math.max(...f);
   };
@@ -91,7 +94,7 @@ test('獎項名太長會縮字', () => {
 
 test('traceTicket 只建路徑,不填色', () => {
   const ctx = recCtx();
-  traceTicket(ctx, { orientation: 'portrait', w: 30, h: 68 });
+  traceTicket(ctx, { w: 68, h: 30 });
   assert.equal(ctx.calls.filter(c => c[0] === 'fill' || c[0] === 'stroke').length, 0);
   assert.ok(ctx.calls.some(c => c[0] === 'lineTo'));
 });
