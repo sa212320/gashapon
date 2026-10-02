@@ -2,7 +2,7 @@
 import { store, seedState } from './store.js';
 import {
   createPlayer, createGhostPrize, pickColor, lineup, bottomSlots,
-  buildLadder, assign, MAX_PLAYERS, ANIMALS, TIERS, pickAnimal,
+  buildLadder, assign, MAX_PLAYERS, ANIMALS, TIERS, pickAnimal, sortResults, PALETTE,
 } from './ladder.js';
 import { animalCanvas } from './tint.js';
 import { loadArt, getArt, ANIMAL_LABEL, TIER_LABEL, PRIZE_URLS } from './art.js';
@@ -136,23 +136,35 @@ function finish(round) {
   running = false;
   $('startBtn').disabled = false;
   const byId = new Map(round.players.map(p => [p.id, p]));
-  // 有中獎的排前面。車道順序是洗過的,照它排等於隨機,老師要找某個小孩得一列一列掃。
-  const ordered = [...round.results].sort((a, b) =>
-    (a.slot.prizeId === null) - (b.slot.prizeId === null));
+  // 頭獎 → 大獎 → 一般 → 銘謝惠顧。車道順序是洗過的,照它排等於隨機,老師要找某個小孩得一列一列掃。
+  const ordered = sortResults(round.results);
   $('resultList').replaceChildren(...ordered.map(r => {
     const p = byId.get(r.playerId);
+    const tier = r.slot.prizeId === null ? 'snow' : r.slot.tier;
     const li = document.createElement('li');
-    li.className = 'results__item' + (r.slot.prizeId === null ? ' results__item--empty' : '');
-    const dot = document.createElement('span');
-    dot.className = 'results__dot';
-    dot.style.background = p.color;
+    li.className = 'results__item'
+      + (r.slot.prizeId === null ? ' results__item--empty' : '')
+      + (tier === 'deluxe' ? ' results__item--deluxe' : '');
+    // 動物不染色,墊一塊玩家色的圓底 —— 跟跑道上的棋子底座同一個顏色
+    const seat = document.createElement('span');
+    seat.className = 'results__seat';
+    seat.style.background = p.color;
+    const animal = document.createElement('img');
+    animal.className = 'results__animal';
+    animal.alt = '';
+    animal.src = animalCanvas(getArt().animals[p.animal] ?? null, 96).toDataURL();
+    seat.append(animal);
     const who = document.createElement('span');
     who.className = 'results__who';
     who.textContent = p.name;
+    const icon = document.createElement('img');
+    icon.className = 'results__icon';
+    icon.alt = '';
+    if (PRIZE_URLS[tier]) icon.src = PRIZE_URLS[tier];
     const prize = document.createElement('span');
     prize.className = 'results__prize';
     prize.textContent = r.slot.name;
-    li.append(dot, who, prize);
+    li.append(seat, who, icon, prize);
     return li;
   }));
   $('results').hidden = false;

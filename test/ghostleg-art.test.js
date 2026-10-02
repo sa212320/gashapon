@@ -76,3 +76,9 @@ test('動物不染色(2026-10-02 檢查點 3):只有 animalCanvas,沒有 multipl
 test('設定的動物小圖放在玩家色的底上(玩家色不在動物身上了,要在旁邊看得到)', () => {
   assert.match(mainJs, /b\.style\.background = color/);
 });
+
+test('結果卡用 sortResults 排序,每列有動物、名字、獎品圖、獎項名稱', () => {
+  assert.match(mainJs, /sortResults\(round\.results\)/);
+  for (const cls of ['results__animal', 'results__who', 'results__icon', 'results__prize']) assert.match(mainJs, new RegExp(cls));
+  assert.match(mainJs, /results__item--deluxe/);
+});
