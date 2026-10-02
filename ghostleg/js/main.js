@@ -75,13 +75,13 @@ let raf = 0;
 let current = null;
 // 開跑前獎品在上空亂飛,要一直畫。start() 一開始就 stop,不然兩條 rAF 搶著畫、獎品會抖。
 const idle = createIdleLoop(tSec => {
-  if (plan?.scan) placeIdleCamera(tSec - scanT0);
+  if (plan) placeIdleCamera(tSec - scanT0);
   track.setPrizeFly(0, tSec);
   track.render();
   placeNames();
 });
 
-// 開跑前的構圖。全名放得下就看整塊冰板;放不下(人多、手機)就拉近、左右來回掃(namePlan → scan)。
+// 開跑前的構圖:一律是起跑線的特寫,名字全名;框不下全部的人才左右來回掃(namePlan → frameLanes)。
 let plan = null;
 let scanT0 = 0;
 let idlePose = null;   // 開跑那一刻的機位,演出從這裡接著推
@@ -99,24 +99,20 @@ function place(f) {
 }
 
 function placeIdleCamera(tSec) {
-  const frameLanes = plan.visibleLanes;
+  const frameLanes = plan.frameLanes;
   place(idleFrame(idleOpts({ frameLanes, centerX: scanX(Math.max(0, tSec), { lanes: current.ladder.lanes, frameLanes, laneWidth: laneWidth(current.ladder.lanes) }) })));
 }
 
-// 先用整塊冰板的構圖量車道在畫面上的間距,再決定要不要掃
 function planIdle() {
-  place(idleFrame(idleOpts()));
-  const a = track.nameAnchors();
-  const spacing = a.length > 1 ? Math.abs(a[1].x - a[0].x) : 400;
   const layer = $('nameLayer');
   plan = namePlan({
     viewW: layer.clientWidth || innerWidth,
     viewH: layer.clientHeight || innerHeight,
-    laneSpacingPx: spacing,
+    lanes: current.ladder.lanes,
     longestChars: Math.max(1, ...current.players.map(p => [...p.name].length)),
   });
   scanT0 = performance.now() / 1000;
-  if (plan.scan) placeIdleCamera(0);
+  placeIdleCamera(0);
 }
 
 // 開跑前的大字名牌(HTML 疊在畫面上,字不會被透視縮小)。開跑後收起來,換回底座前的小名牌 ——

@@ -30,7 +30,7 @@ const IDLE_PITCH = (35 * Math.PI) / 180;
 // 人多、全名放不下時(labels.js namePlan 的 scan):只框 frameLanes 條車道,看向 centerX(scanX 左右來回)。
 // 這時以畫面寬度為準(不套用橫向的正方形構圖),名字才夠寬。
 export function idleFrame({ lanes, laneWidth, rowDepth, aspect, fov = 48, frameLanes = null, centerX = 0 }) {
-  const scan = frameLanes && frameLanes < lanes;
+  const scan = Boolean(frameLanes);   // 開跑前一律特寫(人少時 frameLanes = 人數,不用掃)
   const hfov = 2 * Math.atan(Math.tan((fov * Math.PI) / 360) * (scan ? aspect : Math.min(1, aspect)));
   const frameW = scan ? frameLanes * laneWidth : boardWidth(lanes, laneWidth) / 0.8;
   const d = frameW / (2 * Math.tan(hfov / 2));

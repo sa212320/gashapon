@@ -35,13 +35,19 @@ export function tagPlace(w, stagger = 0) {
 // 後排學生看不到;開跑前看清楚「誰站哪裡」就好,開跑後學生會自己盯自己的棋子(收回成底座前的小名牌)。
 //   字高 = 畫面高度 3%(1080p ≈ 32px),手機至少 16px
 //   名字一律全名 —— 截成「王…」看不出是誰(使用者)
-//   全名在 3 排內(相鄰一前一後錯開)放得下 → 整塊冰板一起看
-//   放不下 → scan:鏡頭拉近、左右來回掃(camera-script.js scanX),一次框 visibleLanes 條車道,錯開兩排
-export function namePlan({ viewW, viewH, laneSpacingPx, longestChars }) {
+//   一律是起跑線的特寫(2026-10-02 使用者:「人少也用掃描的,統一」):
+//   只框 frameLanes 條車道(最多一半的人、上限 8),鏡頭左右來回掃(camera-script.js scanX)
+//   一條車道放不下全名就相鄰一前一後錯開成兩排
+export function namePlan({ viewW, viewH, lanes, longestChars }) {
   const fontPx = Math.max(16, viewH * 0.03);
   const nameW = longestChars * fontPx + fontPx * 0.7 + 6;   // 字 + 左右各 .35em 內距 + 框 3px×2
-  const need = nameW / (Math.max(1, laneSpacingPx) * 0.95);
-  if (need <= 3) return { scan: false, fontPx, rows: Math.max(1, Math.ceil(need)) };
-  const spacing = nameW / (2 * 0.95);
-  return { scan: true, fontPx, rows: 2, visibleLanes: Math.max(2, Math.floor((viewW * 0.92) / spacing)) };
+  const usable = viewW * 0.92;
+  // 一排放得下就一排;不然錯開兩排,每個名字可用兩條車道寬
+  const oneRow = Math.floor(usable / (nameW / 0.95));
+  const twoRows = Math.floor(usable / (nameW / (2 * 0.95)));
+  // 特寫一次最多框一半的人、上限 8 條(使用者:「特寫會放大,不應該是停在中間吧」),4 人以上一定會掃
+  const zoom = Math.min(8, Math.ceil(lanes / 2));
+  const frameLanes = Math.max(2, Math.min(lanes, zoom, oneRow >= zoom ? zoom : twoRows));
+  const rows = (usable / frameLanes) * 0.95 >= nameW ? 1 : 2;
+  return { fontPx, rows, frameLanes };
 }

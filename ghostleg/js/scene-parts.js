@@ -5,6 +5,7 @@ import { snowWidth, snowRim, ribbonWidth, offsetRoute, roundCorners, cutAt, stri
 import { tagLift, tagFontSize, SNOW_H, BASE_H, BASE_R, STANDEE_H, TAG_H, standeeFoot } from './labels.js';
 import { animalCanvas, textColorFor } from './tint.js';
 import { boardWidth } from './camera-script.js';
+import { prizeSize } from './prize-motion.js';
 
 const INK = 0x574239;
 export { SNOW_H };
@@ -125,7 +126,7 @@ export function buildNameTag(player, laneWidth, lane, lanes) {
 export function buildPrizeSprite(slot, laneWidth, prizes) {
   const empty = slot.prizeId === null;
   const img = empty ? prizes.snow : prizes[slot.tier ?? 'plain'];
-  const size = laneWidth * 1.05 * (empty ? 0.7 : 1);
+  const size = prizeSize(laneWidth, empty ? null : slot.tier ?? 'plain');
   if (!img) return sprite(new THREE.Texture(), size, size);   // 圖載不到:透明,不丟例外
   return sprite(imageTexture(img), size * (img.width / img.height), size);
 }

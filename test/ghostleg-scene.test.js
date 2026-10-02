@@ -154,35 +154,30 @@ import { scanX } from '../ghostleg/js/camera-script.js';
 // 「王…」看不出是誰(使用者)。全名在 3 排以內放得下就整塊冰板一起看;放不下就拉近、左右來回掃。
 const nameW = (chars, f) => chars * f + f * 0.7 + 6;
 
-test('namePlan:人少時不用掃,字高約畫面 3%(1080p ≈ 32px)', () => {
-  const p = namePlan({ viewW: 1920, viewH: 1080, laneSpacingPx: 220, longestChars: 3 });
-  assert.equal(p.scan, false);
+// 2026-10-02 使用者:「人少也用掃描的,統一」—— 開跑前一律是起跑線的特寫;框得下就不動,框不下才左右掃。
+test('namePlan:一律是特寫;字高約畫面 3%(1080p ≈ 32px),手機至少 16px', () => {
+  const p = namePlan({ viewW: 1920, viewH: 1080, lanes: 6, longestChars: 3 });
   assert.ok(p.fontPx >= 30 && p.fontPx <= 34);
-  assert.equal(p.rows, 1);
+  assert.ok(namePlan({ viewW: 390, viewH: 640, lanes: 6, longestChars: 3 }).fontPx >= 16);
 });
 
-test('namePlan:手機上字也至少 16px', () => {
-  assert.ok(namePlan({ viewW: 390, viewH: 640, laneSpacingPx: 50, longestChars: 3 }).fontPx >= 16);
+// 使用者:「特寫會放大,不應該是停在中間吧」—— 特寫一次最多框一半的人(上限 8 條),4 人以上一定會掃
+test('namePlan:特寫一次最多框一半的人、上限 8 條車道', () => {
+  assert.equal(namePlan({ viewW: 1920, viewH: 1080, lanes: 6, longestChars: 3 }).frameLanes, 3);
+  assert.equal(namePlan({ viewW: 1920, viewH: 1080, lanes: 7, longestChars: 3 }).frameLanes, 4);
+  assert.equal(namePlan({ viewW: 1920, viewH: 1080, lanes: 40, longestChars: 3 }).frameLanes, 8);
+  assert.equal(namePlan({ viewW: 1920, viewH: 1080, lanes: 2, longestChars: 3 }).frameLanes, 2);
 });
 
-test('namePlan:車道窄但 3 排內放得下全名 → 錯開、不掃,每排都放得下全名', () => {
-  const p = namePlan({ viewW: 390, viewH: 640, laneSpacingPx: 37, longestChars: 3 });
-  assert.equal(p.scan, false);
-  assert.ok(p.rows >= 2 && p.rows <= 3);
-  assert.ok(p.rows * 37 * 0.95 >= nameW(3, p.fontPx) - 1e-9);
-});
-
-test('namePlan:3 排也放不下全名 → 掃;一次框的車道數讓兩排錯開剛好放得下全名', () => {
-  const p = namePlan({ viewW: 390, viewH: 640, laneSpacingPx: 15, longestChars: 3 });
-  assert.equal(p.scan, true);
-  assert.equal(p.rows, 2);
-  const spacing = (390 * 0.92) / p.visibleLanes;
-  assert.ok(spacing * 2 * 0.95 >= nameW(3, p.fontPx) - 1e-9, `${spacing}`);
-  assert.ok(p.visibleLanes >= 2);
+test('namePlan:人多時只框一部分車道;框的車道數讓兩排錯開剛好放得下全名', () => {
+  const p = namePlan({ viewW: 390, viewH: 640, lanes: 24, longestChars: 3 });
+  assert.ok(p.frameLanes < 24 && p.frameLanes >= 2);
+  assert.ok(((390 * 0.92) / p.frameLanes) * p.rows * 0.95 >= nameW(3, p.fontPx) - 1e-9);
+  assert.ok(p.rows <= 2);
 });
 
 test('namePlan:名字一律全名,不截短(沒有 maxWidth 這種東西)', () => {
-  assert.ok(!('maxWidthPx' in namePlan({ viewW: 390, viewH: 640, laneSpacingPx: 15, longestChars: 10 })));
+  assert.ok(!('maxWidthPx' in namePlan({ viewW: 390, viewH: 640, lanes: 40, longestChars: 10 })));
 });
 
 test('scanX:在左右兩端之間來回,不超出冰板;從最左邊開始;兩端會停一下', () => {
@@ -208,4 +203,15 @@ test('idleFrame 掃描模式:鏡頭看著起跑線(z = 0),跟著 centerX 左右�
   assert.equal(f.look[2], 0);
   assert.equal(f.look[0], 1.2);
   assert.equal(f.pos[0], 1.2);
+});
+
+import { prizeSize } from '../ghostleg/js/prize-motion.js';
+
+test('獎品大小依等級:雪球最小(盒子一半)、寶箱比盒子大、頭獎最大(2026-10-02 使用者)', () => {
+  const near = (a, b) => Math.abs(a - b) < 1e-9;
+  assert.ok(near(prizeSize(1, 'plain'), 1.05));
+  assert.ok(near(prizeSize(1, null), 1.05 * 0.5), '雪球 = 銘謝惠顧(沒有 tier)');
+  assert.ok(near(prizeSize(1, 'chest'), 1.05 * 1.25));
+  assert.ok(near(prizeSize(1, 'deluxe'), 1.05 * 1.45));
+  assert.ok(near(prizeSize(0.34, 'deluxe'), 0.34 * 1.05 * 1.45), '跟著車道寬縮放');
 });
