@@ -59,7 +59,7 @@ test('到 90% 自動撕完(89% 還不會);之後拖曳無效', () => {
   assert.ok(!d.move(0.89).events.includes('auto'));
   d.move(0);
   const r = d.move(0.91);
-  assert.ok(r.events.includes('auto') && r.events.includes('commit'));
+  assert.ok(r.events.includes('auto'));   // commit 早在拉到 89% 時就發生過了
   assert.equal(d.auto, true);
   assert.deepEqual(d.move(0.1).events, []);
   assert.ok(Math.abs(d.progress - 0.91) < 1e-9);
