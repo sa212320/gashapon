@@ -57,7 +57,7 @@ const ask = createAsk({
 });
 
 function setSoundIcon() {
-  $('soundIcon').textContent = prefs.soundOn ? '🔊' : '🔇';
+  $('soundIcon').setAttribute('href', `../shared/img/icons.svg#${prefs.soundOn ? 'sound-on' : 'sound-off'}`);
   $('soundBtn').classList.toggle('is-muted', !prefs.soundOn);
 }
 

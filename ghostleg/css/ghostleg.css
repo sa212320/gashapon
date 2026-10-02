@@ -3,8 +3,9 @@
 
 body { display: flex; flex-direction: column; min-height: 100svh; }
 
-.topbar { position: relative; padding: 14px 16px 6px; text-align: center; }
-/* home-link 是絕對定位的,topbar 不給 relative 的話它會跑到頁面中間去 */
+/* 左右各留 116px:回首頁、音效、設定都浮在角落(.home-link--corner / .corner-tools),
+   名字太長時才不會跑到按鈕底下 */
+.topbar { padding: max(14px, env(safe-area-inset-top)) 116px 6px; text-align: center; }
 .setup-name { margin: 0; font-size: 22px; }
 .remaining { margin: 2px 0 0; font-size: 14px; opacity: .72; }
 

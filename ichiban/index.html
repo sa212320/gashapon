@@ -19,8 +19,13 @@
 </head>
 <body>
 
+<a class="home-link home-link--corner" href="../" aria-label="回首頁"><svg class="icon" aria-hidden="true"><use href="../shared/img/icons.svg#home"/></svg></a>
+<div class="corner-tools">
+  <button class="icon-btn" id="soundBtn" type="button" aria-label="音效開關"><svg class="icon" aria-hidden="true"><use id="soundIcon" href="../shared/img/icons.svg#sound-on"/></svg></button>
+  <button class="icon-btn" id="settingsBtn" type="button" aria-label="設定"><svg class="icon" aria-hidden="true"><use href="../shared/img/icons.svg#settings"/></svg></button>
+</div>
+
 <header class="topbar">
-  <a class="home-link" href="../" aria-label="回首頁">←</a>
   <h1 class="setup-name" id="setupName">一番賞</h1>
   <p class="remaining" id="remaining"></p>
 </header>
@@ -73,10 +78,6 @@
   </div>
 </main>
 
-<footer class="toolbar">
-  <button class="icon-btn" id="soundBtn" type="button" aria-label="音效開關"><span id="soundIcon">🔊</span></button>
-  <button class="icon-btn" id="settingsBtn" type="button" aria-label="設定">⚙️</button>
-</footer>
 
 <dialog class="dialog" id="settingsDialog">
   <header class="dialog__head">

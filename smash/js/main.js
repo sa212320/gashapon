@@ -55,7 +55,7 @@ function render() {
   mascots.setPose(ready ? 'idle' : 'empty');
   $('arena').hidden = !ready;
   $('startBtn').disabled = !ready || running;
-  $('soundIcon').textContent = prefs.soundOn ? '🔊' : '🔇';
+  $('soundIcon').setAttribute('href', `../shared/img/icons.svg#${prefs.soundOn ? 'sound-on' : 'sound-off'}`);
   if (ready && !running) reset();
 }
 
