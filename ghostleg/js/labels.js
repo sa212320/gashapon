@@ -39,11 +39,13 @@ export function tagPlace(w, stagger = 0) {
 //   一次只框 2 個人,從左掃到右一趟(camera-script.js scanPass),點一下可跳過
 //   一條車道放不下全名就相鄰一前一後錯開成兩排
 export function namePlan({ viewW, viewH, lanes, longestChars }) {
-  const fontPx = Math.max(16, viewH * 0.03);
-  const nameW = longestChars * fontPx + fontPx * 0.7 + 6;   // 字 + 左右各 .35em 內距 + 框 3px×2
   const usable = viewW * 0.92;
-  // 特寫一次只框 2 個人(使用者:「我以為最多框 2 人,掃描久一點沒關係」),3 人以上一定會掃
   const frameLanes = Math.min(lanes, 2);
+  // 2 人特寫時動物很大,名字跟著放大(一條車道寬的 16%),上限畫面高 6%、下限 3%(手機至少 16px)
+  // —— 固定 3% 時動物跟名字比例很怪(使用者)
+  const fontPx = Math.max(16, viewH * 0.03, Math.min((usable / frameLanes) * 0.16, viewH * 0.06));
+  const nameW = longestChars * fontPx + fontPx * 0.7 + 6;   // 字 + 左右各 .35em 內距 + 框 3px×2
+  // 特寫一次只框 2 個人(使用者:「我以為最多框 2 人,掃描久一點沒關係」),3 人以上一定會掃
   const rows = (usable / frameLanes) * 0.95 >= nameW ? 1 : 2;
   return { fontPx, rows, frameLanes };
 }

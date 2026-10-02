@@ -155,9 +155,9 @@ import { scanPass, scanDuration } from '../ghostleg/js/camera-script.js';
 const nameW = (chars, f) => chars * f + f * 0.7 + 6;
 
 // 2026-10-02 使用者:「人少也用掃描的,統一」—— 開跑前一律是起跑線的特寫;框得下就不動,框不下才左右掃。
-test('namePlan:一律是特寫;字高約畫面 3%(1080p ≈ 32px),手機至少 16px', () => {
+test('namePlan:名字至少畫面高 3%(1080p ≥ 32px),手機至少 16px', () => {
   const p = namePlan({ viewW: 1920, viewH: 1080, lanes: 6, longestChars: 3 });
-  assert.ok(p.fontPx >= 30 && p.fontPx <= 34);
+  assert.ok(p.fontPx >= 1080 * 0.03);
   assert.ok(namePlan({ viewW: 390, viewH: 640, lanes: 6, longestChars: 3 }).fontPx >= 16);
 });
 
@@ -205,9 +205,18 @@ import { prizeSize } from '../ghostleg/js/prize-motion.js';
 
 test('獎品大小依等級:雪球最小(盒子一半)、寶箱比盒子大、頭獎最大(2026-10-02 使用者)', () => {
   const near = (a, b) => Math.abs(a - b) < 1e-9;
-  assert.ok(near(prizeSize(1, 'plain'), 1.05));
-  assert.ok(near(prizeSize(1, null), 1.05 * 0.5), '雪球 = 銘謝惠顧(沒有 tier)');
-  assert.ok(near(prizeSize(1, 'chest'), 1.05 * 1.5));
-  assert.ok(near(prizeSize(1, 'deluxe'), 1.05 * 1.8));
-  assert.ok(near(prizeSize(0.34, 'deluxe'), 0.34 * 1.05 * 1.8), '跟著車道寬縮放');
+  // 使用者:「寶箱還是不放大,變成一般箱子變小?」—— 寶箱維持原大小,一般盒子縮小;頭獎不超過車道太多,終點不會疊
+  assert.ok(near(prizeSize(1, null), 1.05 * 0.45), '雪球 = 銘謝惠顧(沒有 tier)');
+  assert.ok(near(prizeSize(1, 'plain'), 1.05 * 0.7));
+  assert.ok(near(prizeSize(1, 'chest'), 1.05));
+  assert.ok(near(prizeSize(1, 'deluxe'), 1.05 * 1.2));
+  assert.ok(near(prizeSize(0.34, 'deluxe'), 0.34 * 1.05 * 1.2), '跟著車道寬縮放');
+});
+
+// 使用者:「動物跟名字比例是不是怪怪」—— 2 人特寫時動物很大,名字還是 3% 畫面高就顯得很小
+test('namePlan:特寫時名字跟著放大(約一條車道寬的 16%),但不超過畫面高 6%', () => {
+  const phone = namePlan({ viewW: 390, viewH: 760, lanes: 7, longestChars: 3 });
+  assert.ok(phone.fontPx >= 26 && phone.fontPx <= 760 * 0.06, `${phone.fontPx}`);
+  const desk = namePlan({ viewW: 1500, viewH: 784, lanes: 7, longestChars: 3 });
+  assert.ok(Math.abs(desk.fontPx - 784 * 0.06) < 1e-9, `${desk.fontPx}`);
 });

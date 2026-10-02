@@ -146,7 +146,10 @@ let nameEls = [];
 function placeNames() {
   const layer = $('nameLayer');
   // 演出中、結果卡打開時都不放(resize 也會叫到這裡)
-  if (!current || !plan || pullT0 !== null || running || !$('results').hidden) return;
+  // 拉回全景的那 1 秒還要跟著棋子走(同時淡出),不然大字名牌會卡在特寫時的位置(使用者截圖)
+  const pulling = pullT0 !== null;
+  if (!current || !plan || running || !$('results').hidden) return;
+  if (pulling && performance.now() / 1000 - pullT0 > PULL) return;
   const anchors = track.nameAnchors();
   if (nameEls.length !== anchors.length) {
     nameEls = current.players.map(p => {
@@ -166,7 +169,7 @@ function placeNames() {
     el.style.fontSize = `${fontPx}px`;
     el.style.transform = `translate(${a.x}px, ${a.y + down}px) translate(-50%, 0)`;
   });
-  layer.classList.add('is-on');
+  if (!pulling) layer.classList.add('is-on');
 }
 
 function hideNames() {
