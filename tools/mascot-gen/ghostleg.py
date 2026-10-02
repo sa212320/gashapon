@@ -3,7 +3,7 @@
 在 repo 根目錄執行(先 export COMFY_URL=http://<ComfyUI 那台的 IP>:8188):
   PY=tools/mascot-gen/.venv/bin/python
   $PY tools/mascot-gen/ghostleg.py gen rabbit            # Qwen-Image 照吉祥物畫風,3 個 seed → out/ghostleg/rabbit/s{1,2,3}.png
-  $PY tools/mascot-gen/ghostleg.py review                # 去背 + 用 6 種玩家色染色並排 → 開 review/ghostleg.html
+  $PY tools/mascot-gen/ghostleg.py review                # 去背並排(墊玩家色圓座)→ 開 review/ghostleg.html
   $PY tools/mascot-gen/ghostleg.py pick rabbit 2
   $PY tools/mascot-gen/ghostleg.py build                 # 輸出 ghostleg/img/**.webp、蓋 ?v= 到 ghostleg/js/art.js、重產 preload.json
 """
@@ -29,9 +29,8 @@ REVIEW = HERE / 'review' / 'ghostleg'
 CFG = HERE / 'ghostleg_prompts.json'
 IMG = ROOT / 'ghostleg' / 'img'
 ART_JS = ROOT / 'ghostleg' / 'js' / 'art.js'
-ANIMALS = ['snowman', 'rabbit', 'penguin', 'reindeer', 'cat', 'dog']
+ANIMALS = ['snowman', 'rabbit', 'penguin', 'reindeer', 'cat', 'dog', 'bear', 'seal', 'owl', 'hamster']
 SEEDS = [11, 22, 33]
-REVIEW_COLORS = ['#E4572E', '#4C9F70', '#3D7EA6', '#E8B830', '#8E6BBF', '#D96BA0']
 
 
 def load_cfg():
@@ -60,32 +59,23 @@ def cmd_gen(args):
         print(f'{args.name} s{n} seed={seed}', flush=True)
 
 
-def tint(rgba, hex_color):
-    """跟 ghostleg/js/tint.js 同一套:multiply 上玩家色,alpha 不變。"""
-    c = np.array([int(hex_color[i:i + 2], 16) for i in (1, 3, 5)], np.float32) / 255
-    out = rgba.copy()
-    out[..., :3] = (rgba[..., :3].astype(np.float32) * c).round().astype(np.uint8)
-    return out
-
-
 def animal_cut(src):
     return fit_height(Image.fromarray(cut_green(np.asarray(Image.open(src).convert('RGB')))), 256)
 
 
 def cmd_review(args):
-    rows = []
-    for name in ANIMALS:
-        for src in sorted((OUT / name).glob('s*.png')):
-            cut = np.asarray(animal_cut(src))
-            for k, col in enumerate(REVIEW_COLORS):
-                dst = REVIEW / name / f'{src.stem}_{k}.png'
-                dst.parent.mkdir(parents=True, exist_ok=True)
-                Image.fromarray(tint(cut, col)).save(dst)
-            rows.append((name, src.stem))
+    # 動物不染色(2026-10-02 檢查點 3),去背後直接並排;底下墊一塊玩家色的圓座,看站在棋子上的樣子
     html = ['<!doctype html><meta charset=utf-8><body style="background:#BFE1F7;font:14px system-ui">']
-    for name, stem in rows:
-        imgs = ''.join(f'<img src="ghostleg/{name}/{stem}_{k}.png" style="height:120px">' for k in range(len(REVIEW_COLORS)))
-        html.append(f'<div><b>{name} {stem}</b><br>{imgs}</div>')
+    for name in ANIMALS:
+        cells = []
+        for src in sorted((OUT / name).glob('s*.png')):
+            dst = REVIEW / name / f'{src.stem}.png'
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            animal_cut(src).save(dst)
+            cells.append(f'<figure style="display:inline-grid;justify-items:center;margin:8px"><img src="ghostleg/{name}/{src.stem}.png" style="height:160px">'
+                         f'<div style="width:110px;height:22px;border-radius:50%;background:#3D7EA6;border:4px solid #574239;margin-top:-10px"></div>'
+                         f'<figcaption>{src.stem}</figcaption></figure>')
+        html.append(f'<div><b>{name}</b><br>{"".join(cells)}</div>')
     (REVIEW.parent / 'ghostleg.html').write_text('\n'.join(html))
     print('開 http://localhost:8765/tools/mascot-gen/review/ghostleg.html(先在 repo 根目錄 python3 -m http.server 8765)')
 

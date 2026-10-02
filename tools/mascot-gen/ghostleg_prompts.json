@@ -1,12 +1,12 @@
 {
   "animal_ref": "shared/img/mascot/key/idle.webp",
-  "animal_style": "Draw a brand new character in exactly the same art style as <image1>: flat 2D cartoon, thick dark brown outlines, cute chibi proportions with the head about as big as the body. The whole body, head and limbs are filled with plain pure white, no other body colours, no shading, no blush, no pattern. Small solid dark brown dot eyes, mouth closed, not talking. Full body, standing upright, facing the viewer, centered, isolated on a solid flat bright pure green #00FF00 background. Do not draw the fox or the ermine from <image1>.",
-  "snowman": "The character is a classic snowman: two clearly separate stacked snowballs, a small round head ball sitting on a bigger round body ball with a visible outline where they meet, two thin stick arms with three little twig fingers sticking out of the sides, a small pointed carrot nose, three small dot buttons down the front, no hat, no scarf.",
-  "rabbit": "The character is a cute little rabbit with two long upright ears, a round fluffy tail.",
-  "penguin": "The character is a cute little penguin: an upright egg-shaped body, a small pointed beak, two flat flippers hanging at its sides, two small webbed feet with toes, a clearly separate oval belly patch outlined on the front, slightly pointed top of the head.",
-  "reindeer": "The character is a cute little reindeer with two small branching antlers and small round ears.",
-  "cat": "The character is a cute little cat with two pointed ears and a long curled tail.",
-  "dog": "The character is a cute little puppy with two floppy ears and a short wagging tail.",
+  "animal_style": "Draw a brand new character in exactly the same art style, colouring and soft shading as <image1>: flat 2D cartoon, thick dark brown outlines, cute chibi proportions with a big head, big shiny dark brown eyes with a small white highlight like <image1>, soft rosy cheeks, mouth closed, not talking. Full body, standing upright on two feet, facing the viewer, centered. No base, no ground, no shadow, no text. Isolated on a solid flat bright pure green #00FF00 background. Do not draw the fox or the ermine from <image1>.",
+  "snowman": "The character is a cute little snowman made of two clearly separate stacked snowballs (a small round head on a bigger round body), white snow with pale icy blue shading, two thin brown twig arms, a small orange carrot nose, three small dark buttons, a small pale blue knitted scarf. No hat.",
+  "rabbit": "The character is a cute little white rabbit with two long upright ears with pink insides, a round fluffy white tail.",
+  "penguin": "The character is a cute little penguin with a dark navy blue back and head, a white belly and face, a small orange beak, small orange feet, short flippers at its sides.",
+  "reindeer": "The character is a cute little reindeer with warm brown fur, a cream belly and muzzle, a small dark brown nose, two small branching tan antlers and small round ears.",
+  "cat": "The character is a cute little light grey cat with a white muzzle and chest, two pointed ears with pink insides, a long curled grey tail.",
+  "dog": "The character is a cute little caramel-brown puppy with a cream muzzle and chest, two floppy darker brown ears, a short wagging tail.",
   "picks": {
     "prizes": {
       "plain": "picked/prize-plain.png",
@@ -15,5 +15,9 @@
       "snow": "picked/prize-snow.png"
     },
     "board": "picked/board-ice.png"
-  }
+  },
+  "bear": "The character is a cute little polar bear cub with creamy white fur, small round ears, a small black nose.",
+  "seal": "The character is a cute little seal pup with soft light grey fur, a white muzzle, small whiskers, two front flippers, sitting upright on its tail flippers.",
+  "owl": "The character is a cute little round snowy owl with white feathers and small grey speckles, two small wings at its sides, a tiny orange beak, small feet.",
+  "hamster": "The character is a cute little hamster with golden orange fur and a white belly and muzzle, small round ears with pink insides, chubby cheeks."
 }
