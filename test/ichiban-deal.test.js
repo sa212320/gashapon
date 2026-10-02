@@ -9,7 +9,7 @@ const fixed = (...vals) => { let i = 0; return () => vals[i++ % vals.length]; };
 
 test('dealPlan:先搖箱子,再像散彈機關槍一樣連射;每發 1~4 張', () => {
   // rng 0 → 1 張、0.99 → 4 張
-  const plan = dealPlan(slots(6), fixed(0, 0.99), { order: 'number' });
+  const plan = dealPlan(slots(6), fixed(0, 0.99), { order: 'number', spray: 0 });
   assert.deepEqual(plan.map(p => p.no), [1, 2, 3, 4, 5, 6]);
   const starts = plan.map(p => p.start);
   assert.equal(starts[0], INTRO_MS, '搖完箱子才開始射');
@@ -34,7 +34,8 @@ test('dealPlan:張數多就縮短間隔,最後一波在搖完後 2.5 秒內出�
 
 test('dealPlan:0 張、1 張都不會爆', () => {
   assert.deepEqual(dealPlan([]), []);
-  assert.equal(dealPlan(slots(1))[0].start, INTRO_MS);
+  const only = dealPlan(slots(1))[0].start;
+  assert.ok(only >= INTRO_MS && only <= INTRO_MS + 20, `${only}`);   // 散彈錯開 0~20ms
   assert.equal(dealLength([]), 0);
 });
 
