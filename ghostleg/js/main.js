@@ -9,7 +9,7 @@ import { loadArt, getArt, ANIMAL_LABEL, TIER_LABEL, PRIZE_URLS } from './art.js'
 import { createTrack, laneWidth, ROW_D } from './track.js';
 import { createCameraScript, TOTAL, idleFrame, scanPass } from './camera-script.js';
 import { createIdleLoop } from './prize-motion.js';
-import { namePlan, clampTagX } from './labels.js';
+import { namePlan, clampTagX, closeUpSafe, overviewSafe, fitFont, rowStep } from './labels.js';
 import { getActive, replaceSetup, addSetup, removeSetup, entriesChanged } from '../../shared/js/roster.js';
 import { createDialogShell } from '../../shared/js/dialog.js';
 import { createAsk } from '../../shared/js/ask.js';
@@ -125,11 +125,16 @@ function placeNames() {
     });
     layer.replaceChildren(...nameEls);
   }
-  const { fontPx, rows } = plan;
+  const { rows } = plan;
+  const spacing = anchors.length > 1 ? Math.abs(anchors[1].x - anchors[0].x) : layer.clientWidth;
+  const longest = Math.max(1, ...current.players.map(p => [...p.name].length));
+  const fontPx = fitFont({ fontPx: plan.fontPx, laneSpacingPx: spacing, longestChars: longest });
   anchors.forEach((a, i) => {
     const el = nameEls[i];
-    const down = (i % rows) * fontPx * 1.7;   // 一前一後錯開;名字一律全名,不截短
+    const down = (i % rows) * rowStep(fontPx);   // 一前一後錯開;名字一律全名,不截短
     el.style.fontSize = `${fontPx}px`;
+    // 先取消隱藏再量寬度:還是 display:none 的話 offsetWidth 是 0,這一格會沒夾到、閃出畫面(refute)
+    el.hidden = false;
     const x = clampTagX(a.x, el.offsetWidth, layer.clientWidth);
     el.hidden = x === null;
     if (x !== null) el.style.transform = `translate(${x}px, ${a.y + down}px) translate(-50%, 0)`;
@@ -159,7 +164,7 @@ function showIdle() {
   nameEls = [];
   hideNames();
   track.setProgress(0);
-  place(idleFrame(idleOpts()));
+  place(idleFrame(idleOpts({ rows: current.ladder.rows, safe: overviewSafe({ viewH: $('nameLayer').clientHeight || innerHeight }) })));
   track.setPrizeFly(0, performance.now() / 1000);
   track.render();   // 先畫一格:分頁在背景時 rAF 不跑,不能等閒置迴圈
   idle.start();
@@ -203,7 +208,7 @@ function beginScan(round) {
   const frame = now => {
     const tSec = now / 1000;
     const pass = scanPass(Math.max(0, tSec - t0), { lanes: round.ladder.lanes, frameLanes: plan.frameLanes, laneWidth: w });
-    place(idleFrame(idleOpts({ frameLanes: plan.frameLanes, centerX: pass.x })));
+    place(idleFrame(idleOpts({ frameLanes: plan.frameLanes, centerX: pass.x, safe: closeUpSafe({ viewH: $('nameLayer').clientHeight || innerHeight, ...plan }) })));
     track.setPrizeFly(0, tSec);
     track.render();
     placeNames();
@@ -317,7 +322,7 @@ document.addEventListener('visibilitychange', () => {
 
 addEventListener('resize', () => {
   track.resize();
-  if (current && !running) place(idleFrame(idleOpts()));
+  if (current && !running) place(idleFrame(idleOpts({ rows: current.ladder.rows, safe: overviewSafe({ viewH: $('nameLayer').clientHeight || innerHeight }) })));
   track.render();
   placeNames();
 });

@@ -129,7 +129,7 @@ test('雪路外框也跟著車道寬縮放:40 人時不會比雪路本身還粗'
   assert.ok(snowRim(0.34) * 2 < snowWidth(0.34));
 });
 
-import { tagPlace, TAG_H, BASE_H, BASE_R, standeeFoot } from '../ghostleg/js/labels.js';
+import { tagPlace, TAG_H, BASE_H, BASE_R, standeeFoot, STANDEE_H, closeUpSafe, overviewSafe, rowStep } from '../ghostleg/js/labels.js';
 
 // 2026-10-02 使用者:「還是名字直接在下方啊」—— 名牌放在戰棋底座正前方,像公仔底座前面的名條。
 test('名牌在底座正前方:高度跟底座差不多,而且在底座外緣的前面', () => {
@@ -236,16 +236,19 @@ function project(p, f, aspect, fov = 48) {
 }
 
 // review Critical:橫向(投影 16:9)時 2 人特寫拉太近,底座前的名牌掉到畫面下面、整段掃描看不到名字
-for (const [W, H] of [[1280, 720], [1024, 768], [1694, 695], [390, 700], [1920, 1080]]) {
-  test(`特寫時底座前的名牌在畫面裡(${W}×${H}),而且下面留得下 namePlan 排出來的每一排`, () => {
+// refute(2026-10-02):畫布撐滿視窗後,橫向螢幕的名牌落進開始鈕那一條、兩排長名字掉出畫面底下。
+// 特寫的構圖要讓:動物頭頂在角落按鈕下面(≥ 64px),名牌(含錯開的每一排)在開始鈕上面(≤ 畫面高 − 110px)
+for (const [W, H] of [[1280, 720], [1024, 768], [1694, 695], [390, 700], [390, 844], [844, 390], [1920, 1080], [768, 1024]]) {
+  test(`特寫時動物頭頂、名牌都落在安全範圍(${W}×${H},10 個字的名字)`, () => {
     const aspect = W / H;
     const w = 1;
-    const f = idleFrame({ lanes: 7, laneWidth: w, rows: 12, rowDepth: 1.35, aspect, frameLanes: 2, centerX: 0 });
-    const a = project([0, 0.1, BASE_R * w * 1.16], f, aspect);
-    const plan = namePlan({ viewW: W, viewH: H, lanes: 7, longestChars: 4 });
-    const roomPx = ((a.y + 1) / 2) * H;   // 名牌頂到畫面底的距離
-    assert.ok(a.y < 1 && a.y > -1, `名牌錨點 y=${a.y.toFixed(2)} 在畫面外`);
-    assert.ok(roomPx >= plan.fontPx * 1.7 * plan.rows, `只剩 ${roomPx.toFixed(0)}px,放不下 ${plan.rows} 排 ${plan.fontPx.toFixed(0)}px 的名牌`);
+    const plan = namePlan({ viewW: W, viewH: H, lanes: 7, longestChars: 10 });
+    const f = idleFrame({ lanes: 7, laneWidth: w, rows: 12, rowDepth: 1.35, aspect, frameLanes: 2, centerX: 0, safe: closeUpSafe({ viewH: H, ...plan }) });
+    const py = p => ((1 - project(p, f, aspect).y) / 2) * H;
+    const tagsBottom = py([0, 0.1, BASE_R * w * 1.16]) + plan.rows * rowStep(plan.fontPx);
+    const head = py([0, standeeFoot(w) + STANDEE_H * w, 0]);
+    assert.ok(head >= 64, `頭頂 ${head.toFixed(0)}px 碰到角落按鈕`);
+    assert.ok(tagsBottom <= H - 110, `名牌底 ${tagsBottom.toFixed(0)}px 掉進開始鈕那一條(上限 ${H - 110})`);
   });
 }
 
@@ -259,17 +262,47 @@ test('scanPass:兩個人時鏡頭不用移動,但還是停 2.4 秒讓大家看�
 
 // review Important:錯開兩排時名牌可以比車道寬,最左 / 最右的會凸出畫面被切掉
 import { clampTagX } from '../ghostleg/js/labels.js';
-test('clampTagX:名牌整塊留在畫面裡(左右各留 6px);放得下就不動', () => {
-  assert.equal(clampTagX(10, 200, 390), 106);
-  assert.equal(clampTagX(380, 200, 390), 284);
+// 名牌整塊放得下才顯示,放不下就先藏起來(等掃過去再出現)。往內夾的話會撞到隔壁的名牌(2026-10-02 實測)
+test('clampTagX:整塊在畫面裡(左右各留 6px)才回傳 x;凸出去或棋子在畫面外都回 null', () => {
   assert.equal(clampTagX(195, 100, 390), 195);
-});
-
-test('clampTagX:掃到畫面外的名牌不夾回來(回 null 隱藏),不然會全部疊在邊緣', () => {
+  assert.equal(clampTagX(56, 100, 390), 56);
+  assert.equal(clampTagX(50, 100, 390), null, '凸出左邊');
+  assert.equal(clampTagX(350, 100, 390), null, '凸出右邊');
   assert.equal(clampTagX(-120, 200, 390), null);
   assert.equal(clampTagX(390 + 120, 200, 390), null);
-  assert.equal(clampTagX(-60, 200, 390), null, '棋子中心已經在畫面外(只露出一半)也隱藏,不然會跟隔壁的名牌黏在一起');
 });
+
+// 鏡頭為了塞進安全範圍退遠時,畫面上的車道比 namePlan 估的窄,長名字會互相疊住 —— 每格照實際間距縮字
+import { fitFont } from '../ghostleg/js/labels.js';
+// 實測(2026-10-02):手機 2 人特寫時兩隻動物在畫面 1/4、3/4,名字比一條車道寬就整塊放不下、被藏起來,
+// 結果畫面上一個名字都沒有 —— 縮字的標準是「一條車道放得下」,不是錯開後的兩條
+test('fitFont:名字縮到一條車道放得下(留 10% 餘裕);放得下就維持原字級;最小 12px', () => {
+  const nameW = (chars, f) => chars * f + f * 0.7 + 6;
+  const f = fitFont({ fontPx: 43, laneSpacingPx: 180, longestChars: 10 });
+  assert.ok(nameW(10, f) <= (180 * 0.95 - 6) * 0.9 + 6 + 1e-9, `${f}`);
+  assert.equal(fitFont({ fontPx: 43, laneSpacingPx: 600, longestChars: 3 }), 43);
+  assert.equal(fitFont({ fontPx: 43, laneSpacingPx: 10, longestChars: 10 }), 12);
+});
+
+test('rowStep:錯開的兩排間距 ≥ 名牌實際高度(字高 1.44 倍 + 框 6px)+ 4px,小字時也不會上下疊住', () => {
+  for (const f of [12, 16, 29, 43, 65]) assert.ok(rowStep(f) >= f * 1.44 + 6 + 4 - 1e-9, `${f}`);
+});
+
+// refute:全景只有 2 個人時冰板很窄、鏡頭貼很近,最前排的棋子和名牌掉到開始鈕底下(1280×720:856 > 610)
+for (const [W, H] of [[390, 700], [844, 390], [1280, 720], [1920, 1080], [768, 1024]]) {
+  for (const lanes of [2, 7, 40]) {
+    test(`全景:最前排的名牌在開始鈕上面、冰板最遠端在角落按鈕下面(${W}×${H},${lanes} 人)`, () => {
+      const aspect = W / H;
+      const w = lanes <= 8 ? 1 : Math.max(0.34, 8 / lanes);
+      const f = idleFrame({ lanes, laneWidth: w, rows: 12, rowDepth: 1.35, aspect, safe: overviewSafe({ viewH: H }) });
+      const py = p => ((1 - project(p, f, aspect).y) / 2) * H;
+      const tagBottom = py([0, 0.1, BASE_R * w * 1.16 + TAG_H * w * 1.1]);
+      const farEdge = py([0, 0, -12 * 1.35]);
+      assert.ok(tagBottom <= H - 110, `名牌底 ${tagBottom.toFixed(0)} > ${H - 110}`);
+      assert.ok(farEdge >= 64, `冰板最遠端 ${farEdge.toFixed(0)} < 64`);
+    });
+  }
+}
 
 // 2026-10-02 使用者:「跑的時候名字為啥會遮住後面的人」—— 名牌設成永遠畫在最上層(renderOrder 10),
 // 比賽時前後交錯就蓋到別人。改回跟立牌一樣依遠近排序。

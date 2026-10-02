@@ -51,11 +51,33 @@ export function namePlan({ viewW, viewH, lanes, longestChars }) {
   return { fontPx, rows, frameLanes };
 }
 
-// 名牌整塊留在畫面裡(左右各留 6px)。錯開兩排時名牌可以比車道寬,最左 / 最右那個置中在車道上會凸出畫面(review)。
-// 但棋子中心已經在畫面外的(掃描時只露出一半或完全看不到),名牌回 null 隱藏 ——
-// 夾回來的話會在邊緣跟隔壁的名牌疊成一團(2026-10-02 截圖)。
+// 名牌整塊放得下(左右各留 6px)才回傳 x,不然回 null 先藏起來,等鏡頭掃過去、棋子移進來再出現。
+// 往內夾回畫面的做法會撞到隔壁的名牌(2026-10-02 實測);棋子在畫面外時當然也是 null。
 export function clampTagX(x, tagW, layerW) {
-  if (x < 0 || x > layerW) return null;
   const half = tagW / 2 + 6;
-  return Math.min(Math.max(x, half), Math.max(half, layerW - half));
+  return x - half >= 0 && x + half <= layerW ? x : null;
 }
+
+// 特寫的安全範圍(畫面高度的比例,給 camera-script.js idleFrame 的 safe):
+// 動物頭頂在角落按鈕下面(64px),名牌(含錯開的每一排)在開始鈕上面(畫面底留 110px)
+export function closeUpSafe({ viewH, fontPx, rows }) {
+  return { top: 64 / viewH, bottom: Math.max(0.3, (viewH - 110 - rows * rowStep(fontPx)) / viewH) };
+}
+
+// 全景的安全範圍:最前排名牌的底在開始鈕上面(畫面底留 110px),冰板最遠端在角落按鈕下面(64px)
+export function overviewSafe({ viewH }) {
+  return { top: 64 / viewH, bottom: (viewH - 110) / viewH };
+}
+
+// 照畫面上實際的車道間距縮字:鏡頭為了塞進安全範圍退遠時,車道比 namePlan 估的窄,長名字會疊住。
+// 一律全名,只縮字不截短;最小 12px。
+// 標準是「一條車道放得下」:名牌要整塊在畫面裡才顯示,2 人特寫時兩隻動物在畫面 1/4、3/4,
+// 比一條車道寬的名字兩個都會被藏起來(實測手機上一個名字都沒有)。
+export function fitFont({ fontPx, laneSpacingPx, longestChars }) {
+  const room = (laneSpacingPx * 0.95 - 6) * 0.9;   // 留 10%:粗體中文實際比 1em 估的寬一點
+  return Math.max(12, Math.min(fontPx, room / (longestChars + 0.7)));
+}
+
+// 錯開的上下兩排間距 = 名牌實際高度(行高 1.2em + 上下內距 .24em + 框 6px)+ 4px。
+// 寫成字高 × 1.7 的話,字縮小時框跟內距沒等比縮,兩排會上下疊住(手機橫拿)
+export const rowStep = fontPx => fontPx * 1.44 + 6 + 4;

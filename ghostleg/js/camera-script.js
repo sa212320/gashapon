@@ -8,6 +8,8 @@
 //
 // 「跟前緣」的已知代價是落後的人會跑出畫面。收尾段就是補這件事 ——
 // 所有人的抵達必須是集體的,不能有人在鏡頭外默默結束。
+import { SNOW_H, BASE_R, STANDEE_H, TAG_H, standeeFoot } from './labels.js';
+
 const SHOW = 1600;
 const FLY = 1900;
 const BACK = 1300;
@@ -30,14 +32,68 @@ const IDLE_PITCH = (35 * Math.PI) / 180;
 // 開跑前的特寫(labels.js namePlan):只框 frameLanes 條車道,看向 centerX(scanPass 從左掃到右)。
 // 橫向螢幕一樣當成正方形算(review 2026-10-02:以 16:9 的寬度框 2 個人,鏡頭貼太近,
 // 底座前的名牌整段掃描都掉在畫面下面 —— 投影上課正好是這個情況)。
-export function idleFrame({ lanes, laneWidth, rowDepth, aspect, fov = 48, frameLanes = null, centerX = 0 }) {
-  const scan = Boolean(frameLanes);   // 開跑前一律特寫(人少時 frameLanes = 人數,不用掃)
+// 透視投影後的垂直位置(0 = 畫面頂、1 = 畫面底),跟 PerspectiveCamera + lookAt 一樣(上方向 +y)
+function screenY(p, pos, look, fov) {
+  const sub = (a, b) => a.map((v, i) => v - b[i]);
+  const dot = (a, b) => a.reduce((t, v, i) => t + v * b[i], 0);
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const norm = a => { const l = Math.hypot(...a); return a.map(v => v / l); };
+  const fwd = norm(sub(look, pos));
+  const right = norm(cross(fwd, [0, 1, 0]));
+  const up = cross(right, fwd);
+  const d = sub(p, pos);
+  return (1 - dot(d, up) / (dot(d, fwd) * Math.tan((fov * Math.PI) / 360))) / 2;
+}
+
+// 找一個機位:low 點(名牌底)不低於 safe.bottom、high 點(頭頂 / 冰板最遠端)不高於 safe.top。
+// 距離從 d0 起一點一點退遠,每個距離都把整組鏡頭上下移,讓 low 點剛好貼著 safe.bottom。
+function fitFrame({ d0, look0, low, high, safe, fov, at }) {
+  let best = null;
+  for (let m = 1; m <= 8; m += 0.05) {   // 手機橫拿(844×390)這種很矮的畫面要退到 4 倍以上
+    const d = d0 * m;
+    // 整組鏡頭(機位 + 看的點)往下移 → 畫面裡的東西往上跑。範圍不能太大,降太多 low 點會跑到鏡頭後面
+    let lo = look0[1] - d * 0.4, hi = look0[1] + d * 0.4;
+    for (let k = 0; k < 30; k++) {
+      const ly = (lo + hi) / 2;
+      const look = [look0[0], ly, look0[2]];
+      if (screenY(low, at(d, look), look, fov) > safe.bottom - 0.005) hi = ly; else lo = ly;
+    }
+    const look = [look0[0], (lo + hi) / 2, look0[2]];
+    best = { pos: at(d, look), look };
+    if (screenY(high, best.pos, look, fov) >= safe.top) break;
+  }
+  return best;
+}
+
+// safe(畫面高度的比例):
+//   特寫 —— 動物頭頂不能高過 top(角落按鈕),底座前的名牌錨點不能低過 bottom(下面還要放名牌、再下面是開始鈕)
+//   全景 —— 最前排名牌的底不能低過 bottom,冰板最遠端不能高過 top
+// 預設構圖放不下時(特寫框 2 條車道塞滿寬度、全景只有 2 個人冰板很窄)就退遠、往下看(refute 2026-10-02)。
+export function idleFrame({ lanes, laneWidth, rows = 12, rowDepth, aspect, fov = 48, frameLanes = null, centerX = 0, safe = null }) {
+  const scan = Boolean(frameLanes);   // 開跑時一律特寫(人少時 frameLanes = 人數,不用掃)
   const hfov = 2 * Math.atan(Math.tan((fov * Math.PI) / 360) * Math.min(1, aspect));
   const frameW = scan ? frameLanes * laneWidth : boardWidth(lanes, laneWidth) / 0.8;
-  const d = frameW / (2 * Math.tan(hfov / 2));
-  // 掃描時鏡頭很近,看向起跑線前方的話棋子和名字會掉到畫面外 —— 直接看著起跑線
-  const look = scan ? [centerX, laneWidth * 0.7, 0] : [0, laneWidth * 0.8, -rowDepth * 1.5];
-  return { pos: [look[0], look[1] + d * Math.sin(IDLE_PITCH), look[2] + d * Math.cos(IDLE_PITCH)], look };
+  const d0 = frameW / (2 * Math.tan(hfov / 2));
+  const at = (d, look) => [look[0], look[1] + d * Math.sin(IDLE_PITCH), look[2] + d * Math.cos(IDLE_PITCH)];
+  const front = BASE_R * laneWidth * 1.16;
+  if (!scan) {
+    const look0 = [0, laneWidth * 0.8, -rowDepth * 1.5];
+    const plain = { pos: at(d0, look0), look: look0 };
+    if (!safe) return plain;
+    const low = [0, SNOW_H, front + TAG_H * laneWidth * 1.1];   // 最前排名牌的底(labels.js tagPlace)
+    const high = [0, 0, -rows * rowDepth];                       // 冰板最遠端
+    const ok = screenY(low, plain.pos, look0, fov) <= safe.bottom && screenY(high, plain.pos, look0, fov) >= safe.top;
+    return ok ? plain : fitFrame({ d0, look0, low, high, safe, fov, at });
+  }
+  return fitFrame({
+    d0,
+    look0: [centerX, laneWidth * 0.7, 0],
+    low: [centerX, SNOW_H, front],                                        // 底座正前方(track.js nameAnchors)
+    high: [centerX, standeeFoot(laneWidth) + STANDEE_H * laneWidth, 0],   // 動物頭頂
+    safe: safe ?? { top: 0.09, bottom: 0.62 },
+    fov,
+    at,
+  });
 }
 
 // 開跑前的掃描(2026-10-02 使用者:「最多框 2 人,掃描久一點沒關係,可以點一下跳過」):

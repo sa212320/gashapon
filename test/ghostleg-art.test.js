@@ -129,3 +129,17 @@ test('大字名牌收起時直接消失(只有淡入才有 transition),不會跟
   assert.ok(!/transition/.test(rule('.name-layer')));
   assert.match(rule('.name-layer.is-on'), /transition: opacity/);
 });
+
+// refute:名牌剛從隱藏變顯示的那一格,offsetWidth 量到 0(還是 display:none),那一格沒夾回畫面、會閃出去
+test('大字名牌先取消隱藏再量寬度', () => {
+  const i = mainJs.indexOf('function placeNames(');
+  const body = mainJs.slice(i, mainJs.indexOf('\n}\n', i));
+  assert.ok(body.indexOf('el.hidden = false') > -1 && body.indexOf('el.hidden = false') < body.indexOf('el.offsetWidth'), body);
+});
+
+// refute:人多時結果清單每列被擠成 48px,換行的名字印到下一列上
+test('結果清單的每一列照內容長高,不會被擠扁', () => {
+  const css = readFileSync(new URL('../ghostleg/css/ghostleg.css', import.meta.url), 'utf8');
+  const rule = css.slice(css.indexOf('.results__list {'), css.indexOf('}', css.indexOf('.results__list {')));
+  assert.match(rule, /grid-auto-rows: max-content/);
+});

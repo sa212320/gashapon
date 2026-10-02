@@ -115,7 +115,8 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
   font-size: 18px;
   position: relative;
 }
-.results__list { margin: 0; padding: 0 2px; list-style: none; overflow-y: auto; display: grid; gap: 6px; }
+/* grid-auto-rows: max-content —— 捲動容器裡的 grid 列會被擠成 min-height,換行的名字印到下一列上(refute) */
+.results__list { margin: 0; padding: 0 2px; list-style: none; overflow-y: auto; display: grid; grid-auto-rows: max-content; gap: 6px; }
 .results__item {
   display: flex;
   align-items: center;
