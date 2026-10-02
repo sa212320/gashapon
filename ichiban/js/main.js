@@ -47,6 +47,10 @@ const revealer = createRevealer({
   cardName: $('cardName'),
   aura: $('aura'),
   particles: $('particles'),
+  ticketActions: $('ticketActions'),
+  holdCancelBtn: $('holdCancelBtn'),
+  tearBtn: $('tearBtn'),
+  tearHint: $('tearHint'),
 });
 
 const ask = createAsk({
@@ -95,9 +99,6 @@ $('settingsDialog').addEventListener('close', () => {
 /* ---------- 抽獎:拿起 → 猶豫(取消/撕開)→ 撕開 ---------- */
 const overlay = $('overlay');
 const skipHint = $('skipHint');
-const ticketActions = $('ticketActions');
-const holdCancelBtn = $('holdCancelBtn');
-const tearBtn = $('tearBtn');
 
 function closeOverlay() {
   overlay.hidden = true;
@@ -119,21 +120,6 @@ function waitForDismiss() {
   });
 }
 
-// 等使用者按「取消」或「撕開」。用 { once: true } 保證同一輪抽獎
-// 只會有一次選擇,不會因為重複綁定而多算。
-//
-// stopPropagation 是必要的,不是保險:這兩顆按鈕在 overlay 裡面,而 overlay 上
-// 掛著「播放中就快轉」。瀏覽器每呼叫完一個 listener 就清一次 microtask,所以
-// resolve('tear') 的後續(playTear,會把 playing 設成 true)會搶在 overlay 的
-// listener 之前跑完 —— overlay 一看「正在播」就 requestSkip(),整段演出被快轉掉。
-// 症狀是「按了撕開直接看到獎項,完全沒有動畫」。
-function waitForChoice() {
-  return new Promise(resolve => {
-    const pick = (choice, e) => { e.stopPropagation(); resolve(choice); };
-    holdCancelBtn.addEventListener('click', e => pick('cancel', e), { once: true });
-    tearBtn.addEventListener('click', e => pick('tear', e), { once: true });
-  });
-}
 
 async function doDraw(ticketEl) {
   // 連按:先把正在播的這次快轉完,不要疊在一起
@@ -161,7 +147,7 @@ async function doDraw(ticketEl) {
   // 拿起籤紙、還沒決定撕不撕:吉祥物看著就好,不用衝過來。
   mascots.setPose('watch');
 
-  // 演出(hold / tear / playBonus)任何一步丟例外,都不能讓遮罩卡死在畫面上 ——
+  // 演出(hold / tear / holdBonus)任何一步丟例外,都不能讓遮罩卡死在畫面上 ——
   // 尤其一番賞後面還在 await waitForDismiss(),那是在等一次點擊才會 resolve
   // 的 promise,例外發生後不會再有人去點,永遠不會 resolve。用 try/catch/
   // finally 把整段包起來:catch 只負責留下線索(console.error),真正的
@@ -174,10 +160,15 @@ async function doDraw(ticketEl) {
       // 號碼決定蓋著那面的顏色與角色(跟桌上那張一樣),而且不洩漏賞別。
       no,
     }, origin);
-    ticketActions.hidden = false;
-
-    const choice = await waitForChoice();
-    ticketActions.hidden = true;
+    // 手指往右撕或按「撕開」(2026-10-02 grill)。拉過 3%(還看不到獎項)或按了撕開就算抽走,
+    // 這時才把結果寫進 state、存進 localStorage;之後就算拉回 0% 也一樣 —— 不能偷看再取消。
+    const choice = await revealer.waitForTear({
+      onCommit: () => {
+        state = replaceSetup(state, { ...setup, tickets: result.tickets });
+        persist(state);
+        desk.render(getActive(state));
+      },
+    });
 
     if (choice === 'cancel') {
       await revealer.cancelReturn(origin);
@@ -186,13 +177,8 @@ async function doDraw(ticketEl) {
       return;
     }
 
-    // 撕開了才是真的抽獎:這時候才把結果寫進 state、存進 localStorage。
-    state = replaceSetup(state, { ...setup, tickets: result.tickets });
-    persist(state);
-    desk.render(getActive(state));
-
     skipHint.hidden = false;
-    await revealer.tear();
+    await revealer.tear(choice.from);
     // A/B 賞或最後一抽賞才值得吉祥物歡呼。這裡只負責「要不要歡呼」,
     // 歡呼完之後回到哪個姿勢由 render() 決定(在 finally 裡呼叫),
     // 不在這裡搶著設,免得兩個地方互相打架。
@@ -206,8 +192,11 @@ async function doDraw(ticketEl) {
     // 抽走最後一張且設定了名字才會多跳這一張金色的卡。
     if (result.isLastOne && result.lastOnePrize) {
       overlay.hidden = false;
+      // 金卡也用手撕(沒有取消:它本來就一定是你的)
+      await revealer.holdBonus(result.lastOnePrize);
+      const bonus = await revealer.waitForTear({ cancellable: false });
       skipHint.hidden = false;
-      await revealer.playBonus(result.lastOnePrize);
+      await revealer.tear(bonus.from);
       await waitForDismiss();
       closeOverlay();
     }

@@ -90,3 +90,11 @@ test('音效庫有短撕紙聲 rip', async () => {
   const { sfx } = await import('../shared/js/sound.js');
   assert.equal(typeof sfx.rip, 'function');
 });
+
+test('main.js:存檔只在 onCommit 裡(手指 > 3% 或按撕開);金卡不能取消', () => {
+  const src = read('ichiban/js/main.js');
+  assert.ok(!/waitForChoice/.test(src));
+  assert.match(src, /waitForTear\(\{\s*onCommit: \(\) => \{[\s\S]*?persist\(state\);[\s\S]*?\}\s*,?\s*\}\)/);
+  assert.match(src, /holdBonus\(result\.lastOnePrize\)[\s\S]*?waitForTear\(\{ cancellable: false \}\)/);
+  assert.ok(!/playBonus\(/.test(src));
+});
