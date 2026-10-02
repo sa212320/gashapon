@@ -190,6 +190,8 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
 }
 .picker-row__opt { display: grid; justify-items: center; gap: 2px; }
 .picker-row__label { font-size: 12px; font-weight: 700; }
+/* 64px 的方框裡要放圖 + 一行字:圖縮成 34px,字才不會被 overflow 切掉 */
+.picker-row__opt .edit-row__thumb { width: 34px; height: 34px; }
 .picker-row .edit-row__pick:has(.picker-row__opt) { width: 64px; height: 64px; }
 /* width: 0 —— input 天生約 20 個字寬(~208px),會被算進 grid 欄的 min-content,
    手機上整列撐出對話框、「刪」被擠到外面;min-width: 0 擋不住這個。 */

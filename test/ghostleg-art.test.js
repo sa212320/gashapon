@@ -160,3 +160,8 @@ test('設定的小圖固定 40px 方塊、方框裁掉超出的部分', () => {
   assert.match(rule('.edit-row__thumb'), /width: 40px; height: 40px;/);
   assert.match(rule('.edit-row__pick'), /overflow: hidden;/);
 });
+
+test('等級選擇器:選項裡的小圖縮成 34px,下面的字不會被切掉', () => {
+  const css = readFileSync(new URL('../ghostleg/css/ghostleg.css', import.meta.url), 'utf8');
+  assert.match(css, /\.picker-row__opt \.edit-row__thumb \{ width: 34px; height: 34px; \}/);
+});
