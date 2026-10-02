@@ -105,3 +105,23 @@ def graph_i2i(image_name, prompt, negative, seed, prefix, denoise, steps=9):
         '9': {'class_type': 'VAEDecode', 'inputs': {'samples': ['8', 0], 'vae': ['3', 0]}},
         '10': {'class_type': 'SaveImage', 'inputs': {'images': ['9', 0], 'filename_prefix': prefix}},
     }
+
+
+def graph_edit(ref_names, prompt, seed, prefix, steps=25, resolution=1024):
+    """Qwen Image 2.1 編輯/照參考圖畫:ref_names 是已上傳的參考圖(最多 16 張),
+    prompt 裡用 <image1>、<image2>… 指名。輸出尺寸跟著第一張參考圖走。
+    節點照官方範本 image_qwen_image_2_1_image_edit 的子圖;cfg 1 時負面提示詞不起作用。"""
+    g = {
+        '1': {'class_type': 'UNETLoader', 'inputs': {'unet_name': 'qwen_image_2.1_int8_convrot.safetensors', 'weight_dtype': 'default'}},
+        '2': {'class_type': 'CLIPLoader', 'inputs': {'clip_name': 'qwen3vl_8b_int8_convrot.safetensors', 'type': 'qwen_image', 'device': 'default'}},
+        '3': {'class_type': 'VAELoader', 'inputs': {'vae_name': 'qwen_image_2.1_vae_bf16.safetensors'}},
+        '4': {'class_type': 'QwenImage21Cache', 'inputs': {'model': ['1', 0], 'device': 'auto', 'dtype': 'default'}},
+        '5': {'class_type': 'TextEncodeQwenImage21', 'inputs': {'clip': ['2', 0], 'vae': ['3', 0], 'prompt': prompt, 'negative_prompt': '', 'resolution': resolution}},
+        '6': {'class_type': 'KSampler', 'inputs': {'model': ['4', 0], 'seed': seed, 'steps': steps, 'cfg': 1.0, 'sampler_name': 'euler', 'scheduler': 'simple', 'positive': ['5', 0], 'negative': ['5', 1], 'latent_image': ['5', 2], 'denoise': 1.0}},
+        '7': {'class_type': 'VAEDecode', 'inputs': {'samples': ['6', 0], 'vae': ['3', 0]}},
+        '8': {'class_type': 'SaveImage', 'inputs': {'images': ['7', 0], 'filename_prefix': prefix}},
+    }
+    for i, name in enumerate(ref_names, 1):
+        g[f'10{i}'] = {'class_type': 'LoadImage', 'inputs': {'image': name}}
+        g['5']['inputs'][f'images.image_{i}'] = [f'10{i}', 0]
+    return g
