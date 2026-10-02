@@ -122,7 +122,8 @@ async function withDesk(fn) {
   globalThis.window = { devicePixelRatio: 2 };
   globalThis.getComputedStyle = () => ({ paddingLeft: '16px', paddingRight: '16px', paddingTop: '14px', paddingBottom: '28px' });
   globalThis.requestAnimationFrame = f => { f(); return 1; };
-  globalThis.ResizeObserver = class { observe() {} };
+  const observers = [];
+  globalThis.ResizeObserver = class { constructor(cb) { observers.push(cb); } observe() {} };
   try {
     const { createDeskView } = await import('../ichiban/js/ui.js');
     const handlers = {};
@@ -131,7 +132,8 @@ async function withDesk(fn) {
     const pileEl = el();
     const boxEl = el({ hidden: true, offsetHeight: 100 });
     const desk = createDeskView({ deskEl, pileEl, canvasEl, boxEl, emptyStateEl: el(), onPick() {} });
-    return await fn({ desk, deskEl, canvasEl, pileEl, boxEl, handlers, made });
+    const resized = () => observers.forEach(cb => cb([]));
+    return await fn({ desk, deskEl, canvasEl, pileEl, boxEl, handlers, made, resized });
   } finally {
     for (const k of keys) globalThis[k] = saved[k];
   }
@@ -220,6 +222,23 @@ test('開場動畫中又 render(轉手機、改設定):動畫直接結束', asyn
   await withDealDesk(async ({ desk }) => {
     desk.deal({ tickets: tickets(10) });
     desk.render({ tickets: tickets(10) });
+    assert.equal(desk.isDealing, false);
+  });
+});
+
+test('ResizeObserver 剛掛上時那一次(尺寸沒變)不能把進頁面的開場動畫收掉', async () => {
+  await withDealDesk(async ({ desk, resized }) => {
+    desk.deal({ tickets: tickets(10) });
+    resized();
+    assert.equal(desk.isDealing, true);
+  });
+});
+
+test('桌面真的變大小(轉手機)才重排,動畫直接結束', async () => {
+  await withDealDesk(async ({ desk, resized, deskEl }) => {
+    desk.deal({ tickets: tickets(10) });
+    deskEl.clientWidth = 700;
+    resized();
     assert.equal(desk.isDealing, false);
   });
 });

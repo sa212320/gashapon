@@ -29,11 +29,15 @@ export function createDeskView({ deskEl, pileEl, canvasEl, boxEl, emptyStateEl, 
     };
   }
 
+  let laidOutAt = '';   // 排版時的桌面尺寸;ResizeObserver 只在它變了才重排
+  const deskSize = () => `${deskEl.clientWidth}x${deskEl.clientHeight}`;
+
   function render(next) {
     // 開場動畫中又重排(轉手機、改設定):動畫直接結束,畫最終狀態
     if (dealing) finishDeal();
     setup = next;
     const undrawn = setup.tickets.filter(t => !t.drawn);
+    laidOutAt = deskSize();
     layout = layoutDesk({ count: undrawn.length, ...inner() });
     pileEl.style.setProperty('--cols', String(layout.cols));
     pileEl.style.setProperty('--card-w', `${layout.cardW}px`);
@@ -191,7 +195,11 @@ export function createDeskView({ deskEl, pileEl, canvasEl, boxEl, emptyStateEl, 
   }
 
   deskEl.addEventListener('scroll', redraw, { passive: true });
-  new ResizeObserver(() => { if (setup) render(setup); }).observe(deskEl);
+  // 只有桌面真的變大小(轉手機、拉視窗)才重排。ResizeObserver 剛掛上時一定會先叫一次,
+  // 那一次尺寸沒變;照樣重排的話會把進頁面的開場動畫當場收掉(手機實測看不到動畫,2026-10-02)。
+  new ResizeObserver(() => {
+    if (setup && deskSize() !== laidOutAt) render(setup);
+  }).observe(deskEl);
   loadCardArt().then(() => { sprites = new Map(); redraw(); });
 
   pileEl.addEventListener('click', e => {
