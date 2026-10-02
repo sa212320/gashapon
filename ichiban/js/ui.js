@@ -5,7 +5,7 @@ import { remaining, needsRebuild, entriesChanged } from '../../shared/js/roster.
 import { createDialogShell } from '../../shared/js/dialog.js';
 import { sfx } from '../../shared/js/sound.js';
 import { faceColorFor, critterFor, tiltFor, layoutDesk } from './desk-layout.js';
-import { dealPlan, dealLength, flightAt } from './desk-deal.js';
+import { dealPlan, dealLength, flightAt, boxYAt } from './desk-deal.js';
 import { loadCardArt, drawFace, traceTicket } from './card-art.js';
 
 // 最後一抽賞永遠是金色,不看賞別 —— 它是額外加碼的驚喜,不是某個賞別的籤。
@@ -124,7 +124,8 @@ export function createDeskView({ deskEl, pileEl, canvasEl, boxEl, emptyStateEl, 
       if (flight) {
         const t = (elapsed - flight.start) / flight.duration;
         if (t <= 0) continue;                    // 還在盒子裡
-        if (t < 1) at = flightAt(t, dealing.from, to, tiltFor(s.no));
+        const from = { x: dealing.holeX, y: boxYAt(flight.start, dealing.holeMid, dealing.holeBottom) };
+        if (t < 1) at = flightAt(t, from, to, tiltFor(s.no));
       }
       ctx.save();
       ctx.translate(at.x, at.y);
@@ -135,10 +136,10 @@ export function createDeskView({ deskEl, pileEl, canvasEl, boxEl, emptyStateEl, 
     }
   }
 
-  /* ---------- 開場動畫:籤從盒子裡一張一張飛出來 ---------- */
+  /* ---------- 開場動畫:抽獎箱搖一搖,籤從洞口一波一波飛出來 ---------- */
   // 只是演出:按鈕已經在最終位置,canvas 照時間表把籤畫在飛行途中。
   // 播放中按鈕不能點,點桌面任何地方就直接全部排好。
-  let dealing = null;   // { plan: Map(no → { start, duration }), t0, length, from, armed }
+  let dealing = null;   // { plan: Map(no → { start, duration }), t0, length, holeX/Mid/Bottom, armed }
 
   function deal(next) {
     render(next);
@@ -151,13 +152,15 @@ export function createDeskView({ deskEl, pileEl, canvasEl, boxEl, emptyStateEl, 
     });
     if (!visible.length) return;
     const plan = dealPlan(visible);
-    const boxH = boxEl.offsetHeight || 100;
+    const boxH = boxEl.offsetHeight || 100;   // 抽獎箱在桌面正中央(css .deal-box)
     dealing = {
       plan: new Map(plan.map(p => [p.no, p])),
       t0: performance.now(),
       length: dealLength(plan),
-      // 盒口:桌面下方中央,盒子上緣往下一點(籤從盒子後面冒出來)
-      from: { x: deskEl.clientWidth / 2, y: h - boxH * 0.65 },
+      // 抽獎箱頂面的圓洞:先在桌面正中央,開始飛時滑到底部(css .deal-box 的 top 要對得上)
+      holeX: deskEl.clientWidth / 2,
+      holeMid: h / 2 - boxH * 0.28,
+      holeBottom: h - 8 - boxH / 2 - boxH * 0.28,
       // 觸發動畫的那一下點擊(「重新鋪一桌」在桌面裡)會冒泡到桌面;下一幀才開始接受「點一下跳過」
       armed: false,
     };

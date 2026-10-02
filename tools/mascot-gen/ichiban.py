@@ -8,6 +8,7 @@
   $PY tools/mascot-gen/ichiban.py build                   # 輸出 ichiban/img/*.webp、蓋 ?v=、重產 preload.json
   $PY tools/mascot-gen/ichiban.py gen empty --seeds 11,22,33,44,55,66   # 「抽完了」插圖(綠幕)
   $PY tools/mascot-gen/ichiban.py pick empty 3 && $PY tools/mascot-gen/ichiban.py build-empty
+  $PY tools/mascot-gen/ichiban.py gen raffle --seeds ... && pick raffle 3 && build-box   # 開場動畫的抽獎箱
 """
 import argparse
 import json
@@ -45,7 +46,7 @@ def save_cfg(cfg):
 
 
 def prompt_for(cfg, name):
-    if name in ('empty', 'box'):   # 同一個籤盒:空的(抽完了)/ 裝滿的(開場動畫)
+    if name in ('empty', 'raffle'):   # 同一個抽獎箱:開場動畫(raffle)/ 抽完了(empty,前面散著撕開的籤)
         return f'{cfg["empty_style"]}, {cfg[name]}', cfg['empty_negative'], 768, 640
     return f'{cfg["stamp_style"]}, {cfg[name]}', cfg['stamp_negative'], 768, 768
 
@@ -88,12 +89,16 @@ def cmd_build_empty(args):
     print('empty done')
 
 
+BOX_W = 360   # 開場動畫的抽獎箱在畫面中央,約 180px 寬(2x)
+
+
 def cmd_build_box(args):
-    pick = load_cfg().get('picks', {}).get('box')
+    # 開場動畫的抽獎箱(2026-10-02 使用者選 raffle s3:上面一個圓洞,籤從洞口飛出來)
+    pick = load_cfg().get('picks', {}).get('raffle')
     if not pick:
-        sys.exit('還沒 pick box')
+        sys.exit('還沒 pick raffle')
     path = IMG / 'box.webp'
-    webp(cut_empty(OUT / 'box' / f's{pick["n"]}.png', width=300), path, q=82)   # 畫面上約 150px
+    webp(cut_empty(OUT / 'raffle' / f's{pick["n"]}.png', width=BOX_W), path, q=82)
     INDEX.write_text(stamp(INDEX.read_text(), 'img/box.webp', content_hash(path)))
     write_preload_manifest()
     print('box done')
@@ -101,7 +106,7 @@ def cmd_build_box(args):
 
 def cmd_review(args):
     # 每個候選烘成跟正式版一樣的格式,review/ichiban.html 把它們畫在冷色票卡上比較
-    for scene in ('empty', 'box'):
+    for scene in ('empty', 'raffle'):
         for src in sorted((OUT / scene).glob('s*.png')):
             dst = REVIEW / scene / f'{src.stem}.png'
             dst.parent.mkdir(parents=True, exist_ok=True)
@@ -142,9 +147,9 @@ COMMANDS = {'gen': cmd_gen, 'review': cmd_review, 'pick': cmd_pick, 'build': cmd
 def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest='cmd', required=True)
-    g = sub.add_parser('gen'); g.add_argument('name', choices=NAMES + ['empty', 'box']); g.add_argument('--seeds', help='逗號分隔,例如 44,55,66')
+    g = sub.add_parser('gen'); g.add_argument('name', choices=NAMES + ['empty', 'raffle']); g.add_argument('--seeds', help='逗號分隔,例如 44,55,66')
     sub.add_parser('review')
-    p = sub.add_parser('pick'); p.add_argument('name', choices=NAMES + ['empty', 'box']); p.add_argument('n', type=int)
+    p = sub.add_parser('pick'); p.add_argument('name', choices=NAMES + ['empty', 'raffle']); p.add_argument('n', type=int)
     sub.add_parser('build')
     sub.add_parser('build-empty')
     sub.add_parser('build-box')

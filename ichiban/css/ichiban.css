@@ -54,27 +54,40 @@ body {
   height: 100%;
   pointer-events: none;
 }
-/* 開場動畫的籤盒(js/ui.js deal):彈出 → 籤飛完 → 往下沉、淡出。
-   疊在桌面上面:籤剛飛出來時會被盒子前緣擋住一點,像從盒子裡冒出來。 */
+/* 開場動畫的抽獎箱(js/ui.js deal):在桌面正中央彈出 → 搖一搖 → 往下滑到底部,
+   籤從頂面的洞飛出來 → 籤都落位後縮小、淡出。彈出 + 搖的總長要等於 desk-deal.js 的 INTRO_MS(0.9 秒)。
+   疊在桌面上面:籤剛從洞口冒出來時會被箱子擋住一點,像從裡面彈出來。 */
 .deal-box {
   position: absolute;
   left: 50%;
-  bottom: 6px;
+  top: 50%;
   z-index: 2;
-  width: min(150px, 38vw);
+  width: min(180px, 46vw);
   height: auto;
-  translate: -50% 0;
+  translate: -50% -50%;
   pointer-events: none;
 }
-.deal-box.is-in { animation: deal-box-in .35s cubic-bezier(.34, 1.4, .64, 1) both; }
-.deal-box.is-out { animation: deal-box-out .45s ease-in both; }
+/* 彈出 + 搖(0.9s = INTRO_MS)→ 往下滑到底部(0.4s = SLIDE_MS),讓出籤要飛的路 */
+.deal-box.is-in { animation: deal-box-in .9s ease-out both, deal-box-down .4s .9s ease-out both; }
+.deal-box.is-out { top: calc(100% - 8px - min(180px, 46vw) * .41); animation: deal-box-out .4s ease-in both; }
 @keyframes deal-box-in {
-  from { transform: translateY(60%) scale(.6); opacity: 0; }
-  to { transform: none; opacity: 1; }
+  0% { transform: scale(.4); opacity: 0; }
+  30% { transform: scale(1.06); opacity: 1; }
+  38% { transform: scale(1) rotate(0); }
+  50% { transform: rotate(-9deg); }
+  62% { transform: rotate(8deg); }
+  74% { transform: rotate(-6deg); }
+  86% { transform: rotate(4deg); }
+  100% { transform: rotate(0); opacity: 1; }
+}
+@keyframes deal-box-down {
+  from { top: 50%; }
+  /* 底部:箱子高約寬的 0.82 倍,置中錨點在一半 → 離底 8px */
+  to { top: calc(100% - 8px - min(180px, 46vw) * .41); }
 }
 @keyframes deal-box-out {
   from { transform: none; opacity: 1; }
-  to { transform: translateY(70%); opacity: 0; }
+  to { transform: scale(.5); opacity: 0; }
 }
 .pile {
   display: grid;

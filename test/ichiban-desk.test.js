@@ -185,7 +185,7 @@ test('開場動畫:播放中按鈕不能點、盒子出現;播完恢復', async 
     assert.equal(pileEl.style.pointerEvents, 'none');
     assert.equal(boxEl.hidden, false);
     assert.equal(desk.isDealing, true);
-    for (let i = 0; i < 40; i++) tick(50);
+    for (let i = 0; i < 80; i++) tick(50);   // 搖箱子 0.9 秒 + 最多 5 波 + 飛行,4 秒一定播完
     assert.equal(desk.isDealing, false);
     assert.equal(pileEl.style.pointerEvents, '');
   });

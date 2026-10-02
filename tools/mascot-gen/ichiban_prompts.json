@@ -13,12 +13,12 @@
     "empty": {
       "n": 1
     },
-    "box": {
-      "n": 2
+    "raffle": {
+      "n": 3
     }
   },
   "empty_style": "flat 2D cartoon illustration, cute chibi style, flat colors, thick dark brown outlines, magical frozen winter theme, icy blue lavender mint and white palette, clean simple shapes",
-  "empty": "one small open cardboard lottery ticket box seen from the front, the box is pale icy blue with a little fluffy snow on its rim, the box is completely empty, in front of the box three small torn-open paper lottery tickets with perforated edges lying on the ground touching the box, tickets are pastel blue lavender and mint, a few tiny sparkles, everything grouped together in one compact cluster, no characters, no text, no shadow on the background, isolated on a solid flat bright pure green #00FF00 background",
+  "empty": "one cute square lottery draw box seen from the front and slightly above, a classic raffle box made of pale icy blue painted wood or cardboard, a big round hand hole cut in the middle of the flat top surface, the hole is dark inside, a little fluffy snow on the top corners, small white snowflake decorations painted on the front face, solid sturdy box, a few tiny sparkles around, no characters, no text, no letters, no shadow on the background, in front of the box three small torn-open paper lottery tickets with perforated edges lying on the snowy ground touching the box, tickets are pastel blue lavender and mint, everything grouped together in one compact cluster, isolated on a solid flat bright pure green #00FF00 background",
   "empty_negative": "text, letters, numbers, words, people, animal, character, face, eyes, christmas, holly, ribbon, gift bow, present, photorealistic, 3d render, gradient background, shadow",
-  "box": "one small open cardboard lottery ticket box seen from the front, the box is pale icy blue with a little fluffy snow on its rim, the box is full of many small rectangular paper lottery tickets standing up and peeking out of the top, tickets are pastel blue lavender and mint with tiny round perforation holes along their edges, a few tiny sparkles, nothing outside the box, no characters, no text, no shadow on the background, isolated on a solid flat bright pure green #00FF00 background"
+  "raffle": "one cute square lottery draw box seen from the front and slightly above, a classic raffle box made of pale icy blue painted wood or cardboard, a big round hand hole cut in the middle of the flat top surface, the hole is dark inside, a little fluffy snow on the top corners, small white snowflake decorations painted on the front face, solid sturdy box, nothing coming out of the hole, a few tiny sparkles around, no characters, no text, no letters, no shadow on the background, isolated on a solid flat bright pure green #00FF00 background"
 }
