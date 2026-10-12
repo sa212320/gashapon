@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 
 import { createFighter } from '../smash/js/fighters.js';
 import { createWorld, step, think, aliveOf, winnerTeam } from '../smash/js/physics.js';
+import { TYPE_STATS } from '../smash/js/beys.js';
 
 function seeded(seed) {
   let a = seed >>> 0;
@@ -121,4 +122,47 @@ test('120 個人也打得完', () => {
   const big = Array.from({ length: 10 }, (_, i) => createFighter({ name: `隊${i}`, count: 12 }));
   // 120 顆是 7140 對碰撞 × 每秒 60 格,跑兩場就好,不然整套測試會慢到沒人想跑
   for (let seed = 0; seed < 2; seed++) assert.ok(!playMatch({ fighters: big, seed }).timedOut, `seed ${seed}`);
+});
+
+// 類型是隨機發的。如果某一型強到穩贏,誰贏就變成「誰抽到好陀螺」。
+// 這裡用一對一、固定類型,看每一型對每一型都不會是 0% 或 100%。
+
+function duel(typeA, typeB, seeds = 80) {
+  const red = createFighter({ name: '紅', count: 1 });
+  const blue = createFighter({ name: '藍', count: 1 });
+  let redWins = 0;
+  let decided = 0;
+  for (let seed = 0; seed < seeds; seed++) {
+    const rng = seeded(seed);
+    let world = createWorld({ fighters: [red, blue], rng });
+    world = {
+      ...world,
+      combatants: world.combatants.map(c => {
+        const beyType = c.fighterId === red.id ? typeA : typeB;
+        return { ...c, beyType, mass: TYPE_STATS[beyType].mass };
+      }),
+    };
+    while (world.time < 60) {
+      world = think(world, 1 / 60);
+      world = step(world, 1 / 60, rng);
+      if (winnerTeam(world) || aliveOf(world).length === 0) break;
+    }
+    const won = winnerTeam(world);
+    if (!won) continue;
+    decided++;
+    if (won === red.id) redWins++;
+  }
+  return { redWins, decided };
+}
+
+test('每一型對每一型都有輸有贏 —— 抽到什麼不等於穩贏', () => {
+  for (const a of ['attack', 'defense', 'stamina']) {
+    for (const b of ['attack', 'defense', 'stamina']) {
+      if (a === b) continue;
+      const { redWins, decided } = duel(a, b);
+      const rate = redWins / decided;
+      assert.ok(decided >= 40, `${a} vs ${b}:只有 ${decided} 場分出勝負`);
+      assert.ok(rate > 0.15 && rate < 0.85, `${a} vs ${b} 勝率 ${(rate * 100).toFixed(0)}% 太一面倒`);
+    }
+  }
 });

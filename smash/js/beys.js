@@ -14,7 +14,7 @@ export const BEY_TYPES = Object.freeze(['attack', 'defense', 'stamina']);
 //   burstTaken 自己被撞時的爆裂機率倍率
 export const TYPE_STATS = Object.freeze({
   attack: Object.freeze({ power: 1.4, mass: 1, decay: 1.5, burstDealt: 1.5, burstTaken: 1 }),
-  defense: Object.freeze({ power: 0.8, mass: 1.8, decay: 1, burstDealt: 1, burstTaken: 0.5 }),
+  defense: Object.freeze({ power: 0.8, mass: 1.5, decay: 1, burstDealt: 1, burstTaken: 0.5 }),
   stamina: Object.freeze({ power: 1, mass: 0.8, decay: 0.6, burstDealt: 1, burstTaken: 1 }),
 });
 const NEUTRAL = Object.freeze({ power: 1, mass: 1, decay: 1, burstDealt: 1, burstTaken: 1 });
