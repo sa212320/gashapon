@@ -8,7 +8,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createFighter, pickColor, PALETTE } from '../smash/js/fighters.js';
-import { createWorld, step, aliveOf, winnerTeam, HIT_POWER } from '../smash/js/physics.js';
+import { createWorld, step, think, aliveOf, winnerTeam, HIT_POWER } from '../smash/js/physics.js';
+import { HALF, wallDistance, pocketAt, POCKETS } from '../smash/js/stadium.js';
+import { BEY_TYPES, ANIMALS, TYPE_STATS } from '../smash/js/beys.js';
 
 function seeded(seed) {
   let a = seed >>> 0;
@@ -21,17 +23,21 @@ function seeded(seed) {
   };
 }
 
-const arena = { arenaRadius: 100, bombs: [], items: [], time: 0 };
-const at = (fighterId, x, y, vx = 0, vy = 0) => ({
+const arena = { items: [], strikes: [], time: 0 };
+// 測試用的陀螺:預設耐久型以外的「中性」類型(沒有 beyType)—— 數值全是 1,
+// 這樣原本那些撞擊測試的數字不必跟著類型表改。
+const at = (fighterId, x, y, vx = 0, vy = 0, extra = {}) => ({
   id: `c_${fighterId}_${x}_${y}`, fighterId, x, y, vx, vy,
-  radius: 8, mass: 1, alive: true, buffs: { attack: 0, speed: 0, giant: 0 },
+  radius: 8, mass: 1, alive: true, spin: 1, outBy: null, pocket: null, railing: false,
+  buffs: { attack: [], shield: [] }, healedAt: -Infinity, ...extra,
 });
+const noRng = () => 0.999;   // 擲骰永遠不中:撞擊測試不要被爆裂干擾
 
 /* ---------- 隊伍就是 Fighter ---------- */
 
 test('count 就是隊伍人數 —— 一筆 Fighter 展開成好幾個 Combatant', () => {
   const fighters = [createFighter({ name: '紅隊', count: 3 }), createFighter({ name: '藍隊', count: 2 })];
-  const world = createWorld({ fighters, arenaRadius: 100, rng: seeded(1) });
+  const world = createWorld({ fighters, rng: seeded(1) });
   assert.equal(world.combatants.length, 5);
   assert.equal(world.combatants.filter(c => c.fighterId === fighters[0].id).length, 3);
   assert.ok(world.combatants.every(c => c.alive));
@@ -54,7 +60,7 @@ test('pickColor 在調色盤用完之前不重複', () => {
 test('同隊撞在一起只會分開,速度不變', () => {
   const a = at('red', -4, 0, 50, 0);
   const b = at('red', 4, 0, -50, 0);
-  const out = step({ ...arena, combatants: [a, b] }, 1 / 60);
+  const out = step({ ...arena, combatants: [a, b] }, 1 / 60, noRng);
   const [na, nb] = out.combatants;
   // 速度只受摩擦影響,沒有任何來自碰撞的衝量
   assert.ok(Math.abs(na.vx - 50 * 0.995) < 1e-6, `同隊被擊飛了:vx ${na.vx}`);
@@ -66,17 +72,17 @@ test('同隊撞在一起只會分開,速度不變', () => {
 test('不同隊撞在一起會互相彈開', () => {
   const a = at('red', -4, 0, 50, 0);
   const b = at('blue', 4, 0, -50, 0);
-  const out = step({ ...arena, combatants: [a, b] }, 1 / 60);
+  const out = step({ ...arena, combatants: [a, b] }, 1 / 60, noRng);
   const [na, nb] = out.combatants;
   assert.ok(na.vx < -10, `紅隊沒有被彈開:vx ${na.vx}`);
   assert.ok(nb.vx > 10, `藍隊沒有被彈開:vx ${nb.vx}`);
 });
 
 test('攻擊道具會讓自己撞出去的力更大', () => {
-  const base = step({ ...arena, combatants: [at('red', -4, 0, 50, 0), at('blue', 4, 0, -50, 0)] }, 1 / 60);
+  const base = step({ ...arena, combatants: [at('red', -4, 0, 50, 0), at('blue', 4, 0, -50, 0)] }, 1 / 60, noRng);
   const buffed = at('red', -4, 0, 50, 0);
-  buffed.buffs.attack = 1;
-  const boosted = step({ ...arena, combatants: [buffed, at('blue', 4, 0, -50, 0)] }, 1 / 60);
+  buffed.buffs.attack = [8];
+  const boosted = step({ ...arena, combatants: [buffed, at('blue', 4, 0, -50, 0)] }, 1 / 60, noRng);
   assert.ok(boosted.combatants[1].vx > base.combatants[1].vx, '攻擊道具沒有加成');
 });
 
@@ -85,16 +91,16 @@ test('攻擊道具會讓自己撞出去的力更大', () => {
 // 衝量對稱的話,攻擊力等於「兩邊一起飛得更遠」—— 對「誰被撞出場」幾乎沒有影響,
 // 撿到的人自己也被彈得更遠。要有感覺,多出來的力必須只加在對方身上。
 test('攻擊力是打在對方身上,不是兩邊一起飛', () => {
-  const a = { ...at('red', -8, 0, 140, 0), buffs: { attack: 2, speed: 0, giant: 0 } };
+  const a = { ...at('red', -8, 0, 140, 0), buffs: { attack: [8, 8], shield: [] } };
   const b = at('blue', 8, 0, -140, 0);
-  const out = step({ ...arena, combatants: [a, b] }, 1 / 60);
+  const out = step({ ...arena, combatants: [a, b] }, 1 / 60, noRng);
   const me = Math.abs(out.combatants[0].vx);
   const him = Math.abs(out.combatants[1].vx);
   assert.ok(him > me * 1.5, `對方 ${him.toFixed(0)} 應該明顯大於自己 ${me.toFixed(0)}`);
 });
 
 test('沒有攻擊力時兩邊彈開的力一樣大', () => {
-  const out = step({ ...arena, combatants: [at('red', -8, 0, 140, 0), at('blue', 8, 0, -140, 0)] }, 1 / 60);
+  const out = step({ ...arena, combatants: [at('red', -8, 0, 140, 0), at('blue', 8, 0, -140, 0)] }, 1 / 60, noRng);
   const me = Math.abs(out.combatants[0].vx);
   const him = Math.abs(out.combatants[1].vx);
   assert.ok(Math.abs(me - him) < 1, `${me.toFixed(2)} vs ${him.toFixed(2)}`);
@@ -105,48 +111,173 @@ test('沒有攻擊力時兩邊彈開的力一樣大', () => {
 // 實測一場比賽平均每秒 15 次碰撞,但 power 中位數只有 3 —— 絕大多數是
 // 陀螺靠在一起互相推擠。全部回報的話畫面會變閃光燈、聲音會變機關槍。
 test('輕輕靠在一起不算撞到,不會回報', () => {
-  const out = step({ ...arena, combatants: [at('red', -7.9, 0, 1, 0), at('blue', 7.9, 0, -1, 0)] }, 1 / 60);
+  const out = step({ ...arena, combatants: [at('red', -7.9, 0, 1, 0), at('blue', 7.9, 0, -1, 0)] }, 1 / 60, noRng);
   assert.equal(out.impacts.length, 0);
 });
 
 test('用力對撞才回報,而且記下位置與強度', () => {
-  const out = step({ ...arena, combatants: [at('red', -7.9, 0, 200, 0), at('blue', 7.9, 0, -200, 0)] }, 1 / 60);
+  const out = step({ ...arena, combatants: [at('red', -7.9, 0, 200, 0), at('blue', 7.9, 0, -200, 0)] }, 1 / 60, noRng);
   assert.equal(out.impacts.length, 1);
   assert.ok(Math.abs(out.impacts[0].x) < 1, '接觸點應該在兩顆中間');
   assert.ok(out.impacts[0].power >= HIT_POWER);
 });
 
 test('同隊撞在一起不回報 —— 隊友之間根本沒有衝量可言', () => {
-  const out = step({ ...arena, combatants: [at('red', -7.9, 0, 200, 0), at('red', 7.9, 0, -200, 0)] }, 1 / 60);
+  const out = step({ ...arena, combatants: [at('red', -7.9, 0, 200, 0), at('red', 7.9, 0, -200, 0)] }, 1 / 60, noRng);
   assert.equal(out.impacts.length, 0);
 });
 
 test('impacts 每一格重算,不會累積', () => {
   const hard = { ...arena, combatants: [at('red', -7.9, 0, 200, 0), at('blue', 7.9, 0, -200, 0)] };
-  const first = step(hard, 1 / 60);
+  const first = step(hard, 1 / 60, noRng);
   assert.equal(first.impacts.length, 1);
   // 撞完彈開之後再跑一格,上一格的撞擊不該還留著
-  const second = step(first, 1 / 60);
+  const second = step(first, 1 / 60, noRng);
   assert.equal(second.impacts.length, 0);
 });
 
-/* ---------- 出界與勝負 ---------- */
+/* ---------- 盤子:牆、口袋 ---------- */
 
-test('被推出場外就淘汰', () => {
-  const c = at('red', 99, 0, 600, 0);
-  const out = step({ ...arena, combatants: [c] }, 1 / 60);
-  assert.equal(out.combatants[0].alive, false);
+test('撞到牆會彈回來,不會出局', () => {
+  const out = step({ ...arena, combatants: [at('red', 95, 0, 300, 0)] }, 1 / 60, noRng);
+  const c = out.combatants[0];
+  assert.equal(c.alive, true);
+  assert.ok(c.vx < 0, `沒有彈回來:vx ${c.vx}`);
+  assert.ok(wallDistance(c.x, c.y) + c.radius <= 1e-6, '還卡在牆裡');
 });
 
-// 淘汰線就是畫面上那個圓盤的邊。以前留了一個半徑的寬容,結果小孩會看到
-// 角色整個人站在盤子外面還活得好好的 —— 中心出界就算掉下去。
-test('中心一離開圓盤就出局,不能整個人站在盤子外面還活著', () => {
-  const out = step({ ...arena, combatants: [at('red', 104, 0)] }, 1 / 60);
-  assert.equal(out.combatants[0].alive, false);
+test('後牆沒有口袋 —— 往後撞只會彈回來', () => {
+  const out = step({ ...arena, combatants: [at('red', 0, -95, 0, -300)] }, 1 / 60, noRng);
+  assert.equal(out.combatants[0].alive, true);
 });
+
+test('衝進口袋就出局,停在口袋裡面', () => {
+  let w = { ...arena, combatants: [at('red', 0, 96, 0, 400)] };
+  for (let i = 0; i < 10; i++) w = step(w, 1 / 60, noRng);
+  const c = w.combatants[0];
+  assert.equal(c.alive, false);
+  assert.equal(c.outBy, 'ringout');
+  assert.equal(c.pocket, 'center');
+  assert.ok(c.y > HALF, '要停在口袋裡,不是盤面上');
+  assert.equal(c.vx, 0);
+  assert.equal(c.vy, 0);
+});
+
+test('前側的圓角是牆,不是口袋', () => {
+  const out = step({ ...arena, combatants: [at('red', 84, 84, 300, 300)] }, 1 / 60, noRng);
+  assert.equal(out.combatants[0].alive, true);
+});
+
+test('隨機高速也不會穿牆:除了口袋,永遠不會出現在盤子外面', () => {
+  let seed = 1;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  for (let i = 0; i < 400; i++) {
+    const a = rnd() * Math.PI * 2;
+    const v = 200 + rnd() * 900;
+    const c = at('red', (rnd() * 2 - 1) * 60, (rnd() * 2 - 1) * 60, Math.cos(a) * v, Math.sin(a) * v, { radius: 5 });
+    let w = { ...arena, combatants: [c] };
+    for (let f = 0; f < 30; f++) w = step(w, 0.033, noRng);
+    const o = w.combatants[0];
+    if (o.outBy === 'ringout') {
+      assert.ok(POCKETS.some(p => p.id === o.pocket));
+    } else {
+      assert.ok(wallDistance(o.x, o.y) <= 1e-6, `#${i} 跑到盤子外面:(${o.x.toFixed(1)}, ${o.y.toFixed(1)})`);
+    }
+  }
+});
+
+/* ---------- 坡度與軌道 ---------- */
+
+test('坡度把靜止在坡上的陀螺往中央拉', () => {
+  const out = step({ ...arena, combatants: [at('red', 80, 0)] }, 1 / 60, noRng);
+  assert.ok(out.combatants[0].vx < 0);
+});
+
+test('軌道上順著牆加速', () => {
+  const out = step({ ...arena, combatants: [at('red', 95, 0, 0, 60)] }, 1 / 60, noRng);
+  assert.ok(out.combatants[0].vy > 60 * 0.995, '沒有沿牆加速');
+});
+
+test('離開軌道的那一格會被往中央甩', () => {
+  // 上一格還在軌道上(railing),這一格已經離開 —— 速度要多出朝內的分量
+  const c = at('red', 70, -70, 0, 0, { railing: true });   // (70,-70) 離牆 30,不在軌道上
+  const out = step({ ...arena, combatants: [{ ...c, vx: 0, vy: 200 }] }, 1 / 60, noRng);
+  const o = out.combatants[0];
+  assert.ok(o.vx < -20, `沒有往中央甩:vx ${o.vx}`);
+  assert.equal(o.railing, false);
+});
+
+/* ---------- 轉速 ---------- */
+
+test('轉速會自然下降,歸零就停轉出局', () => {
+  const out = step({ ...arena, combatants: [at('red', 0, 0, 0, 0, { spin: 0.0003 })] }, 1 / 60, noRng);
+  assert.equal(out.combatants[0].alive, false);
+  assert.equal(out.combatants[0].outBy, 'spinout');
+});
+
+test('被重擊會多扣轉速', () => {
+  const calm = step({ ...arena, combatants: [at('red', -40, 0), at('blue', 40, 0)] }, 1 / 60, noRng);
+  const hit = step({ ...arena, combatants: [at('red', -7.9, 0, 260, 0), at('blue', 7.9, 0, -260, 0)] }, 1 / 60, noRng);
+  assert.ok(hit.combatants[1].spin < calm.combatants[1].spin);
+});
+
+test('重擊時擲骰中了就爆裂出局', () => {
+  const always = () => 0;
+  const out = step({ ...arena, combatants: [at('red', -7.9, 0, 260, 0), at('blue', 7.9, 0, -260, 0)] }, 1 / 60, always);
+  assert.ok(out.combatants.some(c => c.outBy === 'burst'));
+});
+
+test('同隊再怎麼撞都不會爆裂', () => {
+  const always = () => 0;
+  const out = step({ ...arena, combatants: [at('red', -7.9, 0, 260, 0), at('red', 7.9, 0, -260, 0)] }, 1 / 60, always);
+  assert.ok(out.combatants.every(c => c.alive));
+});
+
+test('防禦型比較重,同樣一撞被彈得比較近', () => {
+  const light = step({ ...arena, combatants: [at('red', -7.9, 0, 200, 0), at('blue', 7.9, 0, -200, 0, { beyType: 'stamina', mass: TYPE_STATS.stamina.mass })] }, 1 / 60, noRng);
+  const heavy = step({ ...arena, combatants: [at('red', -7.9, 0, 200, 0), at('blue', 7.9, 0, -200, 0, { beyType: 'defense', mass: TYPE_STATS.defense.mass })] }, 1 / 60, noRng);
+  assert.ok(heavy.combatants[1].vx < light.combatants[1].vx);
+});
+
+test('盾讓自己被彈得比較近', () => {
+  const plain = step({ ...arena, combatants: [at('red', -7.9, 0, 200, 0), at('blue', 7.9, 0, -200, 0)] }, 1 / 60, noRng);
+  const shielded = step({ ...arena, combatants: [at('red', -7.9, 0, 200, 0), at('blue', 7.9, 0, -200, 0, { buffs: { attack: [], shield: [8] } })] }, 1 / 60, noRng);
+  assert.ok(shielded.combatants[1].vx < plain.combatants[1].vx);
+});
+
+/* ---------- 開場 ---------- */
+
+test('開場:每顆陀螺各自抽動物與類型,生在盤內、轉速滿', () => {
+  const fighters = [createFighter({ name: '紅', count: 6 }), createFighter({ name: '藍', count: 6 })];
+  let seed = 9;
+  const rng = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const w = createWorld({ fighters, rng });
+  for (const c of w.combatants) {
+    assert.ok(ANIMALS.includes(c.animal));
+    assert.ok(BEY_TYPES.includes(c.beyType));
+    assert.equal(c.spin, 1);
+    assert.equal(c.mass, TYPE_STATS[c.beyType].mass);
+    assert.ok(wallDistance(c.x, c.y) < -c.radius);
+    assert.deepEqual(c.buffs, { attack: [], shield: [] });
+  }
+  // Fighter 本身沒有被加上動物欄位
+  assert.ok(!('animal' in fighters[0]));
+});
+
+test('120 個人也全部生在盤內,而且縮小了', () => {
+  const fighters = Array.from({ length: 10 }, (_, i) => createFighter({ name: `隊${i}`, count: 12 }));
+  const w = createWorld({ fighters, rng: Math.random });
+  assert.equal(w.combatants.length, 120);
+  for (const c of w.combatants) {
+    assert.ok(c.radius < 8);
+    assert.ok(wallDistance(c.x, c.y) < -c.radius);
+  }
+});
+
+/* ---------- 勝負 ---------- */
 
 test('還在場內就不會被誤判淘汰', () => {
-  const out = step({ ...arena, combatants: [at('red', 0, 0)] }, 1 / 60);
+  const out = step({ ...arena, combatants: [at('red', 0, 0)] }, 1 / 60, noRng);
   assert.equal(out.combatants[0].alive, true);
 });
 
@@ -176,7 +307,7 @@ test('全部出局時沒有贏家,不會回一個假的隊伍', () => {
 test('step 不就地改動傳進來的 world', () => {
   const world = { ...arena, combatants: [at('red', 0, 0, 10, 0)] };
   const before = JSON.stringify(world);
-  step(world, 1 / 60);
+  step(world, 1 / 60, noRng);
   assert.equal(JSON.stringify(world), before);
 });
 
@@ -196,40 +327,10 @@ test('不會追著隊友跑', async () => {
   assert.equal(out.combatants[1].vx, 0);
 });
 
-test('速度道具讓追擊更猛', async () => {
-  const { think } = await import('../smash/js/physics.js');
-  const fast = at('red', 0, 0);
-  fast.buffs.speed = 1;
-  const base = think({ ...arena, combatants: [at('red', 0, 0), at('blue', 50, 0)] }, 1 / 60);
-  const boosted = think({ ...arena, combatants: [fast, at('blue', 50, 0)] }, 1 / 60);
-  assert.ok(boosted.combatants[0].vx > base.combatants[0].vx, '速度道具沒有加成追擊');
-});
-
-test('站在邊緣時會往場中央閃 —— 追人不能追到把自己送出去', async () => {
-  const { think } = await import('../smash/js/physics.js');
-  // 紅隊站在右邊的懸崖邊,敵人還在更右邊。只會追人的話他會繼續往右走出去。
-  const out = think({ ...arena, combatants: [at('red', 95, 0), at('blue', 99, 0)] }, 1 / 60);
-  assert.ok(out.combatants[0].vx < 0, `站在邊緣還往外走:vx ${out.combatants[0].vx}`);
-});
-
 test('場中央不會被邊緣的斥力干擾', async () => {
   const { think } = await import('../smash/js/physics.js');
   const out = think({ ...arena, combatants: [at('red', 0, 0), at('blue', 40, 0)] }, 1 / 60);
   assert.ok(out.combatants[0].vx > 0, '在場中央反而往後退');
-});
-
-test('引信快到的炸彈會被閃開', async () => {
-  const { think } = await import('../smash/js/physics.js');
-  const w = { ...arena, combatants: [at('red', 10, 0), at('blue', 60, 0)] , bombs: [{ id: 'b', x: 0, y: 0, radius: 6, fuse: 0.3 }] };
-  const out = think(w, 1 / 60);
-  assert.ok(out.combatants[0].vx > 0, '沒有從炸彈旁邊逃開');
-});
-
-test('引信還久的炸彈不用理 —— 不然整場都在逃命', async () => {
-  const { think } = await import('../smash/js/physics.js');
-  const near = { ...arena, combatants: [at('red', 10, 0), at('blue', -60, 0)], bombs: [{ id: 'b', x: 0, y: 0, radius: 6, fuse: 3 }] };
-  // 敵人在左邊,炸彈在左邊但還久 —— 應該照樣往左追
-  assert.ok(think(near, 1 / 60).combatants[0].vx < 0, '被還沒響的炸彈嚇跑了');
 });
 
 test('道具比敵人近的時候會先去撿', async () => {
@@ -238,12 +339,13 @@ test('道具比敵人近的時候會先去撿', async () => {
   assert.ok(think(w, 1 / 60).combatants[0].vx > 0, '沒有先去撿旁邊的道具');
 });
 
-test('距離一樣時,優先挑靠近邊緣的敵人 —— 一撞就出局比較划算', async () => {
-  const { think } = await import('../smash/js/physics.js');
-  // 自己站在 (30,0)。兩個敵人**離自己一樣遠(40)**,但一個在場中央側、一個貼著邊緣。
-  // 自己不能站在圓心,不然「離我多遠」跟「離邊緣多遠」會是同一件事,測不出差別。
-  const w = { ...arena, combatants: [at('red', 30, 0), at('blue', 30, 40), at('green', 70, 0)] };
-  const out = think(w, 1 / 60);
-  assert.ok(out.combatants[0].vx > 0, `沒有往邊緣那個敵人去:vx ${out.combatants[0].vx}`);
-  assert.ok(Math.abs(out.combatants[0].vx) > Math.abs(out.combatants[0].vy), '追的是場中央那個');
+test('站在牆邊不再主動往中央閃 —— 要靠坡度,不是靠 AI', () => {
+  // 敵人在更右邊:只會追人的話 vx 會是正的。以前的躲邊緣會把它變成負的。
+  const out = think({ ...arena, combatants: [at('red', 90, 0), at('blue', 96, 0)] }, 1 / 60);
+  assert.ok(out.combatants[0].vx > 0);
+});
+
+test('找人的力道比以前弱一半(90 → 45)', () => {
+  const out = think({ ...arena, combatants: [at('red', 0, 0), at('blue', 50, 0)] }, 1);
+  assert.ok(Math.abs(out.combatants[0].vx - 45) < 1e-6, `${out.combatants[0].vx}`);
 });

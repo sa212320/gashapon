@@ -11,7 +11,7 @@ const STRAIGHT = HALF - CORNER;   // 每一邊直線段的半長(70)
 
 export const DEPTH = 14;          // 牆邊比中央高多少(碗的深度)
 export const FLAT = 0.35;         // 中央平坦區佔多少(以「離牆距離 / HALF」計)
-export const SLOPE_ACCEL = 140;   // 牆邊的坡度推力(往內)
+export const SLOPE_ACCEL = 60;   // 牆邊的坡度推力(往內)
 export const WALL_BOUNCE = 0.7;   // 撞牆的反彈係數
 
 export const RAIL_WIDTH = 10;     // 加速軌道的寬度(貼著外牆)

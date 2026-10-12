@@ -3,40 +3,56 @@
 // 這是整個站上**唯一結果不預先決定**的模式 —— 其他模式都是先算好再重播演出,
 // 這裡是真的算出來的,所以物理錯了就是結果錯了。
 //
-// 同隊之間**只分離、不施加衝量**:他們會互相推開避免穿透,但永遠不會把隊友撞出場外。
+// 盤子的形狀只在 stadium.js 定義;陀螺的類型、轉速、爆裂在 beys.js。
+// 出局三種:掉進口袋(ringout)、停轉(spinout)、爆裂(burst)。
+// 停轉是**終止保證**:每顆陀螺的轉速一定會掉到 0,所以每一場一定會結束。
+//
+// 同隊之間**只分離、不施加衝量**:他們會互相推開避免穿透,但永遠不會把隊友撞出去或撞爆。
 import { newId } from '../../shared/js/ids.js';
 import { expand } from '../../shared/js/roster.js';
+import {
+  HALF, WALL_BOUNCE, RAIL_FLING,
+  wallDistance, wallNormal, pocketAt, slopeAccel, railAccel, onRail, pocketRest, randomSpot,
+} from './stadium.js';
+import {
+  HIT_POWER, HIT_FULL, ATTACK_GAIN, SHIELD_KNOCK, HIT_SPIN_COST, WALL_SPIN_COST,
+  statsOf, layers, beyRadius, rollBey, hitStrength, burstChance, decaySpin,
+} from './beys.js';
+import { BLAST_RADIUS } from './items.js';
+
+export { HIT_POWER, HIT_FULL };
 
 const RESTITUTION = 1.15;
-// 每疊一層攻擊力,對方被彈開的力多這麼多倍。撿到就要打得動人,不然沒人想搶。
-const ATTACK_GAIN = 1.9;
-// 多大的一下才算「撞到」,值得演出與音效。挑法見 step 裡的說明。
-export const HIT_POWER = 90;
-// power 到這個值就是最大的演出與最大聲,再大也不會更誇張
-export const HIT_FULL = 260;
 const FRICTION = 0.995;
-const BASE_RADIUS = 8;
+const SPAWN_MARGIN = 30;
 
-export function createWorld({ fighters, arenaRadius, rng = Math.random }) {
+export function createWorld({ fighters, rng = Math.random }) {
+  const total = fighters.reduce((n, f) => n + (Number.isFinite(f.count) ? Math.max(0, Math.floor(f.count)) : 0), 0);
+  const radius = beyRadius(total);
   const combatants = expand(fighters, fighter => {
-    const angle = rng() * Math.PI * 2;
-    // sqrt 讓起始位置在圓盤上是均勻的 —— 不開根號的話大家會擠在圓心附近
-    const dist = Math.sqrt(rng()) * arenaRadius * 0.7;
+    const { x, y } = randomSpot(rng, SPAWN_MARGIN);
+    const { animal, beyType } = rollBey(rng);
     return {
       id: newId('c'),
       fighterId: fighter.id,
-      x: Math.cos(angle) * dist,
-      y: Math.sin(angle) * dist,
-      vx: (rng() - 0.5) * 60,
-      vy: (rng() - 0.5) * 60,
-      radius: BASE_RADIUS,
-      mass: 1,
+      x, y,
+      // 發射:每顆帶著不小的初速衝進盤裡 —— 初速太小的話大家在中央慢慢磨,幾乎只會停轉出局
+      vx: (rng() - 0.5) * 320,
+      vy: (rng() - 0.5) * 320,
+      radius,
+      mass: statsOf({ beyType }).mass,
       alive: true,
-      buffs: { attack: 0, speed: 0, giant: 0 },
+      animal,
+      beyType,
+      spin: 1,
+      outBy: null,
+      pocket: null,
+      railing: false,
+      buffs: { attack: [], shield: [] },
+      healedAt: -Infinity,
     };
   });
-  // 記住一開始的大小:場地會縮,邊緣閃避的力道要跟著它收掉。
-  return { arenaRadius, arenaRadius0: arenaRadius, combatants, bombs: [], items: [], time: 0 };
+  return { combatants, items: [], strikes: [], time: 0 };
 }
 
 export function aliveOf(world) {
@@ -50,18 +66,41 @@ export function winnerTeam(world) {
   return teams.size === 1 ? [...teams][0] : null;
 }
 
-export function step(world, dt) {
-  const next = world.combatants.map(c => ({ ...c, buffs: { ...c.buffs } }));
+function knockOut(c, outBy) {
+  c.alive = false;
+  c.outBy = outBy;
+  c.vx = 0;
+  c.vy = 0;
+}
+
+export function step(world, dt, rng = Math.random) {
+  const next = world.combatants.map(c => ({ ...c, buffs: { attack: [...(c.buffs?.attack ?? [])], shield: [...(c.buffs?.shield ?? [])] } }));
   const impacts = [];
 
+  // 1. 坡度、軌道、移動
   for (const c of next) {
     if (!c.alive) continue;
+    const slope = slopeAccel(c.x, c.y);
+    const rail = railAccel(c.x, c.y, c.vx, c.vy);
+    c.vx += (slope.x + rail.x) * dt;
+    c.vy += (slope.y + rail.y) * dt;
     c.x += c.vx * dt;
     c.y += c.vy * dt;
     c.vx *= FRICTION;
     c.vy *= FRICTION;
+
+    // 衝完軌道的那一格,往中央甩 —— 極限衝刺是衝進戰場撞人,不是把自己送進口袋
+    const railing = onRail(c.x, c.y);
+    if (c.railing && !railing) {
+      const n = wallNormal(c.x, c.y);
+      const speed = Math.hypot(c.vx, c.vy);
+      c.vx -= n.x * speed * RAIL_FLING;
+      c.vy -= n.y * speed * RAIL_FLING;
+    }
+    c.railing = railing;
   }
 
+  // 2. 互撞
   for (let i = 0; i < next.length; i++) {
     for (let j = i + 1; j < next.length; j++) {
       const a = next[i];
@@ -92,69 +131,99 @@ export function step(world, dt) {
       const along = rvx * nx + rvy * ny;
       if (along > 0) continue; // 已經在分開了,再給衝量會變成吸在一起
 
-      // 攻擊力是**不對稱**的:多出來的力只加在對方身上,自己的後座力維持原樣。
-      // 兩邊都乘同一個係數的話,撿到攻擊力的人自己也被彈得一樣遠 ——
-      // 對「誰被撞出場」等於沒有影響,玩起來完全沒感覺。
+      // 加成是**不對稱**的:多出來的力只加在對方身上,自己的後座力維持原樣。
+      // 兩邊都乘同一個係數的話,撿到劍的人自己也被彈得一樣遠 —— 玩起來完全沒感覺。
       // 代價是這一撞不守恆動量,但這是給小孩看的卡通碰撞,不是撞球。
       const impulse = (-(1 + RESTITUTION) * along) / (1 / a.mass + 1 / b.mass);
-      const ontoA = 1 + (b.buffs.attack ?? 0) * ATTACK_GAIN;
-      const ontoB = 1 + (a.buffs.attack ?? 0) * ATTACK_GAIN;
+      const onto = (from, to) => statsOf(from).power
+        * (1 + layers(from, 'attack') * ATTACK_GAIN)
+        * SHIELD_KNOCK ** layers(to, 'shield');
+      const ontoA = onto(b, a);
+      const ontoB = onto(a, b);
       a.vx -= (impulse * ontoA * nx) / a.mass;
       a.vy -= (impulse * ontoA * ny) / a.mass;
       b.vx += (impulse * ontoB * nx) / b.mass;
       b.vy += (impulse * ontoB * ny) / b.mass;
 
-      // 回報這一撞給演出用。power 取「兩個人之中被推得比較多的那個速度變化」——
-      // 觀眾看到的就是有人飛出去,不是抽象的衝量。接觸點取在兩顆中間。
-      // 這是 step 的**輸出**,不是 world 的狀態:下一格重新算,不累積。
-      //
-      // HIT_POWER 這道門檻是必要的,不是保守:實測一場比賽平均**每秒 15 次**碰撞,
-      // 但 power 的中位數只有 3 —— 那些是陀螺靠在一起互相推擠,不是撞擊。
-      // 不篩的話畫面會變成閃光燈、聲音會變成機關槍。90 大約是一秒一次真正的重擊。
-      const power = Math.max((impulse * ontoA) / a.mass, (impulse * ontoB) / b.mass);
+      // power 取「被推得比較多的那個速度變化」—— 觀眾看到的就是有人飛出去。
+      // HIT_POWER 這道門檻是必要的:實測每秒 15 次碰撞,中位數只有 3,那是互相推擠。
+      const powerA = (impulse * ontoA) / a.mass;
+      const powerB = (impulse * ontoB) / b.mass;
+      const power = Math.max(powerA, powerB);
       if (power >= HIT_POWER) {
         impacts.push({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, power });
+      }
+
+      // 被打到的一方扣轉速、擲爆裂骰。兩邊各自算 —— 對撞時兩個都可能爆。
+      for (const [me, them, p] of [[a, b, powerA], [b, a, powerB]]) {
+        me.spin -= HIT_SPIN_COST * hitStrength(p);
+        if (p >= HIT_POWER && rng() < burstChance({ power: p, attacker: them, target: me })) {
+          knockOut(me, 'burst');
+        }
       }
     }
   }
 
+  // 3. 牆與口袋、轉速
   for (const c of next) {
-    // 淘汰線就是畫面上圓盤的邊,不加半徑的寬容 —— 看到整個人站在盤子外面還活著,
-    // 小孩會覺得是壞掉了。
-    if (c.alive && Math.hypot(c.x, c.y) > world.arenaRadius) c.alive = false;
+    if (!c.alive) continue;
+
+    const pocket = pocketAt(c.x, c.y);
+    if (pocket && c.y > HALF) {
+      // 中心越過前牆線、而且正對著口袋 —— 掉進去,停在口袋裡
+      knockOut(c, 'ringout');
+      c.pocket = pocket.id;
+      Object.assign(c, pocketRest(pocket, c.x));
+      continue;
+    }
+
+    // 口袋開口的地方沒有牆;其他地方一律擋回來。
+    // 不管跑出去多遠都直接推回牆內 —— 飛彈能把人炸到一格跑 25 單位,不能讓它穿牆。
+    const d = wallDistance(c.x, c.y);
+    if (!pocket && d + c.radius > 0) {
+      const n = wallNormal(c.x, c.y);
+      c.x -= n.x * (d + c.radius);
+      c.y -= n.y * (d + c.radius);
+      const vn = c.vx * n.x + c.vy * n.y;
+      if (vn > 0) {
+        c.vx -= (1 + WALL_BOUNCE) * vn * n.x;
+        c.vy -= (1 + WALL_BOUNCE) * vn * n.y;
+        c.spin -= WALL_SPIN_COST;
+      }
+    }
+
+    c.spin = decaySpin(c, dt);
+    if (c.spin <= 0) {
+      c.spin = 0;
+      knockOut(c, 'spinout');
+    }
   }
 
   return { ...world, combatants: next, time: world.time + dt, impacts };
 }
 
-// 每一格重新決定要往哪裡推。四個行為疊加,優先序由權重決定:
+// 每一格重新決定要往哪裡推。真的陀螺不會思考,所以這支刻意很弱 ——
+// 主角是坡度與軌道,這裡只是讓陀螺「微微偏向敵人」,免得人少時各自在角落轉到停。
 //
-//   1. 遠離邊緣 —— 最重要。只會追人的話,他們會一路往前推,連自己站在懸崖邊都不閃。
-//   2. 躲快爆的炸彈 —— 引信還長的不用理,不然整場都在逃命。
-//   3. 撿道具 —— 只有在道具比敵人近的時候才繞路,不然會忘記打架。
-//   4. 追敵人 —— 優先挑**靠近邊緣**的,那種一撞就出局,比追場中央的划算。
+//   1. 躲快落下的飛彈準星 —— 力道很小,不然飛彈永遠炸不到人
+//   2. 撿道具 —— 只有在道具比敵人近的時候才繞路
+//   3. 追最近的敵人
 //
-// 沒有這些的話摩擦力會讓大家停下來變成僵局,所以這支同時也是「比賽會結束」的一部分;
-// 但真正的終止保證是 shrink()。
-const SEEK = 90;
-const EDGE_ZONE = 0.32;   // 離邊緣多近才開始閃(佔半徑的比例)
-const EDGE_FORCE = 260;
-const BOMB_FEAR = 1.3;    // 引信剩幾秒開始躲
-const BOMB_FORCE = 200;
-const ITEM_PULL = 110;
+// 不再躲邊緣:躲口袋會讓出局變得很難,也不像陀螺。
+const SEEK = 45;
+const ITEM_PULL = 60;
+const STRIKE_FEAR = 0.8;   // 準星倒數剩幾秒開始偏開
+const STRIKE_FORCE = 80;
 
 const add = (v, x, y, k) => { v.x += x * k; v.y += y * k; };
 
-function pickTarget(c, alive, arenaRadius) {
+function nearestEnemy(c, alive) {
   let best = null;
-  let bestScore = Infinity;
+  let bestD = Infinity;
   for (const other of alive) {
     if (other === c || other.fighterId === c.fighterId) continue;
     const d = Math.hypot(other.x - c.x, other.y - c.y);
-    // 越靠近邊緣的敵人越值得追:一撞就出局。
-    const edgeness = Math.min(1, Math.hypot(other.x, other.y) / arenaRadius);
-    const score = d / (0.55 + edgeness);
-    if (score < bestScore) { bestScore = score; best = other; }
+    if (d < bestD) { bestD = d; best = other; }
   }
   return best;
 }
@@ -167,35 +236,19 @@ export function think(world, dt) {
     if (!c.alive) return c;
     const want = { x: 0, y: 0 };
 
-    // 1. 遠離邊緣。離得越近推得越猛(平方),站在邊上時壓過其他所有行為。
-    //
-    // 但場地縮小時這股力要跟著收掉:圈子收到最後根本無處可躲,還死命往中間擠的話
-    // 大家會頂成一團誰也推不出去,比賽永遠打不完(實測 30 場有 6 場撐到時間上限)。
-    // 場地縮小是終止保證,閃避不能凌駕它。
-    const shrunk = Math.min(1, world.arenaRadius / (world.arenaRadius0 ?? world.arenaRadius));
-    const r = Math.hypot(c.x, c.y);
-    const margin = world.arenaRadius - r;
-    const zone = world.arenaRadius * EDGE_ZONE;
-    if (margin < zone && r > 1e-6) {
-      const urgency = Math.min(1, Math.max(0, 1 - margin / zone));
-      add(want, -c.x / r, -c.y / r, EDGE_FORCE * urgency * urgency * shrunk);
-    }
-
-    // 2. 躲快爆的炸彈
-    for (const bomb of world.bombs) {
-      if (bomb.fuse > BOMB_FEAR) continue;
-      const dx = c.x - bomb.x;
-      const dy = c.y - bomb.y;
+    for (const s of world.strikes ?? []) {
+      if (s.fuse > STRIKE_FEAR) continue;
+      const dx = c.x - s.x;
+      const dy = c.y - s.y;
       const d = Math.hypot(dx, dy) || 1e-4;
-      if (d > 60) continue;
-      add(want, dx / d, dy / d, BOMB_FORCE * (1 - d / 60));
+      if (d > BLAST_RADIUS) continue;
+      add(want, dx / d, dy / d, STRIKE_FORCE * (1 - d / BLAST_RADIUS));
     }
 
-    // 3/4. 道具跟敵人:誰近就往誰去
-    const target = pickTarget(c, alive, world.arenaRadius);
+    const target = nearestEnemy(c, alive);
     let item = null;
     let itemDist = Infinity;
-    for (const it of world.items) {
+    for (const it of world.items ?? []) {
       const d = Math.hypot(it.x - c.x, it.y - c.y);
       if (d < itemDist) { itemDist = d; item = it; }
     }
@@ -206,25 +259,11 @@ export function think(world, dt) {
       add(want, (item.x - c.x) / d, (item.y - c.y) / d, ITEM_PULL);
     } else if (target) {
       const d = targetDist || 1e-4;
-      add(want, (target.x - c.x) / d, (target.y - c.y) / d, SEEK * (1 + (c.buffs.speed ?? 0) * 2.2));
+      add(want, (target.x - c.x) / d, (target.y - c.y) / d, SEEK);
     }
 
     return { ...c, vx: c.vx + want.x * dt, vy: c.vy + want.y * dt };
   });
 
   return { ...world, combatants };
-}
-
-const SHRINK_AFTER = 12;
-const SHRINK_RATE = 5.5;   // 每秒縮多少
-// 下限要小到「連兩個人都容不下」才算得上終止保證:淘汰線就是 arenaRadius,
-// 下限 4 遠小於兩個半徑 8 的人並排所需的 16,擠到最後一定有人被推出去。
-// 實測最後卡住的都是 1v1 互頂到時間上限,就是下限給太大。
-const MIN_ARENA = 4;
-
-export function shrink(world, dt) {
-  if (world.time < SHRINK_AFTER) return world;
-  const arenaRadius = Math.max(MIN_ARENA, world.arenaRadius - SHRINK_RATE * dt);
-  if (arenaRadius === world.arenaRadius) return world;
-  return { ...world, arenaRadius };
 }

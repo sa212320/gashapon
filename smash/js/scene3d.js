@@ -201,7 +201,7 @@ export function createScene(canvas) {
   // 一看就知道是「這顆陀螺的狀態」。攻擊力優先佔用外框 ——
   // 速度本來就看得出來(轉得比較快),攻擊力沒有外框就完全沒有線索。
   function setOutline(group, buffs) {
-    const type = buffs?.attack > 0 ? 'attack' : (buffs?.speed > 0 ? 'speed' : null);
+    const type = buffs?.attack?.length > 0 ? 'attack' : null;
     const color = type ? ITEM_LOOK[type].color : INK;
     const grow = type ? 1.15 : 1;
     for (const e of group.userData.edges) {
@@ -370,7 +370,7 @@ export function createScene(canvas) {
     // 真正需要多留空間的是「身體變大」(極巨化疊到 5 層半徑有 89),那是
     // 撿到道具才會變、而且一整場大多不變的量。場地半徑也用開場的值:
     // 場地會一路縮小,跟著縮就等於一路推近,也是一種持續變焦。
-    const home = world.arenaRadius0 ?? world.arenaRadius;
+    const home = 100 * Math.SQRT2;
     let fat = 0;
     for (const c of world.combatants) {
       if (c.alive) fat = Math.max(fat, c.radius);
@@ -394,7 +394,7 @@ export function createScene(canvas) {
 
   function draw(world, teams) {
     frameCamera(world);
-    const r = world.arenaRadius;
+    const r = 100;
     arena.scale.set(r / 100, 1, r / 100);
     rim.scale.setScalar(r);
     rim.position.y = GROUND + 0.15;
@@ -413,7 +413,7 @@ export function createScene(canvas) {
         // 轉速跟著移動速度加一點,衝過去的時候看起來比較兇
         const speed = Math.hypot(c.vx, c.vy);
         // 吃了速度就轉得明顯更快 —— 數值變快但畫面沒變,玩的人是感覺不到的
-        a.spin.rotation.y = a.phase + world.time * (13 + speed * 0.05 + (c.buffs?.speed ?? 0) * 14);
+        a.spin.rotation.y = a.phase + world.time * (13 + speed * 0.05);
         // 往行進方向傾:陀螺是靠傾斜在跑的,直挺挺平移看起來像貼紙
         a.group.rotation.z = -c.vx * 0.0016;
         a.group.rotation.x = c.vy * 0.0016;
@@ -442,16 +442,16 @@ export function createScene(canvas) {
       addProp(groundDisc(shadowDisc(0.16), it.x, it.y, 6));
     }
 
-    for (const bomb of world.bombs) {
+    for (const bomb of (world.strikes ?? [])) {
       addProp(bombVisual(bomb));
       addProp(groundDisc(shadowDisc(0.2), bomb.x, bomb.y, 7));
     }
 
     // 爆炸:上一格還在、這一格不見了的炸彈,就是剛炸掉的那顆。
     // 這樣物理那邊不必為了演出多回傳一個欄位 —— 爆炸純粹是畫面的事。
-    for (const b of world.bombs) seenBombs.set(b.id, b);
+    for (const b of (world.strikes ?? [])) seenBombs.set(b.id, b);
     for (const [id, b] of seenBombs) {
-      if (!world.bombs.some(x => x.id === id)) {
+      if (!(world.strikes ?? []).some(x => x.id === id)) {
         blasts.push({ x: b.x, y: b.y, at: world.time, spin: Math.random() * Math.PI });
         seenBombs.delete(id);
       }

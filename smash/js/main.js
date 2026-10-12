@@ -4,7 +4,7 @@
 // 這裡是一格一格算出來的,所以不能有「先決定誰贏」的捷徑。
 import { store, seedState, createSmashSetup } from './store.js';
 import { createFighter, pickColor } from './fighters.js';
-import { createWorld, step, think, shrink, aliveOf, winnerTeam, HIT_POWER, HIT_FULL } from './physics.js';
+import { createWorld, step, think, aliveOf, winnerTeam, HIT_POWER, HIT_FULL } from './physics.js';
 import { ITEM_TYPES, spawnItem, spawnBomb, applyPickups, explodeBombs } from './items.js';
 import { createScene } from './scene3d.js';
 import { getActive, replaceSetup, addSetup, removeSetup, entriesChanged } from '../../shared/js/roster.js';
@@ -17,9 +17,8 @@ import { mountMascots } from '../../shared/js/mascot.js';
 
 const $ = id => document.getElementById(id);
 
-const ARENA = 100;
 const ITEM_EVERY = 2.6;   // 幾秒掉一個道具
-const MAX_TIME = 45;      // 保險:再怎麼僵持也會結束,不會讓小孩看著兩顆球互推到天荒地老
+const MAX_TIME = 60;      // 保險:停轉保證一定會結束,這條只防萬一
 
 let state = store.load();
 let prefs = loadPrefs();
@@ -62,7 +61,7 @@ function render() {
 function reset() {
   cancelAnimationFrame(raf);
   const setup = getActive(state);
-  world = createWorld({ fighters: setup.fighters.filter(f => f.count > 0), arenaRadius: ARENA });
+  world = createWorld({ fighters: setup.fighters.filter(f => f.count > 0) });
   nextItem = ITEM_EVERY;
   scene.reset();
   scene.resize();
@@ -101,17 +100,14 @@ function start() {
 
     const enabled = ITEM_TYPES.filter(t => getActive(state).items[t]);
     nextItem -= dt;
-    if (nextItem <= 0 && enabled.length > 0) {
+    if (false && nextItem <= 0 && enabled.length > 0) {   // 暫停:道具在 Task 5/6 改版
       const type = enabled[Math.floor(Math.random() * enabled.length)];
       world = type === 'bomb' ? spawnBomb(world) : spawnItem(world, type);
       nextItem = ITEM_EVERY;
     }
 
     const before = aliveOf(world).length;
-    world = explodeBombs(world, dt);
-    world = applyPickups(world);
     world = think(world, dt);
-    world = shrink(world, dt);
     world = step(world, dt);
     if (aliveOf(world).length < before) sfx.clunk();
     hitSound(world.impacts, dt);

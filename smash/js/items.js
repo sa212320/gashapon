@@ -11,7 +11,7 @@ export const ITEM_TYPES = Object.freeze(['attack', 'speed', 'giant', 'bomb']);
 const ITEM_RADIUS = 7;
 const BOMB_RADIUS = 6;
 const BOMB_FUSE = 1.6;
-const BLAST_RADIUS = 46;
+export const BLAST_RADIUS = 46;
 const BLAST_POWER = 620;
 
 function randomSpot(arenaRadius, rng) {
