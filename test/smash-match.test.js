@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { createFighter } from '../smash/js/fighters.js';
 import { createWorld, step, think, aliveOf, winnerTeam } from '../smash/js/physics.js';
 import { TYPE_STATS } from '../smash/js/beys.js';
+import { ITEM_TYPES, spawnItem, applyPickups, tickBuffs, explodeMissiles } from '../smash/js/items.js';
 
 function seeded(seed) {
   let a = seed >>> 0;
@@ -24,11 +25,22 @@ function seeded(seed) {
 const MAX_TIME = 60;
 
 // 跟 main.js 的 game loop 同一套順序。回傳 { winner, seconds, alive, world }。
-function playMatch({ fighters, seed, maxTime = MAX_TIME }) {
+function playMatch({ fighters, seed, withItems = true, maxTime = MAX_TIME }) {
   const rng = seeded(seed);
   let world = createWorld({ fighters, rng });
   const dt = 1 / 60;
+  let nextItem = 2.6;
   while (world.time < maxTime) {
+    if (withItems) {
+      nextItem -= dt;
+      if (nextItem <= 0) {
+        world = spawnItem(world, ITEM_TYPES[Math.floor(rng() * ITEM_TYPES.length)], rng);
+        nextItem = 2.6;
+      }
+    }
+    world = explodeMissiles(world, dt, rng);
+    world = tickBuffs(world, dt);
+    world = applyPickups(world);
     world = think(world, dt);
     world = step(world, dt, rng);
     const won = winnerTeam(world);
@@ -96,7 +108,7 @@ test('只有一隊時立刻算它贏 —— 場上沒有對手,本來就沒得�
 
 test('沒有道具也一定打得完 —— 終止保證是停轉,不是場地縮小', () => {
   for (let seed = 0; seed < 30; seed++) {
-    const r = playMatch({ fighters: teams(2), seed });
+    const r = playMatch({ fighters: teams(2), seed, withItems: false });
     assert.ok(!r.timedOut, `seed ${seed} 打到 ${MAX_TIME} 秒還沒結束`);
   }
 });

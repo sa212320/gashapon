@@ -349,3 +349,16 @@ test('找人的力道比以前弱一半(90 → 45)', () => {
   const out = think({ ...arena, combatants: [at('red', 0, 0), at('blue', 50, 0)] }, 1);
   assert.ok(Math.abs(out.combatants[0].vx - 45) < 1e-6, `${out.combatants[0].vx}`);
 });
+
+test('準星快落下時,圈內的陀螺會往外偏一點', () => {
+  const w = { ...arena, combatants: [at('red', 10, 0), at('blue', -60, 0)], strikes: [{ id: 's', fighterId: 'blue', x: 0, y: 0, fuse: 0.3 }] };
+  // 敵人在左邊,不躲的話 vx 會是負的(往左追)
+  const out = think(w, 1 / 60);
+  const plain = think({ ...w, strikes: [] }, 1 / 60);
+  assert.ok(out.combatants[0].vx > plain.combatants[0].vx, '沒有往外偏');
+});
+
+test('準星還早就不理它', () => {
+  const w = { ...arena, combatants: [at('red', 10, 0), at('blue', -60, 0)], strikes: [{ id: 's', fighterId: 'blue', x: 0, y: 0, fuse: 1.1 }] };
+  assert.equal(think(w, 1 / 60).combatants[0].vx, think({ ...w, strikes: [] }, 1 / 60).combatants[0].vx);
+});
