@@ -33,6 +33,8 @@ export const HEAL_FLASH = 0.6;      // 補包的綠框閃幾秒(畫面用)
 export const MISSILE_FUSE = 1.2;
 export const DASH_WIND = 0.5;       // 蓄力幾秒(畫面拉箭頭預告要衝誰)
 export const DASH_TIME = 0.45;      // 衝多久(0.9 秒太久,快衝過大半個盤子)
+const DASH_CONTACT = 0.05;          // 貼在一起才算撞到(互撞那一步會把兩顆剛好推到相切)
+const DASH_STOP = 0.2;              // 撞到後自己剩幾成速度
 export const DASH_SPEED = 200;      // 衝刺速度(平常大約 100~150)。模擬:撞上後約 13% 爆裂、14% 被撞出局
 export const BLAST_RADIUS = 46;     // 看到的準星圈就是真的會被炸到的範圍
 export const BLAST_POWER = 620;
@@ -121,6 +123,15 @@ export function tickDashes(world, dt) {
       const brake = Math.exp(-12 * dt);   // 每秒剩不到萬分之一:幾格內就停住
       c.vx *= brake;
       c.vy *= brake;
+      continue;
+    }
+    // 撞到任何敵人那一刻就結束、自己頓住 —— 不然每格又對準目標,等於推著對方一路衝進洞裡
+    const touching = combatants.some(o => o.alive && o.fighterId !== c.fighterId
+      && Math.hypot(o.x - c.x, o.y - c.y) <= c.radius + o.radius + DASH_CONTACT);
+    if (touching) {
+      c.dash = null;
+      c.vx *= DASH_STOP;
+      c.vy *= DASH_STOP;
       continue;
     }
     let target = combatants.find(o => o.id === c.dash.targetId && o.alive);

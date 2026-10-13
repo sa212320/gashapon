@@ -53,3 +53,19 @@ test('目標先出局了就改衝下一個最近的敵人', () => {
   const w = tickDashes(world([me, at('blue', -30, 0)]), 1 / 60);
   assert.ok(w.combatants[0].vx < 0);
 });
+
+test('撞到敵人那一刻衝刺就結束,自己頓住(不會推著對方一起衝進洞)', () => {
+  const me = at('red', 0, 0, { vx: 0, vy: 200, dash: { targetId: 'c_blue_0_16', wind: 0, left: DASH_TIME } });
+  const w = tickDashes(world([me, at('blue', 0, 16)]), 1 / 60);
+  assert.equal(w.combatants[0].dash, null);
+  assert.ok(Math.hypot(w.combatants[0].vx, w.combatants[0].vy) < 60);
+});
+
+test('真的撞一次:衝的那顆停在附近,被撞的飛得比它遠', async () => {
+  const { step } = await import('../smash/js/physics.js');
+  const me = at('red', -30, 0, { dash: { targetId: 'c_blue_0_0', wind: 0, left: DASH_TIME } });
+  let w = world([me, at('blue', 0, 0)]);
+  for (let i = 0; i < 45; i++) { w = tickDashes(w, 1 / 60); w = step(w, 1 / 60, () => 0.999); }
+  const [a, b] = w.combatants;
+  assert.ok(b.x - 0 > a.x - (-30), `衝的走了 ${(a.x + 30).toFixed(0)}、被撞的走了 ${b.x.toFixed(0)}`);
+});
