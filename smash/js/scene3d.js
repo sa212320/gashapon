@@ -17,7 +17,8 @@ import { HEAL_FLASH, MISSILE_FUSE, BLAST_RADIUS } from './items.js';
 import * as ART from './art.js';
 import { fxFrame } from './fx-frame.js';
 import { landing } from './opening.js';
-import { BOUNDS, heightAt, bowlDistance } from './stadium.js';
+import { slideStep } from './spinout-slide.js';
+import { BOUNDS, heightAt } from './stadium.js';
 
 const GROUND = -4;        // 場地上表面的高度,角色站在這裡
 const SPARK_TIME = 0.4;   // 撞擊火花幾秒(逐格動畫 17 格)
@@ -728,9 +729,8 @@ export function createScene(canvas, { pitch = 55 } = {}) {
         const k = Math.exp(-SPIN_SLIDE * dt);
         a.vx *= k;
         a.vy *= k;
-        const nx = a.px + a.vx * dt;
-        const ny = a.py + a.vy * dt;
-        if (bowlDistance(nx, ny) < -c.radius) { a.px = nx; a.py = ny; } else { a.vx = 0; a.vy = 0; }
+        // 碰到碗邊沿著邊滑,不會當場定住(見 spinout-slide.js)
+        ({ x: a.px, y: a.py, vx: a.vx, vy: a.vy } = slideStep({ x: a.px, y: a.py, vx: a.vx, vy: a.vy }, dt, c.radius));
         a.group.position.set(a.px, GROUND + heightAt(a.px, a.py), a.py);
         a.spin.rotation.y += visibleTurn(a.spinRate * Math.max(0, 1 - t / SPIN_STOP), dt);
         const fall = Math.min(1, Math.max(0, (t - SPIN_FALL_AT) / SPIN_FALL));
