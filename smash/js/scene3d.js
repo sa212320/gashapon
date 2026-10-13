@@ -257,7 +257,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   // 但同時好幾下還是會疊成一團,所以再壓一個同時存在的上限。
   // 星星小、命都很短(0.22 秒)—— 撞擊是一瞬間的事,拖長了會變成黏在場上的貼紙。
   function sparkVisual(spark, k) {
-    const anim = fxSprite('impact', k, spark.x, spark.y, 7, 26 + spark.k * 22);
+    const anim = fxSprite('impact', k, spark.x, spark.y, 7, 16 + spark.k * 14);
     if (anim) return [anim];
     // 大部分時間維持不透明,最後才淡出 —— 從頭淡到尾的話,
     // 淺色星星疊在米色地板上會糊成一團看不出是什麼的灰影。
