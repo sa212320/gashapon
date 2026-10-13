@@ -270,26 +270,34 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     return g;
   }
 
-  // 寒氣:一顆冰晶邊轉邊飛向目標現在的位置,後面拖幾顆小冰點;外框是發射隊伍色
-  function frostVisual(f, target, color) {
+  // 丟冰塊:吃到冰塊道具,把小冰塊(道具那張圖)拋向目標現在的位置,邊飛邊轉、邊變大,
+  // 落到目標身上剛好是罩住它的冰塊大小 —— 「吃到冰塊 → 丟過去 → 對手被凍住」前後連得起來。
+  function frostVisual(f, target) {
     const k = Math.min(1, f.t / FROST_FLIGHT);
+    const tex = itemTex.get('shield');
     const out = [];
     const at = q => {
       const x = f.fromX + (target.x - f.fromX) * q;
       const y = f.fromY + (target.y - f.fromY) * q;
-      // 拋一點弧線,看得出是「射過去」
-      return new THREE.Vector3(x, GROUND + heightAt(x, y) + 6 + Math.sin(q * Math.PI) * 14, y);
+      return new THREE.Vector3(x, GROUND + heightAt(x, y) + Math.sin(q * Math.PI) * 22, y);   // 拋物線
     };
-    for (const [q, size, geo, col] of [
-      [k, 9, STAR, color], [k, 7.4, STAR2, 0xE6F7FF],
-      [k - 0.12, 3.5, STAR2, 0xBFE8FF], [k - 0.24, 2.6, STAR2, 0xBFE8FF], [k - 0.36, 1.8, STAR2, 0xBFE8FF],
-    ]) {
+    const full = ICE_SIZE * target.radius;
+    const size = full * (0.35 + 0.65 * k);
+    const cube = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: tex ?? null, transparent: true, depthTest: false, rotation: (1 - k) * 5,
+    }));
+    cube.center.set(0.5, 0.3);
+    cube.position.copy(at(k));
+    cube.scale.set(size * (tex ? tex.image.width / tex.image.height : 1), size, 1);
+    cube.renderOrder = 9000;
+    out.push(cube);
+    // 後面拖幾顆小冰屑
+    for (const [q, s2] of [[k - 0.15, 3], [k - 0.3, 2.2], [k - 0.45, 1.5]]) {
       if (q < 0) continue;
-      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: col, transparent: true, depthTest: false, depthWrite: false }));
-      m.position.copy(at(q));
+      const m = new THREE.Mesh(STAR2, new THREE.MeshBasicMaterial({ color: 0xE6F7FF, transparent: true, depthTest: false, depthWrite: false }));
+      m.position.copy(at(q)).add(new THREE.Vector3(0, full * 0.2, 0));
       m.quaternion.copy(camera.quaternion);
-      m.rotateZ(f.t * 14);
-      m.scale.setScalar(size);
+      m.scale.setScalar(s2);
       m.renderOrder = 9000;
       out.push(m);
     }
@@ -833,7 +841,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
 
     for (const f of world.frosts ?? []) {
       const target = world.combatants.find(c => c.id === f.targetId);
-      if (target) for (const m of frostVisual(f, target, teams.get(f.fighterId)?.color ?? '#574239')) addProp(m);
+      if (target) for (const m of frostVisual(f, target)) addProp(m);
     }
     for (const st of world.strikes ?? []) {
       const color = teams.get(st.fighterId)?.color ?? '#574239';
