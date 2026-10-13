@@ -53,11 +53,8 @@ test('道具掉在盤內,不會掉在牆邊或口袋上', () => {
   }
 });
 
-test('劍與盾:吃一個多一層,每層 8 秒', () => {
-  let w = { ...world([at('red', 0, 0)]), items: [item('attack')] };
-  w = applyPickups(w);
-  assert.deepEqual(w.combatants[0].buffs.attack, [BUFF_TIME]);
-  w = applyPickups({ ...w, items: [item('shield')] });
+test('盾:吃一個多一層,每層 8 秒(劍改成衝刺了,見 smash-dash.test.js)', () => {
+  const w = applyPickups({ ...world([at('red', 0, 0)]), items: [item('shield')] });
   assert.deepEqual(w.combatants[0].buffs.shield, [BUFF_TIME]);
 });
 
@@ -89,8 +86,8 @@ test('搆不到的道具不會被撿走;出局的人撿不到', () => {
 });
 
 test('同一個道具不會被兩個人同時撿走', () => {
-  const out = applyPickups({ ...world([at('red', -2, 0), at('blue', 2, 0)]), items: [item('attack')] });
-  assert.equal(out.combatants.filter(c => c.buffs.attack.length > 0).length, 1);
+  const out = applyPickups({ ...world([at('red', -2, 0), at('blue', 2, 0)]), items: [item('shield')] });
+  assert.equal(out.combatants.filter(c => c.buffs.shield.length > 0).length, 1);
 });
 
 /* ---------- 飛彈 ---------- */

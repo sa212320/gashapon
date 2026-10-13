@@ -227,6 +227,62 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     return g;
   }
 
+  // 衝刺(劍)的預告:從陀螺拉一條隊伍色虛線箭頭指向目標,目標腳下一個小準星圈。
+  // 跟飛彈同一種語言 —— 先讓大家看到「它要衝那顆了」,再衝。
+  const ARROW_HEAD = new THREE.ShapeGeometry(new THREE.Shape([
+    new THREE.Vector2(0, 1), new THREE.Vector2(-0.8, -0.6), new THREE.Vector2(0.8, -0.6),
+  ]));
+  function dashAimVisual(c, target, color, time) {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false, depthTest: false,
+    });
+    const dx = target.x - c.x;
+    const dy = target.y - c.y;
+    const len = Math.hypot(dx, dy) || 1e-4;
+    const ux = dx / len;
+    const uy = dy / len;
+    const from = c.radius * 1.4;
+    const to = len - target.radius * 1.6;
+    const DASHLEN = 5;
+    const crawl = (time * 40) % (DASHLEN * 2);   // 虛線往目標爬,看得出方向
+    for (let d = from + crawl; d + DASHLEN < to; d += DASHLEN * 2) {
+      const m = new THREE.Mesh(BAR, mat);
+      m.scale.set(2.2, DASHLEN, 1);
+      m.rotation.z = Math.atan2(uy, ux) - Math.PI / 2;
+      m.position.set(c.x + ux * (d + DASHLEN / 2), c.y + uy * (d + DASHLEN / 2), 0);
+      g.add(m);
+    }
+    const head = new THREE.Mesh(ARROW_HEAD, mat);
+    head.scale.setScalar(4.5);
+    head.rotation.z = Math.atan2(uy, ux) - Math.PI / 2;
+    head.position.set(c.x + ux * to, c.y + uy * to, 0);
+    const ring = new THREE.Mesh(RING_FAT, mat);
+    ring.scale.setScalar(target.radius * 1.7);
+    ring.position.set(target.x, target.y, 0);
+    g.add(head, ring);
+    for (const m of g.children) m.renderOrder = 9000;
+    // 平面座標 (x, y) 躺到盤面上:轉 -90° 後平面的 y 對到 -z,所以 y 先取負
+    for (const m of g.children) m.position.y = -m.position.y;
+    g.rotation.x = -Math.PI / 2;
+    g.position.y = GROUND + heightAt(c.x, c.y) + 1;
+    return g;
+  }
+
+  // 衝刺的殘影:最近幾格的位置各留一個淡淡的隊伍色圓盤,愈舊愈淡
+  function dashTrailVisual(trail, color, radius) {
+    return trail.map((p, i) => {
+      const m = new THREE.Mesh(SHADOW, new THREE.MeshBasicMaterial({
+        color: new THREE.Color(color).lerp(new THREE.Color(0xBFE8FF), 0.45),
+        transparent: true, opacity: 0.5 * ((i + 1) / trail.length), depthWrite: false,
+      }));
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(p.x, GROUND + heightAt(p.x, p.y) + 3, p.y);
+      m.scale.setScalar(radius * (0.7 + 0.3 * (i + 1) / trail.length));
+      return m;
+    });
+  }
+
   // 飛彈從左上方斜斜落到準星。不追蹤 —— 落點就是準星。
   const MISSILE_FROM = new THREE.Vector3(-70, 130, -40);   // 不能太遠,不然大半段倒數都在畫面外
   // 落下的飛彈就是吃到的那個道具圖示(彈頭朝上的圖),轉成彈頭朝著落點:
@@ -570,6 +626,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
 
     const dt = openingDt ?? Math.max(0, Math.min(0.1, world.time - lastTime));
     lastTime = world.time;
+    clearProps();   // 這一格的特效(衝刺箭頭、殘影…)從這裡開始重建
     const live = [];
     for (const c of world.combatants) {
       const team = teams.get(c.fighterId);
@@ -618,6 +675,20 @@ export function createScene(canvas, { pitch = 55 } = {}) {
           badge.position.y = 2.3 + 0.15 * Math.sin(world.time * 5);
         }
         setOutline(a.group, c, world.time);
+        // 衝刺:蓄力時原地發抖 + 箭頭預告;衝的時候拖殘影
+        const teamColor = team?.color ?? '#CCCCCC';
+        if (c.dash && c.dash.wind > 0) {
+          a.group.position.x += Math.sin(world.time * 90) * 0.9;
+          a.group.position.z += Math.cos(world.time * 77) * 0.9;
+          const target = world.combatants.find(o => o.id === c.dash.targetId && o.alive);
+          if (target) addProp(dashAimVisual(c, target, teamColor, world.time));
+        }
+        if (c.dash && c.dash.wind <= 0) {
+          a.trail = [...(a.trail ?? []), { x: c.x, y: c.y }].slice(-7);
+        } else if (a.trail?.length) {
+          a.trail = a.trail.slice(1);   // 衝完殘影一格一格收掉
+        }
+        if (a.trail?.length) for (const m of dashTrailVisual(a.trail, teamColor, c.radius)) addProp(m);
         live.push(a.group);
         continue;
       }
@@ -707,8 +778,6 @@ export function createScene(canvas, { pitch = 55 } = {}) {
       }
     }
 
-    clearProps();
-
     // 道具與炸彈都浮在空中,而且要浮得比陀螺高 —— 同高度會直接插在陀螺身上。
     // 浮著就一定要配地上的影子,不然看不出它落點在哪。
     for (const it of world.items) {
@@ -735,6 +804,8 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     }
     // 撞擊火花:新的收進來,舊的淘汰,同時最多 SPARK_MAX 個
     for (const im of world.impacts ?? []) {
+      // 超重擊(衝刺撞上的那種)鏡頭震一下
+      if (im.power >= HIT_FULL * 1.3) shakeUntil = Math.max(shakeUntil, lastTime + 0.25);
       sparks.push({
         x: im.x,
         y: im.y,

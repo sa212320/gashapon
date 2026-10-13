@@ -1,6 +1,7 @@
 // 四種道具。全部是純函式,回傳新的 world。
 //
-//   attack  劍:每一層 8 秒,撞別人時對方飛更遠、更容易爆(在 physics.step 裡吃 buffs.attack)
+//   attack  劍 = 衝刺(原型,2026-10-13):鎖定最近的敵人,原地蓄力一下,再追著它高速衝過去;
+//           衝刺中身上帶兩層劍(撞人對方飛更遠、更容易爆,在 physics.step 裡吃 buffs.attack)
 //   shield  盾:每一層 8 秒,自己被撞時飛得近、比較難爆
 //   spin    補包:轉速補滿(轉速就是命)
 //   missile 飛彈:鎖定最近敵人**當下的位置**,1.2 秒後從天空落下炸開。不追蹤,圈內敵我都炸
@@ -30,6 +31,10 @@ export const BUFF_TIME = 8;
 export const MAX_LAYERS = 3;
 export const HEAL_FLASH = 0.6;      // 補包的綠框閃幾秒(畫面用)
 export const MISSILE_FUSE = 1.2;
+export const DASH_WIND = 0.5;       // 蓄力幾秒(畫面拉箭頭預告要衝誰)
+export const DASH_TIME = 0.9;       // 衝多久
+export const DASH_SPEED = 420;      // 衝刺速度(平常大約 100~150)
+const DASH_LAYERS = 2;              // 衝刺中等於帶幾層劍
 export const BLAST_RADIUS = 46;     // 看到的準星圈就是真的會被炸到的範圍
 export const BLAST_POWER = 620;
 
@@ -85,8 +90,11 @@ export function applyPickups(world) {
     if (!who) continue;
     taken.add(item.id);
 
-    if (item.type === 'attack' || item.type === 'shield') {
-      who.buffs[item.type] = addLayer(who.buffs[item.type]);
+    if (item.type === 'attack') {
+      const target = nearestEnemy(who, combatants);
+      if (target) who.dash = { targetId: target.id, wind: DASH_WIND, left: DASH_TIME };
+    } else if (item.type === 'shield') {
+      who.buffs.shield = addLayer(who.buffs.shield);
     } else if (item.type === 'spin') {
       who.spin = 1;
       who.healedAt = world.time;
@@ -99,6 +107,39 @@ export function applyPickups(world) {
 
   if (taken.size === 0) return world;
   return { ...world, combatants, strikes, items: world.items.filter(i => !taken.has(i.id)) };
+}
+
+// 衝刺:先蓄力(踩煞車、畫面預告),再每一格把速度對準目標**現在**的位置 —— 追蹤,一定撞得到。
+// 目標先出局了就改衝下一個最近的敵人;沒有敵人了就停。
+export function tickDashes(world, dt) {
+  if (!world.combatants.some(c => c.dash)) return world;
+  const combatants = world.combatants.map(c => ({ ...c }));
+  for (const c of combatants) {
+    if (!c.dash) continue;
+    if (!c.alive) { c.dash = null; continue; }
+    if (c.dash.wind > 0) {
+      c.dash = { ...c.dash, wind: c.dash.wind - dt };
+      const brake = Math.exp(-12 * dt);   // 每秒剩不到萬分之一:幾格內就停住
+      c.vx *= brake;
+      c.vy *= brake;
+      continue;
+    }
+    let target = combatants.find(o => o.id === c.dash.targetId && o.alive);
+    if (!target) target = nearestEnemy(c, combatants);
+    const left = c.dash.left - dt;
+    if (!target || left <= 0) {
+      c.dash = null;
+      continue;
+    }
+    const dx = target.x - c.x;
+    const dy = target.y - c.y;
+    const d = Math.hypot(dx, dy) || 1e-4;
+    c.vx = (dx / d) * DASH_SPEED;
+    c.vy = (dy / d) * DASH_SPEED;
+    c.buffs = { ...c.buffs, attack: Array(DASH_LAYERS).fill(left + 0.2) };
+    c.dash = { ...c.dash, targetId: target.id, left };
+  }
+  return { ...world, combatants };
 }
 
 // 準星倒數;歸零就炸開。圈內**不分敵我**都被推開,每一顆都擲一次爆裂骰。
