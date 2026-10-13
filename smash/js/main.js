@@ -5,7 +5,7 @@
 import { store, seedState, createSmashSetup } from './store.js';
 import { createFighter, pickColor } from './fighters.js';
 import { createWorld, step, think, aliveOf, winnerTeam, HIT_POWER, HIT_FULL } from './physics.js';
-import { ITEM_TYPES, spawnItem, applyPickups, tickBuffs, explodeMissiles } from './items.js';
+import { ITEM_TYPES, pickItem, spawnItem, applyPickups, tickBuffs, explodeMissiles } from './items.js';
 import { createScene } from './scene3d.js';
 import { openingAt, OPENING_TIME } from './opening.js';
 import { getActive, replaceSetup, addSetup, removeSetup, entriesChanged } from '../../shared/js/roster.js';
@@ -132,7 +132,7 @@ function start() {
     const enabled = ITEM_TYPES.filter(t => getActive(state).items[t]);
     nextItem -= dt;
     if (nextItem <= 0 && enabled.length > 0) {
-      world = spawnItem(world, enabled[Math.floor(Math.random() * enabled.length)]);
+      world = spawnItem(world, pickItem(enabled));
       nextItem = ITEM_EVERY;
     }
 

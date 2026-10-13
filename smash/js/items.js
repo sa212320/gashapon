@@ -12,6 +12,20 @@ import { burstChance, HIT_POWER, SHIELD_KNOCK, layers } from './beys.js';
 
 export const ITEM_TYPES = Object.freeze(['attack', 'shield', 'spin', 'missile']);
 
+// 出現機率(權重)。飛彈一炸一大片,少一點比較稀奇。
+export const ITEM_WEIGHTS = Object.freeze({ attack: 30, shield: 30, spin: 25, missile: 15 });
+
+// 從開著的道具裡照權重抽一個(關掉的不算,比例照剩下的重算)
+export function pickItem(enabled, rng = Math.random) {
+  const total = enabled.reduce((s, t) => s + (ITEM_WEIGHTS[t] ?? 0), 0);
+  let r = rng() * total;
+  for (const t of enabled) {
+    r -= ITEM_WEIGHTS[t] ?? 0;
+    if (r < 0) return t;
+  }
+  return enabled[enabled.length - 1];
+}
+
 export const BUFF_TIME = 8;
 export const MAX_LAYERS = 3;
 export const HEAL_FLASH = 0.6;      // 補包的綠框閃幾秒(畫面用)

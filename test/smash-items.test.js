@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ITEM_TYPES, BUFF_TIME, MAX_LAYERS, MISSILE_FUSE, BLAST_RADIUS,
+  ITEM_TYPES, ITEM_WEIGHTS, pickItem, BUFF_TIME, MAX_LAYERS, MISSILE_FUSE, BLAST_RADIUS,
   spawnItem, addLayer, tickBuffs, applyPickups, explodeMissiles,
 } from '../smash/js/items.js';
 import { bowlDistance } from '../smash/js/stadium.js';
@@ -29,6 +29,21 @@ const never = () => 0.999;
 
 test('四種道具就這四種', () => {
   assert.deepEqual([...ITEM_TYPES], ['attack', 'shield', 'spin', 'missile']);
+});
+
+test('出現機率:劍 30%、盾 30%、補包 25%、飛彈 15%', () => {
+  assert.deepEqual({ ...ITEM_WEIGHTS }, { attack: 30, shield: 30, spin: 25, missile: 15 });
+  const rng = seeded(11);
+  const n = { attack: 0, shield: 0, spin: 0, missile: 0 };
+  for (let i = 0; i < 20000; i++) n[pickItem(ITEM_TYPES, rng)]++;
+  for (const t of ITEM_TYPES) assert.ok(Math.abs(n[t] / 20000 - ITEM_WEIGHTS[t] / 100) < 0.015, `${t} ${n[t]}`);
+});
+
+test('關掉的道具不會出現,比例照剩下的重算', () => {
+  const rng = seeded(5);
+  const n = { attack: 0, missile: 0 };
+  for (let i = 0; i < 10000; i++) n[pickItem(['attack', 'missile'], rng)]++;
+  assert.ok(Math.abs(n.missile / 10000 - 15 / 45) < 0.02, `${n.missile}`);
 });
 
 test('道具掉在盤內,不會掉在牆邊或口袋上', () => {
