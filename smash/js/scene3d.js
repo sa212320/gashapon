@@ -13,7 +13,7 @@ import { INK, outlinable, part } from './outline3d.js';
 import { createStadium } from './stadium3d.js';
 import { createBey, setChipTexture, loadChipTextures } from './bey3d.js';
 import { HEAL_FLASH, MISSILE_FUSE, BLAST_RADIUS } from './items.js';
-import { BOUNDS, heightAt } from './stadium.js';
+import { BOUNDS, heightAt, bowlDistance } from './stadium.js';
 
 const GROUND = -4;        // 場地上表面的高度,角色站在這裡
 const SPARK_TIME = 0.22;  // 撞擊火花幾秒
@@ -127,6 +127,8 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   let blasts = [];            // 進行中的爆炸 { x, y, at }
   let sparks = [];            // 進行中的撞擊火花 { x, y, k, at, spin }
   let lastTime = 0;           // 上一格的 world.time(算這一格的 dt)
+  let bursts = [];            // 進行中的爆裂演出 { x, y, at }
+  let shakeUntil = -1;        // 鏡頭震到什麼時候
 
   // 動物圓片的貼圖:載完之前先建立的陀螺,載完再補上
   const chipTextures = new Map();
@@ -338,30 +340,93 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     });
   }
 
-  const SPIN_FALL = 1;      // 停轉:幾秒倒下
-  const SPIN_FADE = 1;      //        倒下後幾秒淡出
-  const BURST_TIME = 0.9;   // 爆裂:零件飛幾秒
+  const SPIN_SLIDE = 2.5;   // 停轉:滑行時速度每秒剩下 e^-2.5(慣性)
+  const SPIN_STOP = 1.1;    //        刃幾秒轉停
+  const SPIN_FALL_AT = 0.7; //        幾秒後開始倒
+  const SPIN_FALL = 0.6;    //        倒下花幾秒
+  const SPIN_FADE = 0.8;    //        倒下後幾秒淡出
+  const BURST_TIME = 1.4;   // 爆裂:零件飛幾秒
+  const GRAVITY = 260;
   const WOBBLE_FROM = 0.35; // 轉速低於這個開始晃
 
-  // 爆裂:三件(戰刃連圓片、固鎖、軸心)從陀螺上拆下來,各往一個方向飛,邊飛邊翻
-  function burstApart(a, c) {
-    const pieces = [a.parts.blade, a.parts.ratchet, a.parts.bit];
+  // 爆裂:整顆炸開 —— 戰刃、固鎖、軸心、動物圓片各自飛出去,外加一把隊伍色的碎片;
+  // 地上一圈衝擊波、一顆大爆炸星、「BURST!」大字往上飄,鏡頭震一下。
+  // 爆裂比場外、停轉少見得多,值得演大一點。
+  const SHARD = new THREE.TetrahedronGeometry(1, 0);
+  function burstApart(a, c, color) {
     const chip = a.group.userData.chip;
-    a.parts.blade.attach(chip);
+    const pieces = [a.parts.blade, a.parts.ratchet, a.parts.bit, chip];
+    for (let i = 0; i < 8; i++) {
+      const m = new THREE.Mesh(SHARD, new THREE.MeshBasicMaterial({ color: i % 2 ? color : 0xFFFFFF }));
+      m.scale.setScalar(c.radius * (0.18 + Math.random() * 0.14));
+      m.position.set(c.x, a.group.position.y + c.radius * 0.6, c.y);
+      root.add(m);
+      pieces.push(m);
+    }
+    // 飛出去的零件會飛到牆後面:描邊照深度畫,不然整圈描邊會蓋在牆上
+    for (const e of a.group.userData.edges) { e.material.depthTest = true; e.material.depthWrite = true; }
     const base = Math.random() * Math.PI * 2;
     a.debris = pieces.map((obj, i) => {
-      root.attach(obj);
-      const dir = base + (i * Math.PI * 2) / 3;
-      const speed = 40 + Math.random() * 20;
+      if (obj.parent !== root) root.attach(obj);
+      const dir = base + (i * Math.PI * 2) / pieces.length + (Math.random() - 0.5) * 0.4;
+      const speed = 55 + Math.random() * 45;
       return {
         obj,
-        v: new THREE.Vector3(Math.cos(dir) * speed, 55 + Math.random() * 20, Math.sin(dir) * speed),
-        w: new THREE.Vector3((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14),
+        floor: GROUND + heightAt(c.x, c.y),
+        v: new THREE.Vector3(Math.cos(dir) * speed, 90 + Math.random() * 50, Math.sin(dir) * speed),
+        w: new THREE.Vector3((Math.random() - 0.5) * 22, (Math.random() - 0.5) * 22, (Math.random() - 0.5) * 22),
       };
     });
     a.group.visible = false;
     a.shadow.visible = false;
     sparks.push({ x: c.x, y: c.y, k: 1, at: lastTime, spin: Math.random() * Math.PI });
+    bursts.push({ x: c.x, y: c.y, at: lastTime });
+    shakeUntil = lastTime + 0.35;
+  }
+
+  // 「BURST!」字樣:畫一次,大家共用
+  const BURST_TEXT = (() => {
+    const cv = document.createElement('canvas');
+    cv.width = 512;
+    cv.height = 160;
+    const ctx = cv.getContext('2d');
+    ctx.font = '900 112px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 22;
+    ctx.strokeStyle = '#574239';
+    ctx.strokeText('BURST!', 256, 84);
+    ctx.fillStyle = '#FFD84A';
+    ctx.fillText('BURST!', 256, 84);
+    const t = new THREE.CanvasTexture(cv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  })();
+  const SHOCK = new THREE.RingGeometry(0.8, 1, 48);
+
+  function burstVisual(b, k) {
+    const out = [];
+    const y = GROUND + heightAt(b.x, b.y);
+    // 衝擊波:平貼地面往外擴、愈擴愈淡
+    const ring = new THREE.Mesh(SHOCK, new THREE.MeshBasicMaterial({
+      color: 0xFFFFFF, transparent: true, opacity: 0.9 * (1 - k), side: THREE.DoubleSide, depthWrite: false, depthTest: false,
+    }));
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(b.x, y + 0.6, b.y);
+    ring.scale.setScalar(6 + 40 * Math.sqrt(k));
+    ring.renderOrder = 8000;
+    out.push(ring);
+    // 大字:先彈大再縮回,往上飄、最後淡掉
+    const pop = k < 0.15 ? 0.6 + (k / 0.15) * 0.7 : 1.3 - Math.min(0.3, (k - 0.15) * 0.6);
+    const label = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: BURST_TEXT, transparent: true, opacity: k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3, depthTest: false,
+    }));
+    label.scale.set(36 * pop, 11.25 * pop, 1);
+    label.position.set(b.x, y + 22 + 18 * k, b.y);
+    label.renderOrder = 9500;
+    out.push(label);
+    return out;
   }
 
   const CAM = new THREE.Vector3();
@@ -429,6 +494,12 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     }
     camera.position.copy(CAM_DIR).multiplyScalar(camDist).add(CAM_LOOK);
     camera.lookAt(CAM_LOOK);
+    if (lastTime < shakeUntil) {
+      // 爆裂時震一下:愈接近結束震得愈小
+      const amp = 2.2 * (shakeUntil - lastTime) / 0.35;
+      camera.position.x += (Math.random() - 0.5) * amp;
+      camera.position.y += (Math.random() - 0.5) * amp;
+    }
   }
 
   // drop:開場的落下進度(0 = 還在上方,1 = 落地)
@@ -450,7 +521,13 @@ export function createScene(canvas, { pitch = 55 } = {}) {
         a.group.position.set(c.x, ground + fall, c.y);
         a.group.scale.setScalar(c.radius);
         // 轉速就是命:轉得愈慢,刃轉得愈慢
-        a.spin.rotation.y += dt * (6 + 22 * c.spin);
+        a.spinRate = 6 + 22 * c.spin;
+        a.spin.rotation.y += dt * a.spinRate;
+        // 記下這一格的速度與位置:出局時畫面要接著這股慣性演
+        a.vx = c.vx;
+        a.vy = c.vy;
+        a.px = c.x;
+        a.py = c.y;
         if (c.spin < WOBBLE_FROM) {
           // 快停了:整顆繞著軸尖畫圈地晃,愈慢晃愈大
           const w = (WOBBLE_FROM - c.spin) / WOBBLE_FROM;
@@ -476,7 +553,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
         a.outAt = world.time;
         a.shield.visible = false;
         setOutline(a.group, { buffs: {} }, world.time);
-        if (c.outBy === 'burst') burstApart(a, c);
+        if (c.outBy === 'burst') burstApart(a, c, team?.color ?? '#CCCCCC');
         // 掉進出口的會被牆擋住一部分:描邊也要照深度畫,不然整圈描邊會蓋在牆上
         if (c.outBy === 'ringout') {
           for (const e of a.group.userData.edges) { e.material.depthTest = true; e.material.depthWrite = true; }
@@ -485,20 +562,41 @@ export function createScene(canvas, { pitch = 55 } = {}) {
       const t = world.time - a.outAt;
       if (c.outBy === 'burst') {
         for (const d of a.debris ?? []) {
-          d.v.y -= 140 * dt;
+          d.v.y -= GRAVITY * dt;
           d.obj.position.addScaledVector(d.v, dt);
+          if (d.obj.position.y < d.floor && d.v.y < 0) {
+            // 落地彈一下,水平方向也慢下來
+            d.obj.position.y = d.floor;
+            d.v.y *= -0.35;
+            d.v.x *= 0.6;
+            d.v.z *= 0.6;
+          }
           d.obj.rotation.x += d.w.x * dt;
           d.obj.rotation.y += d.w.y * dt;
           d.obj.rotation.z += d.w.z * dt;
           d.obj.visible = t < BURST_TIME;
         }
       } else if (c.outBy === 'spinout') {
-        // 停轉:慢慢倒下,倒好之後淡出
-        a.group.rotation.x = 0;
-        a.group.rotation.z = (Math.PI / 2) * 0.9 * Math.min(1, t / SPIN_FALL);
-        a.shadow.visible = false;
-        if (t > SPIN_FALL) setOpacity(a.group, Math.max(0, 1 - (t - SPIN_FALL) / SPIN_FADE));
-        a.group.visible = t < SPIN_FALL + SPIN_FADE;
+        // 停轉不是當場定住:帶著原本的速度繼續滑、刃慢慢轉停、晃得愈來愈大,滑得差不多才倒下,最後淡出
+        if (a.px === undefined) { a.px = c.x; a.py = c.y; a.vx = 0; a.vy = 0; a.spinRate = 6; }
+        const k = Math.exp(-SPIN_SLIDE * dt);
+        a.vx *= k;
+        a.vy *= k;
+        const nx = a.px + a.vx * dt;
+        const ny = a.py + a.vy * dt;
+        if (bowlDistance(nx, ny) < -c.radius) { a.px = nx; a.py = ny; } else { a.vx = 0; a.vy = 0; }
+        a.group.position.set(a.px, GROUND + heightAt(a.px, a.py), a.py);
+        a.spin.rotation.y += dt * a.spinRate * Math.max(0, 1 - t / SPIN_STOP);
+        const fall = Math.min(1, Math.max(0, (t - SPIN_FALL_AT) / SPIN_FALL));
+        const wob = 0.3 * Math.min(1, t / SPIN_FALL_AT) * (1 - fall);
+        const lean = (Math.PI / 2) * 0.9 * fall * fall;   // 先慢後快地倒下
+        a.group.rotation.z = Math.sin(t * 10) * wob + lean;
+        a.group.rotation.x = Math.cos(t * 10) * wob;
+        a.shadow.visible = fall < 0.5;
+        a.shadow.position.set(a.px, GROUND + heightAt(a.px, a.py) + 0.25, a.py);
+        const fadeAt = SPIN_FALL_AT + SPIN_FALL;
+        if (t > fadeAt) setOpacity(a.group, Math.max(0, 1 - (t - fadeAt) / SPIN_FADE));
+        a.group.visible = t < fadeAt + SPIN_FADE;
         if (a.group.visible) live.push(a.group);
       } else {
         // 場外:停在出口裡(物理已經放好位置),慢慢轉停;同一個出口依出局順序錯開
@@ -556,6 +654,12 @@ export function createScene(canvas, { pitch = 55 } = {}) {
       for (const m of sparkVisual(sparks[i], age)) addProp(m);
     }
 
+    for (let i = bursts.length - 1; i >= 0; i--) {
+      const age = (world.time - bursts[i].at) / BURST_TIME;
+      if (age >= 1 || age < 0) { bursts.splice(i, 1); continue; }
+      for (const m of burstVisual(bursts[i], age)) addProp(m);
+    }
+
     for (let i = blasts.length - 1; i >= 0; i--) {
       const age = (world.time - blasts[i].at) / BLAST_TIME;
       if (age >= 1) { blasts.splice(i, 1); continue; }
@@ -592,7 +696,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     resize,
     camera,
     ready: stadium.userData.ready,   // 盤子的模型下載完
-    reset() { clearActors(); seenStrikes.clear(); blasts = []; sparks = []; lastTime = 0; },
+    reset() { clearActors(); seenStrikes.clear(); blasts = []; sparks = []; bursts = []; shakeUntil = -1; lastTime = 0; },
     dispose() { clearProps(); clearActors(); renderer.dispose(); },
   };
 }
