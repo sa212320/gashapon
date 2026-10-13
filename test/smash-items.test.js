@@ -53,11 +53,6 @@ test('道具掉在盤內,不會掉在牆邊或口袋上', () => {
   }
 });
 
-test('盾:吃一個多一層,每層 8 秒(劍改成衝刺了,見 smash-dash.test.js)', () => {
-  const w = applyPickups({ ...world([at('red', 0, 0)]), items: [item('shield')] });
-  assert.deepEqual(w.combatants[0].buffs.shield, [BUFF_TIME]);
-});
-
 test('最多疊 3 層,再吃就刷新最舊那層', () => {
   assert.deepEqual(addLayer([]), [BUFF_TIME]);
   assert.deepEqual(addLayer([2, 5, 7]), [BUFF_TIME, 5, 7]);

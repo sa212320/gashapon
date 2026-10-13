@@ -387,10 +387,11 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     return out;
   }
 
-  // 盾:罩住整顆陀螺的冰泡泡 + 深藍底圈 + 頭上一面小盾牌圖示。剛吃到那一下泡泡「啵」地放大再縮回。
+  // 盾(反彈泡泡):罩住整顆陀螺的冰泡泡 + 深藍底圈 + 頭上一面小盾牌圖示。剛吃到那一下「啵」地鼓起,被撞破時放大淡掉。
   const SHIELD_DOME = new THREE.SphereGeometry(1.5, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2);
   const SHIELD_RIM = new THREE.RingGeometry(1.42, 1.62, 40);
   const SHIELD_POP = 0.35;   // 秒
+  const BUBBLE_BREAK = 0.25; // 泡泡被撞破:幾秒內放大淡掉
   const BLUR_RING = new THREE.RingGeometry(0.5, 1.08, 40);
 
   function actorFor(c, color) {
@@ -663,13 +664,22 @@ export function createScene(canvas, { pitch = 55 } = {}) {
         }
         a.shadow.position.set(c.x, ground + 0.25, c.y);
         a.shadow.scale.setScalar(c.radius * 0.95 * (0.4 + 0.6 * land.shadow));
+        // 反彈泡泡:剛罩上「啵」地鼓起來;被撞破那一下放大淡掉
         const shields = c.buffs?.shield?.length ?? 0;
         if (shields > (a.shields ?? 0)) a.shieldAt = world.time;
         a.shields = shields;
-        a.shield.visible = shields > 0;
-        if (shields > 0) {
-          const [dome, , badge] = a.shield.children;
-          dome.material.opacity = Math.min(0.6, 0.3 + 0.12 * shields);
+        const [dome, rim, badge] = a.shield.children;
+        const broke = world.time - (c.bubbleHitAt ?? -Infinity);
+        const breaking = shields === 0 && broke < BUBBLE_BREAK;
+        a.shield.visible = shields > 0 || breaking;
+        rim.visible = shields > 0;
+        badge.visible = shields > 0;
+        if (breaking) {
+          const k = broke / BUBBLE_BREAK;
+          dome.scale.setScalar(1 + 0.8 * k);
+          dome.material.opacity = 0.5 * (1 - k);
+        } else if (shields > 0) {
+          dome.material.opacity = 0.42;
           const pop = Math.min(1, (world.time - (a.shieldAt ?? -Infinity)) / SHIELD_POP);
           dome.scale.setScalar(1 + 0.6 * (1 - pop) ** 2);
           if (!badge.material.map && itemTex.get('shield')) { badge.material.map = itemTex.get('shield'); badge.material.needsUpdate = true; }
