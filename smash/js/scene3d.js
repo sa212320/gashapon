@@ -12,14 +12,13 @@ import { HIT_POWER, HIT_FULL } from './physics.js';
 import { INK, outlinable, part } from './outline3d.js';
 import { createStadium } from './stadium3d.js';
 import { createBey, setChipTexture, loadChipTextures } from './bey3d.js';
-import { HEAL_FLASH } from './items.js';
+import { HEAL_FLASH, MISSILE_FUSE, BLAST_RADIUS } from './items.js';
 import { BOUNDS, heightAt } from './stadium.js';
 
 const GROUND = -4;        // 場地上表面的高度,角色站在這裡
 const SPARK_TIME = 0.22;  // 撞擊火花幾秒
 const SPARK_MAX = 5;      // 同時最多幾個火花,再多就是一團糊
 const BLAST_TIME = 0.5;   // 爆炸演出幾秒
-const BLAST_R = 46;       // 跟 items.js 的 BLAST_RADIUS 對齊:看到的圈就是真的會被炸到的範圍
 
 // 一顆鋸齒星(半徑 1,躺在 XY 平面朝 +Z)。爆炸畫成球體會變成一團半透明的糊,
 // 星形才是小孩認得的「爆炸」。
@@ -57,7 +56,6 @@ export function createScene(canvas, { pitch = 55 } = {}) {
 
   /* ---------- 共用幾何 ---------- */
   const BALL = new THREE.SphereGeometry(1, 16, 12);
-  const SPIKE = new THREE.OctahedronGeometry(1, 0);
   const ROD = new THREE.CylinderGeometry(1, 1, 1, 6);
   const SHADOW = new THREE.CircleGeometry(1, 18);
   const RING = new THREE.RingGeometry(0.78, 1, 32);
@@ -115,7 +113,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
 
   let actors = new Map();   // combatant.id -> { group, spin, phase, shadow }
   let props = [];           // 道具、炸彈、爆炸,每格重建(數量少)
-  let seenBombs = new Map();  // 上一格看到的炸彈,用來認出「剛剛炸掉的那顆」
+  let seenStrikes = new Map(); // 上一格看到的空襲,用來認出「剛剛炸開的那顆」
   let blasts = [];            // 進行中的爆炸 { x, y, at }
   let sparks = [];            // 進行中的撞擊火花 { x, y, k, at, spin }
   let lastTime = 0;           // 上一格的 world.time(算這一格的 dt)
@@ -172,25 +170,52 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     return m;
   }
 
-  // 一顆卡通炸彈:黑球 + 頭上的管子 + 一截引信 + 燒著的火花。
-  // 引信愈短,火花閃得愈快、球本身也脹得愈大 —— 光靠變色小孩看不出「快炸了」。
-  function bombVisual(bomb) {
-    const urgency = Math.max(0, 1 - bomb.fuse / 1.6);          // 0 → 1
-    const blinkRate = 6 + urgency * 22;
-    const flash = Math.floor(bomb.fuse * blinkRate) % 2 === 0;
-    const pulse = 1 + urgency * 0.18 + (flash ? 0.07 : 0);
+  // 準星:發射隊伍色的雙圈 + 十字,邊倒數邊縮、最後 0.4 秒閃。
+  // 圈的大小 = BLAST_RADIUS —— 看到的圈就是真的會被炸到的範圍。
+  const BAR = new THREE.PlaneGeometry(1, 1);
+  function crosshairVisual(strike, color) {
+    const k = 1 - Math.max(0, strike.fuse) / MISSILE_FUSE;   // 0 → 1
+    const blink = strike.fuse < 0.4 && Math.floor(strike.fuse * 16) % 2 === 0;
+    const g = new THREE.Group();
+    // 碗底往外翹,平平一圈放在中間的高度會被碗底吃掉 —— 不做深度測試,直接畫在最上層
+    const mat = new THREE.MeshBasicMaterial({
+      color: blink ? 0xFFFFFF : color, transparent: true, opacity: 0.6, side: THREE.DoubleSide,
+      depthWrite: false, depthTest: false,
+    });
+    const outer = new THREE.Mesh(RING_FAT, mat);
+    outer.scale.setScalar(BLAST_RADIUS * (1.15 - 0.15 * k));
+    const inner = new THREE.Mesh(RING, mat);
+    inner.scale.setScalar(BLAST_RADIUS * 0.35);
+    const h = new THREE.Mesh(BAR, mat);
+    h.scale.set(BLAST_RADIUS * 0.5, 2, 1);
+    const v = new THREE.Mesh(BAR, mat);
+    v.scale.set(2, BLAST_RADIUS * 0.5, 1);
+    g.add(outer, inner, h, v);
+    for (const m of g.children) m.renderOrder = 9000;
+    g.rotation.x = -Math.PI / 2;
+    g.position.set(strike.x, GROUND + heightAt(strike.x, strike.y) + 0.5, strike.y);
+    return g;
+  }
 
+  // 卡通飛彈:白色彈身 + 紅色彈頭 + 冰藍尾翼,從左上方斜斜落到準星。不追蹤 —— 落點就是準星。
+  const MISSILE_FROM = new THREE.Vector3(-70, 130, -40);   // 不能太遠,不然大半段倒數都在畫面外
+  const NOSE = new THREE.ConeGeometry(1, 1, 12);
+  const FIN = new THREE.BoxGeometry(1, 1, 1);
+  function missileVisual(strike) {
+    const k = 1 - Math.max(0, strike.fuse) / MISSILE_FUSE;
+    const ease = k * k;                          // 先慢後快,像在加速落下
+    const target = new THREE.Vector3(strike.x, GROUND + heightAt(strike.x, strike.y), strike.y);
+    const from = target.clone().add(MISSILE_FROM);
     const g = outlinable();
-    part(g, BALL, flash && urgency > 0.55 ? 0x8C4A3F : 0x3E3330,
-      { pos: [0, 0, 0], scale: [7, 7, 7], outline: 0.9 });
-    part(g, ROD, 0x6B5A4F, { pos: [0, 6.6, 0], scale: [2, 2.6, 2], outline: 0.5 });
-    // 引信往斜後方翹,不然從上面看只是一個點
-    part(g, ROD, 0xE8D3B0, { pos: [0, 9.6, -1.6], scale: [0.8, 4, 0.8], rotX: 0.5, outline: 0.35 });
-    part(g, SPIKE, flash ? 0xFFF1B8 : 0xFF9A3C,
-      { pos: [0, 12, -3], scale: flash ? [3.2, 3.2, 3.2] : [2.4, 2.4, 2.4], outline: 0.4 });
-
-    g.position.set(bomb.x, GROUND + heightAt(bomb.x, bomb.y) + 15, bomb.y);
-    g.scale.setScalar(pulse);
+    part(g, ROD, 0xFFFFFF, { pos: [0, 0, 0], scale: [3, 12, 3], outline: 0.5 });
+    part(g, NOSE, 0xE4572E, { pos: [0, -8.5, 0], scale: [3, 5, 3], rotX: Math.PI, outline: 0.5 });
+    for (let i = 0; i < 3; i++) {
+      const a = (i * Math.PI * 2) / 3;
+      part(g, FIN, 0x8EC5E8, { pos: [Math.cos(a) * 2.6, 5, Math.sin(a) * 2.6], scale: [2.4, 4, 0.6], outline: 0.4 });
+    }
+    g.position.copy(from.lerp(target, ease));
+    g.lookAt(target);
+    g.rotateX(Math.PI / 2);   // 讓彈頭(-y)朝向落點
     return g;
   }
 
@@ -240,7 +265,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
       out.push(m);
     };
 
-    const size = BLAST_R * (0.35 + 0.65 * ease);
+    const size = BLAST_RADIUS * (0.35 + 0.65 * ease);
     star(STAR, INK, size * 1.1, fade);
     star(STAR2, new THREE.Color(0xFFE9A8).lerp(new THREE.Color(0xFF6A2B), ease), size, fade);
 
@@ -250,7 +275,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     }));
     shock.rotation.x = -Math.PI / 2;
     shock.position.set(blast.x, GROUND + heightAt(blast.x, blast.y) + 0.4, blast.y);
-    shock.scale.setScalar(BLAST_R * ease);
+    shock.scale.setScalar(BLAST_RADIUS * ease);
     out.push(shock);
 
     return out;
@@ -440,6 +465,10 @@ export function createScene(canvas, { pitch = 55 } = {}) {
         a.shield.visible = false;
         setOutline(a.group, { buffs: {} }, world.time);
         if (c.outBy === 'burst') burstApart(a, c);
+        // 掉進出口的會被牆擋住一部分:描邊也要照深度畫,不然整圈描邊會蓋在牆上
+        if (c.outBy === 'ringout') {
+          for (const e of a.group.userData.edges) { e.material.depthTest = true; e.material.depthWrite = true; }
+        }
       }
       const t = world.time - a.outAt;
       if (c.outBy === 'burst') {
@@ -484,18 +513,18 @@ export function createScene(canvas, { pitch = 55 } = {}) {
       addProp(groundDisc(shadowDisc(0.16), it.x, it.y, 6));
     }
 
-    for (const bomb of (world.strikes ?? [])) {
-      addProp(bombVisual(bomb));
-      addProp(groundDisc(shadowDisc(0.2), bomb.x, bomb.y, 7));
+    for (const st of world.strikes ?? []) {
+      const color = teams.get(st.fighterId)?.color ?? '#574239';
+      addProp(crosshairVisual(st, color));
+      addProp(missileVisual(st));
     }
-
-    // 爆炸:上一格還在、這一格不見了的炸彈,就是剛炸掉的那顆。
+    // 爆炸:上一格還在、這一格不見了的空襲,就是剛炸開的那一顆。
     // 這樣物理那邊不必為了演出多回傳一個欄位 —— 爆炸純粹是畫面的事。
-    for (const b of (world.strikes ?? [])) seenBombs.set(b.id, b);
-    for (const [id, b] of seenBombs) {
+    for (const st of world.strikes ?? []) seenStrikes.set(st.id, st);
+    for (const [id, st] of seenStrikes) {
       if (!(world.strikes ?? []).some(x => x.id === id)) {
-        blasts.push({ x: b.x, y: b.y, at: world.time, spin: Math.random() * Math.PI });
-        seenBombs.delete(id);
+        blasts.push({ x: st.x, y: st.y, at: world.time, spin: Math.random() * Math.PI });
+        seenStrikes.delete(id);
       }
     }
     // 撞擊火花:新的收進來,舊的淘汰,同時最多 SPARK_MAX 個
@@ -551,7 +580,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     resize,
     camera,
     ready: stadium.userData.ready,   // 盤子的模型下載完
-    reset() { clearActors(); seenBombs.clear(); blasts = []; sparks = []; lastTime = 0; },
+    reset() { clearActors(); seenStrikes.clear(); blasts = []; sparks = []; lastTime = 0; },
     dispose() { clearProps(); clearActors(); renderer.dispose(); },
   };
 }
