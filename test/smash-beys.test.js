@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { ANIMAL_URLS } from '../ghostleg/js/art.js';
 import {
   ANIMALS, BEY_TYPES, TYPE_STATS, statsOf, HIT_POWER, HIT_FULL,
-  beyRadius, rollBey, layers, hitStrength, burstChance, decaySpin, SPIN_DECAY,
+  beyRadius, rollBey, hitStrength, burstChance, decaySpin, SPIN_DECAY,
 } from '../smash/js/beys.js';
 
 function seeded(seed) {
@@ -19,7 +19,7 @@ function seeded(seed) {
   };
 }
 
-const bey = (beyType, extra = {}) => ({ beyType, spin: 1, buffs: { attack: [], shield: [] }, ...extra });
+const bey = (beyType, extra = {}) => ({ beyType, spin: 1, ...extra });
 
 test('動物就是爬格子那 10 隻(圖直接共用)', () => {
   assert.deepEqual([...ANIMALS].sort(), Object.keys(ANIMAL_URLS).sort());
@@ -63,11 +63,6 @@ test('人多時陀螺縮小,20 人以內維持原尺寸', () => {
   assert.ok(Math.abs(beyRadius(80) - 8 * Math.sqrt(20 / 80)) < 1e-9);
 });
 
-test('layers 數的是陣列長度,沒有 buffs 就是 0', () => {
-  assert.equal(layers({ buffs: { attack: [3, 5] } }, 'attack'), 2);
-  assert.equal(layers({}, 'shield'), 0);
-});
-
 test('撞擊強度:門檻以下是 0,HIT_FULL 以上是 1', () => {
   assert.equal(hitStrength(HIT_POWER - 1), 0);
   assert.equal(hitStrength(HIT_FULL + 100), 1);
@@ -87,9 +82,7 @@ test('滿轉速很難爆:最重的一擊也不到 6%', () => {
 test('攻擊型與劍讓對方更容易爆;防禦型與盾讓自己比較難爆', () => {
   const base = burstChance({ power: 200, attacker: bey('stamina'), target: bey('stamina') });
   assert.ok(burstChance({ power: 200, attacker: bey('attack'), target: bey('stamina') }) > base);
-  assert.ok(burstChance({ power: 200, attacker: bey('stamina', { buffs: { attack: [8], shield: [] } }), target: bey('stamina') }) > base);
   assert.ok(burstChance({ power: 200, attacker: bey('stamina'), target: bey('defense') }) < base);
-  assert.ok(burstChance({ power: 200, attacker: bey('stamina'), target: bey('stamina', { buffs: { attack: [], shield: [8] } }) }) < base);
 });
 
 test('轉速愈低愈容易爆:快停的時候比滿轉速容易好幾倍', () => {
@@ -102,7 +95,7 @@ test('轉速愈低愈容易爆:快停的時候比滿轉速容易好幾倍', () =
 test('機率有上限,三層劍加攻擊型也不會必爆', () => {
   const p = burstChance({
     power: HIT_FULL,
-    attacker: bey('attack', { buffs: { attack: [8, 8, 8], shield: [] } }),
+    attacker: bey('attack'),
     target: bey('stamina', { spin: 0 }),
   });
   assert.ok(p <= 0.9);
@@ -114,4 +107,9 @@ test('轉速每秒自然下降,耐久型掉得最慢', () => {
   assert.ok(a < 1 && s < 1);
   assert.ok(s > a);
   assert.ok(Math.abs(decaySpin(bey('defense'), 1) - (1 - SPIN_DECAY)) < 1e-9);
+});
+
+test('爆裂只看類型與轉速,沒有劍盾層數', async () => {
+  const beys = await import('../smash/js/beys.js');
+  for (const gone of ['layers', 'ATTACK_GAIN', 'SWORD_BURST', 'SHIELD_KNOCK', 'SHIELD_BURST']) assert.equal(beys[gone], undefined, gone);
 });

@@ -17,8 +17,8 @@ import {
   bowlDistance, bowlNormal, zoneAt, pocketAt, slopeAccel, railAccel, onRail, randomSpot,
 } from './stadium.js';
 import {
-  HIT_POWER, HIT_FULL, ATTACK_GAIN, SHIELD_KNOCK, HIT_SPIN_COST, WALL_SPIN_COST,
-  statsOf, layers, beyRadius, rollBey, hitStrength, burstChance, decaySpin,
+  HIT_POWER, HIT_FULL, HIT_SPIN_COST, WALL_SPIN_COST,
+  statsOf, beyRadius, rollBey, hitStrength, burstChance, decaySpin,
 } from './beys.js';
 import { BLAST_RADIUS } from './items.js';
 
@@ -54,7 +54,6 @@ export function createWorld({ fighters, rng = Math.random }) {
       pocket: null,
       railing: false,
       ledge: false,
-      buffs: { attack: [], shield: [] },
       healedAt: -Infinity,
     };
   });
@@ -171,7 +170,7 @@ function contain(c, px, py) {
 }
 
 export function step(world, dt, rng = Math.random) {
-  const next = world.combatants.map(c => ({ ...c, buffs: { attack: [...(c.buffs?.attack ?? [])], shield: [...(c.buffs?.shield ?? [])] } }));
+  const next = world.combatants.map(c => ({ ...c }));
   const impacts = [];
 
   // 1. 坡度、軌道、移動
@@ -238,14 +237,10 @@ export function step(world, dt, rng = Math.random) {
       const along = rvx * nx + rvy * ny;
       if (along > 0) continue; // 已經在分開了,再給衝量會變成吸在一起
 
-      // 加成是**不對稱**的:多出來的力只加在對方身上,自己的後座力維持原樣。
-      // 兩邊都乘同一個係數的話,撿到劍的人自己也被彈得一樣遠 —— 玩起來完全沒感覺。
+      // 冰塊被撞飛得遠:多出來的力只加在冰塊身上,撞它的那顆後座力維持原樣。
       // 代價是這一撞不守恆動量,但這是給小孩看的卡通碰撞,不是撞球。
       const impulse = (-(1 + RESTITUTION) * along) / (1 / a.mass + 1 / b.mass);
-      const onto = (from, to) => statsOf(from).power
-        * (1 + layers(from, 'attack') * ATTACK_GAIN)
-        * SHIELD_KNOCK ** layers(to, 'shield')
-        * (to.frozen > 0 ? FROZEN_KNOCK : 1);
+      const onto = (from, to) => statsOf(from).power * (to.frozen > 0 ? FROZEN_KNOCK : 1);
       const ontoA = onto(b, a);
       const ontoB = onto(a, b);
       a.vx -= (impulse * ontoA * nx) / a.mass;

@@ -2,8 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ITEM_TYPES, ITEM_WEIGHTS, pickItem, BUFF_TIME, MAX_LAYERS, METEOR_FUSE, BLAST_RADIUS,
-  spawnItem, addLayer, tickBuffs, applyPickups, explodeMeteors,
+  ITEM_TYPES, ITEM_WEIGHTS, pickItem, METEOR_FUSE, BLAST_RADIUS,
+  spawnItem, applyPickups, explodeMeteors,
 } from '../smash/js/items.js';
 import { bowlDistance } from '../smash/js/stadium.js';
 
@@ -21,7 +21,7 @@ function seeded(seed) {
 const at = (fighterId, x, y, vx = 0, vy = 0, extra = {}) => ({
   id: `c_${fighterId}_${x}_${y}`, fighterId, x, y, vx, vy,
   radius: 8, mass: 1, alive: true, spin: 1, outBy: null, pocket: null, railing: false,
-  buffs: { attack: [], shield: [] }, healedAt: -Infinity, ...extra,
+  healedAt: -Infinity, ...extra,
 });
 const world = combatants => ({ combatants, items: [], meteors: [], time: 3 });
 const item = (type, x = 0, y = 0) => ({ id: `i_${type}`, type, x, y, radius: 7 });
@@ -55,19 +55,6 @@ test('道具掉在盤內,不會掉在牆邊或口袋上', () => {
     const it = spawnItem(world([]), 'dash', seeded(seed)).items[0];
     assert.ok(bowlDistance(it.x, it.y) < -it.radius);
   }
-});
-
-test('最多疊 3 層,再吃就刷新最舊那層', () => {
-  assert.deepEqual(addLayer([]), [BUFF_TIME]);
-  assert.deepEqual(addLayer([2, 5, 7]), [BUFF_TIME, 5, 7]);
-  assert.equal(addLayer([1, 2, 3]).length, MAX_LAYERS);
-});
-
-test('每層各自倒數,時間到就掉一層', () => {
-  const w = world([at('red', 0, 0, 0, 0, { buffs: { attack: [0.5, 6], shield: [1] } })]);
-  const out = tickBuffs(w, 0.6);
-  assert.deepEqual(out.combatants[0].buffs.attack.map(t => +t.toFixed(2)), [5.4]);
-  assert.deepEqual(out.combatants[0].buffs.shield.map(t => +t.toFixed(2)), [0.4]);
 });
 
 test('補包把轉速補滿,而且記下補的時間(畫面閃綠用)', () => {
@@ -148,11 +135,10 @@ test('圈外不受影響', () => {
   assert.equal(explodeMeteors(w, 0.1, never).combatants[0].vx, 0);
 });
 
-test('重的、有盾的被炸得比較輕', () => {
+test('重的被砸得比較輕', () => {
   const blast = c => explodeMeteors({ ...world([c]), meteors: [{ id: 's', fighterId: 'red', x: 0, y: 0, fuse: 0 }] }, 0.1, never).combatants[0].vx;
   const base = blast(at('blue', 10, 0));
   assert.ok(blast(at('blue', 10, 0, 0, 0, { mass: 1.8 })) < base);
-  assert.ok(blast(at('blue', 10, 0, 0, 0, { buffs: { attack: [], shield: [8] } })) < base);
 });
 
 test('爆炸也可能炸出爆裂', () => {

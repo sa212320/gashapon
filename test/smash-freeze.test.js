@@ -3,14 +3,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  applyPickups, tickFrosts, tickBuffs, FROST_FLIGHT, FREEZE_TIME, FROST_TARGETS,
+  applyPickups, tickFrosts, FROST_FLIGHT, FREEZE_TIME, FROST_TARGETS,
 } from '../smash/js/items.js';
 import { step, think } from '../smash/js/physics.js';
 
 const at = (fighterId, x, y, extra = {}) => ({
   id: `c_${fighterId}_${x}_${y}`, fighterId, x, y, vx: 0, vy: 0,
   radius: 8, mass: 1, alive: true, spin: 0.5, outBy: null, pocket: null, railing: false,
-  beyType: 'attack', buffs: { attack: [], shield: [] }, healedAt: -Infinity, ...extra,
+  beyType: 'attack', healedAt: -Infinity, ...extra,
 });
 const world = (combatants, extra = {}) => ({ combatants, items: [], meteors: [], frosts: [], time: 10, ...extra });
 const item = { id: 'i', type: 'freeze', x: 0, y: 0, radius: 7 };
@@ -23,7 +23,7 @@ test('吃到盾:寒氣射向最近的兩顆敵人(不打隊友),不再是加一�
   assert.equal(FROST_TARGETS, 2);
   assert.deepEqual(w.frosts.map(f => f.targetId).sort(), ['c_blue_-40_0', 'c_blue_30_0']);
   assert.ok(w.frosts.every(f => f.fighterId === 'red' && f.fromX === 0 && f.fromY === 0));
-  assert.deepEqual(w.combatants[0].buffs.shield, []);
+  assert.equal(w.combatants[0].buffs, undefined);
 });
 
 test('寒氣飛 FROST_FLIGHT 秒打中:目標變冰塊 FREEZE_TIME 秒;飛行中目標出局就作廢', () => {
@@ -40,12 +40,34 @@ test('寒氣飛 FROST_FLIGHT 秒打中:目標變冰塊 FREEZE_TIME 秒;飛行中
   assert.equal(gone.combatants[0].frozen ?? 0, 0);
 });
 
-test('冰塊時間到就解凍', () => {
+test('冰塊時間到就解凍(tickFrosts 倒數)', () => {
   let w = world([at('blue', 0, 0, frozen)]);
-  w = tickBuffs(w, FREEZE_TIME / 2);
+  w = tickFrosts(w, FREEZE_TIME / 2);
   assert.ok(w.combatants[0].frozen > 0);
-  w = tickBuffs(w, FREEZE_TIME);
+  w = tickFrosts(w, FREEZE_TIME);
   assert.equal(w.combatants[0].frozen, 0);
+});
+
+test('冰塊被冰隕石砸到:被砸開,但不會爆(爆裂骰必中也一樣)', async () => {
+  const { explodeMeteors } = await import('../smash/js/items.js');
+  const meteor = { id: 'm', fighterId: 'red', x: 10, y: 0, fuse: 0.001 };
+  const w = explodeMeteors(world([at('blue', 0, 0, frozen)], { meteors: [meteor] }), 1 / 60, () => 0);
+  assert.equal(w.combatants[0].alive, true);
+  assert.ok(w.combatants[0].vx < 0);
+});
+
+test('冰塊照樣會被冰旋渦捲走(在冰上滑)', async () => {
+  const { tickWhirls, WHIRL_TIME } = await import('../smash/js/items.js');
+  const w = tickWhirls(world([at('red', 0, 0, { whirl: WHIRL_TIME }), at('blue', 30, 0, frozen)]), 1 / 60);
+  assert.ok(w.combatants[1].vx < 0);
+});
+
+test('冰塊只打敵人、一次兩顆:隊友在最近也不會被凍', () => {
+  const w = applyPickups(world([
+    at('red', 0, 0), at('red', 3, 0), at('blue', 30, 0), at('blue', -35, 0),
+  ], { items: [{ id: 'i', type: 'freeze', x: 0, y: 0, radius: 7 }] }));
+  assert.equal(w.frosts.length, 2);
+  assert.ok(w.frosts.every(f => f.targetId.startsWith('c_blue')));
 });
 
 test('冰塊不會自己動:think 不推它', () => {

@@ -138,7 +138,6 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     return icon;
   }
 
-  const SWORD_RED = 0xFF6B4A;   // 吃了劍:外框變紅
 
   let actors = new Map();   // combatant.id -> { group, spin, phase, shadow }
   let props = [];           // 道具、炸彈、爆炸,每格重建(數量少)
@@ -156,15 +155,12 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     for (const a of actors.values()) a.applyChip();
   }).catch(() => {});   // 圖載不到就只是沒有動物,不影響比賽
 
-  // 狀態長在陀螺身上,一看就知道是「這顆陀螺的」:
-  //   劍:外框變紅、愈多層愈粗    補包:剛補完那一下外框閃綠(優先於劍)
-  // 盾另外是一圈半透明的冰環(見 actor.shield)。
+  // 外框:剛補完轉速(冰旋渦)那一下閃綠
   const HEAL_GREEN = 0x4CC38A;
   function setOutline(group, c, time) {
-    const swords = c.buffs?.attack?.length ?? 0;
     const healing = time - (c.healedAt ?? -Infinity) < HEAL_FLASH;
-    const color = healing ? HEAL_GREEN : swords > 0 ? SWORD_RED : INK;
-    const grow = healing ? 1.2 : 1 + 0.12 * swords;
+    const color = healing ? HEAL_GREEN : INK;
+    const grow = healing ? 1.2 : 1;
     for (const e of group.userData.edges) {
       e.material.color.set(color);
       e.scale.copy(e.userData.base).multiplyScalar(grow);
@@ -486,10 +482,6 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     return out;
   }
 
-  // 盾:罩住整顆陀螺的冰泡泡 + 深藍底圈 + 頭上一面小盾牌圖示。剛吃到那一下泡泡「啵」地放大再縮回。
-  const SHIELD_DOME = new THREE.SphereGeometry(1.5, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2);
-  const SHIELD_RIM = new THREE.RingGeometry(1.42, 1.62, 40);
-  const SHIELD_POP = 0.35;   // 秒
   const BLUR_RING = new THREE.RingGeometry(0.5, 1.08, 40);
   // 冰凍(盾):生成的冰塊圖(就是道具圖示那張)半透明罩在陀螺前面,看起來像凍在冰裡
   const ICE_SIZE = 3;      // 冰塊圖的高度(陀螺單位,陀螺直徑 2)
@@ -499,21 +491,6 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     if (a) return a;
     const group = createBey(c.beyType, color);
     const shadow = shadowDisc();
-    const shield = new THREE.Group();
-    const dome = new THREE.Mesh(SHIELD_DOME, new THREE.MeshBasicMaterial({
-      color: 0xBFE8FF, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false,
-    }));
-    const rim = new THREE.Mesh(SHIELD_RIM, new THREE.MeshBasicMaterial({
-      color: 0x2F7FC0, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false,
-    }));
-    rim.rotation.x = -Math.PI / 2;
-    rim.position.y = 0.08;
-    const badge = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false }));
-    badge.renderOrder = 9000;
-    badge.scale.setScalar(1.3);
-    shield.add(dome, rim, badge);
-    shield.visible = false;
-    group.add(shield);
     // 高速旋轉的殘影:刃轉太快時,一格一格畫會出現車輪錯覺(看起來變慢、甚至倒轉),
     // 疊一層半透明的隊伍色圓盤,看得出「轉很快」,也蓋掉錯覺。轉速掉了就淡掉,刃的形狀露出來。
     const blur = new THREE.Mesh(BLUR_RING, new THREE.MeshBasicMaterial({
@@ -531,7 +508,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     root.add(group, shadow);
     // 每顆給一個固定的起始角,不然全場的刃會整齊劃一地同步轉,像同一個物件複製出來的
     a = {
-      group, shadow, shield, blur, ice,
+      group, shadow, blur, ice,
       spin: group.userData.spin,
       parts: group.userData.parts,
       outAt: null, debris: null, faded: false,
@@ -778,18 +755,6 @@ export function createScene(canvas, { pitch = 55 } = {}) {
         }
         a.shadow.position.set(c.x, ground + 0.25, c.y);
         a.shadow.scale.setScalar(c.radius * 0.95 * (0.4 + 0.6 * land.shadow));
-        const shields = c.buffs?.shield?.length ?? 0;
-        if (shields > (a.shields ?? 0)) a.shieldAt = world.time;
-        a.shields = shields;
-        a.shield.visible = shields > 0;
-        if (shields > 0) {
-          const [dome, , badge] = a.shield.children;
-          dome.material.opacity = Math.min(0.6, 0.3 + 0.12 * shields);
-          const pop = Math.min(1, (world.time - (a.shieldAt ?? -Infinity)) / SHIELD_POP);
-          dome.scale.setScalar(1 + 0.6 * (1 - pop) ** 2);
-          if (!badge.material.map && itemTex.get('freeze')) { badge.material.map = itemTex.get('freeze'); badge.material.needsUpdate = true; }
-          badge.position.y = 2.3 + 0.15 * Math.sin(world.time * 5);
-        }
         setOutline(a.group, c, world.time);
         // 衝刺:蓄力時原地發抖 + 箭頭預告;衝的時候拖殘影
         const teamColor = team?.color ?? '#CCCCCC';
@@ -813,10 +778,9 @@ export function createScene(canvas, { pitch = 55 } = {}) {
       // 出局
       if (a.outAt === null) {
         a.outAt = world.time;
-        a.shield.visible = false;
         a.blur.visible = false;
         a.ice.visible = false;
-        setOutline(a.group, { buffs: {} }, world.time);
+        setOutline(a.group, {}, world.time);
         if (c.outBy === 'burst') burstApart(a, c, team?.color ?? '#CCCCCC');
         // 掉進出口的會被牆擋住一部分:描邊也要照深度畫,不然整圈描邊會蓋在牆上
         if (c.outBy === 'ringout') {

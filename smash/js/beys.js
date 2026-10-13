@@ -44,17 +44,6 @@ export function rollBey(rng = Math.random) {
   };
 }
 
-// 劍 / 盾的層數:buffs.attack / buffs.shield 是「每一層的剩餘秒數」陣列。
-export function layers(c, kind) {
-  return c?.buffs?.[kind]?.length ?? 0;
-}
-
-// 每一層劍:對方彈開力道 = 1 + 層數 × ATTACK_GAIN(沿用原本的加成公式)
-export const ATTACK_GAIN = 1.9;
-export const SWORD_BURST = 1.5;   // 每一層劍:對方爆裂機率 ×1.5
-export const SHIELD_KNOCK = 0.6;  // 每一層盾:自己被彈開 ×0.6
-export const SHIELD_BURST = 0.5;  // 每一層盾:自己爆裂機率 ×0.5
-
 export function hitStrength(power) {
   return Math.min(1, Math.max(0, (power - HIT_POWER) / (HIT_FULL - HIT_POWER)));
 }
@@ -63,14 +52,14 @@ const BURST_BASE = 0.5;    // 最重的一擊、雙方都中性、轉速快沒�
 const FULL_SPIN_BURST = 0.01;   // 滿轉速時只剩這個倍數 —— 開場大家都滿轉速,不能一撞就爆
 const BURST_CAP = 0.9;     // 再怎麼疊也不會必爆
 
-// target 被 power 這麼重的一下打到時,爆裂的機率。attacker 是 null 代表飛彈。
+// target 被 power 這麼重的一下打到時,爆裂的機率。attacker 是 null 代表冰隕石。
 // 爆裂主要發生在轉速掉下來之後(真的陀螺也是轉慢了、零件鬆了才容易被撞散):
 // 滿轉速 ×0.01,轉速愈低愈脆,歸零時 ×1。這只影響爆裂,不影響撞擊力。
 export function burstChance({ power, attacker, target }) {
   const k = hitStrength(power);
   if (k === 0) return 0;
-  const dealt = attacker ? statsOf(attacker).burstDealt * SWORD_BURST ** layers(attacker, 'attack') : 1;
-  const taken = statsOf(target).burstTaken * SHIELD_BURST ** layers(target, 'shield');
+  const dealt = attacker ? statsOf(attacker).burstDealt : 1;
+  const taken = statsOf(target).burstTaken;
   const loose = 1 - Math.min(1, Math.max(0, target.spin ?? 1));
   const fragile = FULL_SPIN_BURST + (1 - FULL_SPIN_BURST) * loose ** 3;   // 還有七成轉速時幾乎不會爆,掉到兩三成才真的脆
   return Math.min(BURST_CAP, BURST_BASE * k * dealt * taken * fragile);

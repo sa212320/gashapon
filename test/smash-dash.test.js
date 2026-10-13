@@ -6,7 +6,7 @@ import { applyPickups, tickDashes, DASH_WIND, DASH_TIME, DASH_SPEED } from '../s
 const at = (fighterId, x, y, extra = {}) => ({
   id: `c_${fighterId}_${x}_${y}`, fighterId, x, y, vx: 0, vy: 0,
   radius: 8, mass: 1, alive: true, spin: 1, outBy: null, pocket: null, railing: false,
-  buffs: { attack: [], shield: [] }, healedAt: -Infinity, ...extra,
+  healedAt: -Infinity, ...extra,
 });
 const world = (combatants, extra = {}) => ({ combatants, items: [], meteors: [], time: 3, ...extra });
 const sword = { id: 'i_attack', type: 'dash', x: 0, y: 0, radius: 7 };
@@ -16,7 +16,6 @@ test('吃到劍:鎖定最近的敵人,開始蓄力(不再是加一層)', () => {
   const me = w.combatants[0];
   assert.equal(me.dash.targetId, 'c_blue_40_0');
   assert.equal(me.dash.wind, DASH_WIND);
-  assert.deepEqual(me.buffs.attack, []);
 });
 
 test('場上沒有敵人就不衝', () => {
@@ -59,7 +58,6 @@ test('蓄力完:速度直直指向目標「現在」的位置,快很多', () => 
 test('衝刺只有一下下(DASH_TIME 秒),不另外加劍的加成', () => {
   const me = at('red', 0, 0, { dash: { targetId: 'c_blue_0_90', wind: 0, left: DASH_TIME } });
   let w = tickDashes(world([me, at('blue', 0, 90)]), 1 / 60);
-  assert.deepEqual(w.combatants[0].buffs.attack, []);
   for (let i = 0; i < Math.ceil(DASH_TIME * 60); i++) w = tickDashes(w, 1 / 60);
   assert.equal(w.combatants[0].dash, null);
   assert.ok(DASH_TIME <= 0.5);

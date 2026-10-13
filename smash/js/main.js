@@ -5,7 +5,7 @@
 import { store, seedState, createSmashSetup } from './store.js';
 import { createFighter, pickColor } from './fighters.js';
 import { createWorld, step, think, aliveOf, winnerTeam, HIT_POWER, HIT_FULL } from './physics.js';
-import { ITEM_TYPES, pickItem, spawnItem, applyPickups, tickBuffs, tickDashes, tickFrosts, tickWhirls, explodeMeteors } from './items.js';
+import { ITEM_TYPES, pickItem, spawnItem, applyPickups, tickDashes, tickFrosts, tickWhirls, explodeMeteors } from './items.js';
 import { createScene } from './scene3d.js';
 import { openingAt, OPENING_TIME } from './opening.js';
 import { getActive, replaceSetup, addSetup, removeSetup, entriesChanged } from '../../shared/js/roster.js';
@@ -140,7 +140,6 @@ function start() {
     }
 
     world = explodeMeteors(world, dt);
-    world = tickBuffs(world, dt);
     world = applyPickups(world);
     world = tickDashes(world, dt);
     world = tickFrosts(world, dt);

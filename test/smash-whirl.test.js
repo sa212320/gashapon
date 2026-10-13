@@ -6,7 +6,7 @@ import { applyPickups, tickWhirls, WHIRL_TIME, WHIRL_RADIUS } from '../smash/js/
 const at = (fighterId, x, y, extra = {}) => ({
   id: `c_${fighterId}_${x}_${y}`, fighterId, x, y, vx: 0, vy: 0,
   radius: 8, mass: 1, alive: true, spin: 0.3, outBy: null, pocket: null, railing: false,
-  beyType: 'attack', buffs: { attack: [], shield: [] }, healedAt: -Infinity, ...extra,
+  beyType: 'attack', healedAt: -Infinity, ...extra,
 });
 const world = (combatants, extra = {}) => ({ combatants, items: [], meteors: [], frosts: [], time: 10, ...extra });
 const whirling = { whirl: WHIRL_TIME, spin: 1 };

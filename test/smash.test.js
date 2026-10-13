@@ -29,7 +29,7 @@ const arena = { items: [], meteors: [], time: 0 };
 const at = (fighterId, x, y, vx = 0, vy = 0, extra = {}) => ({
   id: `c_${fighterId}_${x}_${y}`, fighterId, x, y, vx, vy,
   radius: 8, mass: 1, alive: true, spin: 1, outBy: null, pocket: null, railing: false,
-  buffs: { attack: [], shield: [] }, healedAt: -Infinity, ...extra,
+  healedAt: -Infinity, ...extra,
 });
 const noRng = () => 0.999;   // 擲骰永遠不中:撞擊測試不要被爆裂干擾
 
@@ -78,28 +78,9 @@ test('不同隊撞在一起會互相彈開', () => {
   assert.ok(nb.vx > 10, `藍隊沒有被彈開:vx ${nb.vx}`);
 });
 
-test('攻擊道具會讓自己撞出去的力更大', () => {
-  const base = step({ ...arena, combatants: [at('red', -4, 0, 50, 0), at('blue', 4, 0, -50, 0)] }, 1 / 60, noRng);
-  const buffed = at('red', -4, 0, 50, 0);
-  buffed.buffs.attack = [8];
-  const boosted = step({ ...arena, combatants: [buffed, at('blue', 4, 0, -50, 0)] }, 1 / 60, noRng);
-  assert.ok(boosted.combatants[1].vx > base.combatants[1].vx, '攻擊道具沒有加成');
-});
-
 /* ---------- 道具的效果 ---------- */
 
-// 衝量對稱的話,攻擊力等於「兩邊一起飛得更遠」—— 對「誰被撞出場」幾乎沒有影響,
-// 撿到的人自己也被彈得更遠。要有感覺,多出來的力必須只加在對方身上。
-test('攻擊力是打在對方身上,不是兩邊一起飛', () => {
-  const a = { ...at('red', -8, 0, 140, 0), buffs: { attack: [8, 8], shield: [] } };
-  const b = at('blue', 8, 0, -140, 0);
-  const out = step({ ...arena, combatants: [a, b] }, 1 / 60, noRng);
-  const me = Math.abs(out.combatants[0].vx);
-  const him = Math.abs(out.combatants[1].vx);
-  assert.ok(him > me * 1.5, `對方 ${him.toFixed(0)} 應該明顯大於自己 ${me.toFixed(0)}`);
-});
-
-test('沒有攻擊力時兩邊彈開的力一樣大', () => {
+test('重的陀螺被彈得比較近', () => {
   const out = step({ ...arena, combatants: [at('red', -8, 0, 140, 0), at('blue', 8, 0, -140, 0)] }, 1 / 60, noRng);
   const me = Math.abs(out.combatants[0].vx);
   const him = Math.abs(out.combatants[1].vx);
@@ -298,12 +279,6 @@ test('防禦型比較重,同樣一撞被彈得比較近', () => {
   assert.ok(heavy.combatants[1].vx < light.combatants[1].vx);
 });
 
-test('盾讓自己被彈得比較近', () => {
-  const plain = step({ ...arena, combatants: [at('red', -7.9, 0, 200, 0), at('blue', 7.9, 0, -200, 0)] }, 1 / 60, noRng);
-  const shielded = step({ ...arena, combatants: [at('red', -7.9, 0, 200, 0), at('blue', 7.9, 0, -200, 0, { buffs: { attack: [], shield: [8] } })] }, 1 / 60, noRng);
-  assert.ok(shielded.combatants[1].vx < plain.combatants[1].vx);
-});
-
 /* ---------- 開場 ---------- */
 
 test('開場:每顆陀螺各自抽動物與類型,生在盤內、轉速滿', () => {
@@ -317,7 +292,7 @@ test('開場:每顆陀螺各自抽動物與類型,生在盤內、轉速滿', () 
     assert.equal(c.spin, 1);
     assert.equal(c.mass, TYPE_STATS[c.beyType].mass);
     assert.ok(bowlDistance(c.x, c.y) < -c.radius);
-    assert.deepEqual(c.buffs, { attack: [], shield: [] });
+    assert.ok(!('buffs' in c), '劍盾層數拿掉了');
   }
   // Fighter 本身沒有被加上動物欄位
   assert.ok(!('animal' in fighters[0]));

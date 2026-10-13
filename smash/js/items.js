@@ -6,7 +6,7 @@
 //   meteor  冰隕石:鎖定最近敵人**當下的位置**,METEOR_FUSE 秒後從天空落下砸開。不追蹤,圈內敵我都炸
 import { newId } from '../../shared/js/ids.js';
 import { randomSpot } from './stadium.js';
-import { burstChance, HIT_POWER, SHIELD_KNOCK, layers } from './beys.js';
+import { burstChance, HIT_POWER } from './beys.js';
 
 export const ITEM_TYPES = Object.freeze(['dash', 'freeze', 'vortex', 'meteor']);
 
@@ -25,8 +25,6 @@ export function pickItem(enabled, rng = Math.random) {
   return enabled[enabled.length - 1];
 }
 
-export const BUFF_TIME = 8;
-export const MAX_LAYERS = 3;
 export const FROST_TARGETS = 2;
 export const FROST_FLIGHT = 0.35;   // 寒氣飛幾秒(畫面看得到它飛過去)
 export const FREEZE_TIME = 1.5;     // 冰塊幾秒
@@ -53,25 +51,6 @@ export function spawnItem(world, type, rng = Math.random) {
   return { ...world, items: [...world.items, { id: newId('it'), type, x, y, radius: ITEM_RADIUS }] };
 }
 
-// 多一層;滿了就把最舊(剩最少秒數)那層刷新。
-export function addLayer(list) {
-  if (list.length < MAX_LAYERS) return [...list, BUFF_TIME];
-  const oldest = list.indexOf(Math.min(...list));
-  return list.map((t, i) => (i === oldest ? BUFF_TIME : t));
-}
-
-export function tickBuffs(world, dt) {
-  const tick = list => list.map(t => t - dt).filter(t => t > 0);
-  return {
-    ...world,
-    combatants: world.combatants.map(c => ({
-      ...c,
-      buffs: { attack: tick(c.buffs?.attack ?? []), shield: tick(c.buffs?.shield ?? []) },
-      ...(c.frozen ? { frozen: Math.max(0, c.frozen - dt) } : {}),
-    })),
-  };
-}
-
 function enemiesByDistance(who, combatants) {
   return combatants
     .filter(c => c.alive && c.fighterId !== who.fighterId)
@@ -93,9 +72,7 @@ function nearestEnemy(who, combatants) {
 export function applyPickups(world) {
   if (world.items.length === 0) return world;
 
-  const combatants = world.combatants.map(c => ({
-    ...c, buffs: { attack: [...(c.buffs?.attack ?? [])], shield: [...(c.buffs?.shield ?? [])] },
-  }));
+  const combatants = world.combatants.map(c => ({ ...c }));
   const meteors = [...(world.meteors ?? [])];
   const frosts = [...(world.frosts ?? [])];
   const taken = new Set();
@@ -153,8 +130,9 @@ export function tickWhirls(world, dt) {
 // 目標在途中出局了就作廢。
 export function tickFrosts(world, dt) {
   const all = world.frosts ?? [];
-  if (all.length === 0) return world;
-  const combatants = world.combatants.map(c => ({ ...c }));
+  if (all.length === 0 && !world.combatants.some(c => c.frozen > 0)) return world;
+  // 先倒數凍住的秒數,再看飛行中的冰塊有沒有打中
+  const combatants = world.combatants.map(c => (c.frozen > 0 ? { ...c, frozen: Math.max(0, c.frozen - dt) } : { ...c }));
   const frosts = [];
   for (const f of all) {
     const target = combatants.find(c => c.id === f.targetId);
@@ -240,10 +218,11 @@ export function explodeMeteors(world, dt, rng = Math.random) {
       const dist = Math.hypot(dx, dy) || 0.0001;
       if (dist > BLAST_RADIUS) continue;
       const falloff = 1 - dist / BLAST_RADIUS;
-      // 除以質量、乘盾:重的、有盾的被炸得比較輕,跟撞擊同一套規則
-      const power = (BLAST_POWER * falloff * SHIELD_KNOCK ** layers(c, 'shield')) / c.mass;
+      // 除以質量:重的被砸得比較輕,跟撞擊同一套規則
+      const power = (BLAST_POWER * falloff) / c.mass;
       c.vx += (dx / dist) * power;
       c.vy += (dy / dist) * power;
+      if (c.frozen > 0) continue;   // 冰塊:零件凍住了,不會爆
       if (power >= HIT_POWER && rng() < burstChance({ power, attacker: null, target: c })) {
         c.alive = false;
         c.outBy = 'burst';
