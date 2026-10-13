@@ -24,11 +24,28 @@ test('場上沒有敵人就不衝', () => {
   assert.equal(w.combatants[0].dash ?? null, null);
 });
 
-test('蓄力時幾乎停在原地', () => {
-  const me = at('red', 0, 0, { vx: 100, vy: 0, dash: { targetId: 'c_blue_40_0', wind: DASH_WIND, left: DASH_TIME } });
-  const w = tickDashes(world([me, at('blue', 40, 0)]), 0.1);
-  assert.ok(Math.abs(w.combatants[0].vx) < 60);
-  assert.ok(w.combatants[0].dash.wind < DASH_WIND);
+test('蓄力時往目標的反方向退(像拉彈弓),貼著對手發動也有助跑距離', () => {
+  const me = at('red', 0, 0, { vx: 100, vy: 0, dash: { targetId: 'c_blue_17_0', wind: DASH_WIND, left: DASH_TIME } });
+  let w = world([me, at('blue', 17, 0)]);
+  for (let i = 0; i < 31; i++) {
+    w = tickDashes(w, 1 / 60);
+    w = { ...w, combatants: w.combatants.map(c => ({ ...c, x: c.x + c.vx / 60, y: c.y + c.vy / 60 })) };
+  }
+  assert.ok(w.combatants[0].x < -10, `退了 ${(-w.combatants[0].x).toFixed(1)}`);
+  assert.ok(w.combatants[0].dash.wind <= 0);
+});
+
+test('貼著對手發動:蓄力完真的撞得到(有撞擊)', async () => {
+  const { step } = await import('../smash/js/physics.js');
+  const me = at('red', 0, 0, { dash: { targetId: 'c_blue_16_0', wind: DASH_WIND, left: DASH_TIME } });
+  let w = world([me, at('blue', 16, 0)], { time: 10 });
+  let hardest = 0;
+  for (let i = 0; i < 70; i++) {
+    w = tickDashes(w, 1 / 60);
+    w = step(w, 1 / 60, () => 0.999);
+    for (const im of w.impacts) hardest = Math.max(hardest, im.power);
+  }
+  assert.ok(hardest > 150, `最重一下 ${hardest.toFixed(0)}`);
 });
 
 test('蓄力完:速度直直指向目標「現在」的位置,快很多', () => {

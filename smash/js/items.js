@@ -33,6 +33,7 @@ export const HEAL_FLASH = 0.6;      // 補包的綠框閃幾秒(畫面用)
 export const MISSILE_FUSE = 1.2;
 export const DASH_WIND = 0.5;       // 蓄力幾秒(畫面拉箭頭預告要衝誰)
 export const DASH_TIME = 0.45;      // 衝多久(0.9 秒太久,快衝過大半個盤子)
+const DASH_BACKOFF = 50;            // 蓄力時往後退的速度(0.5 秒退 25 單位)
 const DASH_CONTACT = 0.05;          // 貼在一起才算撞到(互撞那一步會把兩顆剛好推到相切)
 const DASH_STOP = 0.2;              // 撞到後自己剩幾成速度
 export const DASH_SPEED = 200;      // 衝刺速度(平常大約 100~150)。模擬:撞上後約 13% 爆裂、14% 被撞出局
@@ -119,10 +120,19 @@ export function tickDashes(world, dt) {
     if (!c.dash) continue;
     if (!c.alive) { c.dash = null; continue; }
     if (c.dash.wind > 0) {
+      // 蓄力:往目標的反方向退(像拉彈弓)—— 貼著對手發動時才有助跑距離,也是更明顯的預告
+      const target = combatants.find(o => o.id === c.dash.targetId && o.alive);
       c.dash = { ...c.dash, wind: c.dash.wind - dt };
-      const brake = Math.exp(-12 * dt);   // 每秒剩不到萬分之一:幾格內就停住
-      c.vx *= brake;
-      c.vy *= brake;
+      if (target) {
+        const dx = c.x - target.x;
+        const dy = c.y - target.y;
+        const d = Math.hypot(dx, dy) || 1e-4;
+        c.vx = (dx / d) * DASH_BACKOFF;
+        c.vy = (dy / d) * DASH_BACKOFF;
+      } else {
+        c.vx = 0;
+        c.vy = 0;
+      }
       continue;
     }
     // 撞到任何敵人那一刻就結束、自己頓住 —— 不然每格又對準目標,等於推著對方一路衝進洞裡
