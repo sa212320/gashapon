@@ -7,7 +7,7 @@ import { createFighter, pickColor } from './fighters.js';
 import { createWorld, step, think, aliveOf, winnerTeam, HIT_POWER, HIT_FULL } from './physics.js';
 import { ITEM_TYPES, pickItem, spawnItem, applyPickups, tickDashes, tickFrosts, tickWhirls, explodeMeteors } from './items.js';
 import { createScene } from './scene3d.js';
-import { openingAt, OPENING_TIME } from './opening.js';
+import { openingAt, OPENING_TIME, whenHidden } from './opening.js';
 import { getActive, replaceSetup, addSetup, removeSetup, entriesChanged } from '../../shared/js/roster.js';
 import { createDialogShell } from '../../shared/js/dialog.js';
 import { createAsk } from '../../shared/js/ask.js';
@@ -37,6 +37,8 @@ let raf = 0;
 let nextItem = ITEM_EVERY;
 let gone = new Set();         // 已經出局、放過音效的陀螺
 let waiting = true;           // 還沒按開打:只畫空盤子,陀螺 Go Shoot! 才落進來
+let openingDone = false;      // 開場倒數跑完了沒(倒數中切走 → 回到開打前,不判平手)
+let skipOpening = null;       // 倒數時「點一下跳過」的監聽,切走時要拿掉
 
 const nameMap = () => new Map(getActive(state).fighters.map(f => [f.id, f]));
 
@@ -67,8 +69,9 @@ function reset() {
   world = createWorld({ fighters: setup.fighters.filter(f => f.count > 0) });
   nextItem = ITEM_EVERY;
   gone = new Set();
-  $('countdown').hidden = true;
+  const cd = $('countdown'); if (cd) cd.hidden = true;
   waiting = true;
+  openingDone = false;
   scene.reset();
   scene.resize();
   scene.draw(world, nameMap(), { drop: 0 });
@@ -100,8 +103,10 @@ function start() {
 
   // 開場:3、2、1,Go Shoot! —— 倒數時陀螺停在上方,Go Shoot! 才落進盤裡。點一下畫面直接開打。
   let opening = 0;
+  openingDone = false;
   let lastIndex = -1;
   const skip = () => { opening = Math.max(opening, OPENING_TIME); };
+  skipOpening = skip;
   $('arena').addEventListener('pointerdown', skip, { once: true });
 
   let last = performance.now();
@@ -116,21 +121,24 @@ function start() {
       if (o.index !== lastIndex) {
         lastIndex = o.index;
         const el = $('countdown');
-        el.hidden = false;
-        el.textContent = o.label;
-        el.classList.toggle('is-go', o.index === 3);
-        // 換字時重新播一次彈出動畫
-        el.style.animation = 'none';
-        void el.offsetWidth;
-        el.style.animation = '';
+        if (el) {
+          el.hidden = false;
+          el.textContent = o.label;
+          el.classList.toggle('is-go', o.index === 3);
+          // 換字時重新播一次彈出動畫
+          el.style.animation = 'none';
+          void el.offsetWidth;
+          el.style.animation = '';
+        }
         if (o.index < 3) sfx.hit(0.15); else sfx.drop();
       }
       scene.draw(world, nameMap(), { drop: o.drop, dt });
       raf = requestAnimationFrame(frame);
       return;
     }
-    $('countdown').hidden = true;
+    const cd = $('countdown'); if (cd) cd.hidden = true;
     $('arena').removeEventListener('pointerdown', skip);
+    openingDone = true;
 
     const enabled = ITEM_TYPES.filter(t => getActive(state).items[t]);
     nextItem -= dt;
@@ -204,12 +212,22 @@ $('emptySettingsBtn').addEventListener('click', () => settings.open());
 addEventListener('resize', () => { scene.resize(); if (world) scene.draw(world, nameMap(), { drop: waiting ? 0 : 1 }); });
 
 // 切到別的 App 時瀏覽器會停掉 rAF,比賽會卡在半路。直接結束掉,不要留一個永遠打不完的場子。
+// 倒數中切走就回到開打前(根本還沒打,判平手很奇怪)。
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden' && running) {
-    cancelAnimationFrame(raf);
-    $('countdown').hidden = true;
+  if (document.visibilityState !== 'hidden') return;
+  const what = whenHidden({ running, openingDone });
+  if (!what) return;
+  cancelAnimationFrame(raf);
+  const cd = $('countdown'); if (cd) cd.hidden = true;
+  if (what === 'finish') {
     finish(winnerTeam(world));
+    return;
   }
+  $('arena').removeEventListener('pointerdown', skipOpening);
+  running = false;
+  reset();
+  $('startBtn').disabled = false;
+  mascots.setPose('idle');
 });
 
 /* ---------- 設定 ---------- */

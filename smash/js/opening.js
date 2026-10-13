@@ -17,3 +17,10 @@ export function landing(drop) {
   if (drop <= 0) return { visible: false, shadow: 0 };
   return { visible: true, shadow: Math.min(1, drop) };
 }
+
+// 切到別的 App(分頁藏起來)時怎麼辦:倒數還沒完就回到開打前 —— 根本還沒打,不能判平手;
+// 開打後才結束比賽;沒在打就不管。
+export function whenHidden({ running, openingDone }) {
+  if (!running) return null;
+  return openingDone ? 'finish' : 'reset';
+}

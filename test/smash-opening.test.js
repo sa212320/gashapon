@@ -1,7 +1,7 @@
 // 開場倒數:3 → 2 → 1 → Go Shoot!,各 0.5 秒;Go Shoot! 時陀螺落下。
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { openingAt, OPENING_TIME, landing } from '../smash/js/opening.js';
+import { openingAt, OPENING_TIME, landing, whenHidden } from '../smash/js/opening.js';
 
 test('依序是 3、2、1、Go Shoot!', () => {
   assert.deepEqual([0, 0.6, 1.1, 1.6].map(t => openingAt(t).label), ['3', '2', '1', 'Go Shoot!']);
@@ -28,4 +28,10 @@ test('Go Shoot! 落下時影子跟著變大變深,落地時是正常的影子', 
   assert.ok(mid.visible);
   assert.ok(mid.shadow > 0 && mid.shadow < 1);
   assert.deepEqual(landing(1), { visible: true, shadow: 1 });
+});
+
+test('倒數中切走:回到開打前(不是判平手);開打後切走才結束比賽;沒在打就不管', () => {
+  assert.equal(whenHidden({ running: true, openingDone: false }), 'reset');
+  assert.equal(whenHidden({ running: true, openingDone: true }), 'finish');
+  assert.equal(whenHidden({ running: false, openingDone: true }), null);
 });
