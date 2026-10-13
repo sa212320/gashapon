@@ -11,6 +11,5 @@ export const ITEM_URLS = {
 export const FX_URLS = {
   impact: { url: new URL('../img/fx/impact.webp?v=63bd8260', import.meta.url).href, frames: 17 },
   cloud: { url: new URL('../img/fx/cloud.webp?v=7f199ec1', import.meta.url).href, frames: 17 },
-  blast: { url: new URL('../img/fx/blast.webp?v=5f5b313d', import.meta.url).href, frames: 17 },
   shock: { url: new URL('../img/fx/shock.webp?v=6f03a024', import.meta.url).href, frames: 17 },
 };

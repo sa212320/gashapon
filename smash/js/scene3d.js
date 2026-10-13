@@ -22,8 +22,8 @@ import { BOUNDS, heightAt, bowlDistance } from './stadium.js';
 const GROUND = -4;        // 場地上表面的高度,角色站在這裡
 const SPARK_TIME = 0.4;   // 撞擊火花幾秒(逐格動畫 17 格)
 const SPARK_MAX = 5;      // 同時最多幾個火花,再多就是一團糊
-// 生成的圖裡火球 / 衝擊波只佔格子中間一部分:整格要放大幾倍,畫出來才剛好是爆炸範圍的直徑
-const FX_BLAST_SPAN = 2.6;
+// 生成的圖裡衝擊波只佔格子中間一部分:整格要放大幾倍,畫出來才剛好是爆炸範圍的直徑
+const FX_CLOUD_SPAN = 3.4;  // 蘑菇雲的高度(格子)約是爆炸範圍半徑的幾倍
 const FX_SHOCK_SPAN = 2.5;   // 衝擊波的圈在圖裡大約佔 80%,再隨時間從 35% 擴散到 100%
 const BLAST_TIME = 1.6;   // 爆炸演出幾秒(蘑菇雲逐格動畫 17 格)
 
@@ -298,17 +298,16 @@ export function createScene(canvas, { pitch = 55 } = {}) {
       out.push(m);
     };
 
-    // 三層疊起來:盤面上的大圓火球(大小 = 爆炸範圍,圈裡的都會被炸)、往外擴散的衝擊波、
-    // 從中心冒上來的蘑菇雲。生成的圖最後幾格還沒完全散掉,最後 30% 再淡出。
-    const shockK = (k - 0.12) / 0.6;
+    // 兩層:盤面上往外擴散到爆炸範圍邊緣的衝擊波(圈裡的都會被炸)、從中心冒上來的蘑菇雲。
+    //生成的圖最後幾格還沒完全散掉,最後 30% 再淡出。
+    const shockK = (k - 0.05) / 0.6;
     const layers = [
-      fxFlat('blast', k / 0.5, blast.x, blast.y, BLAST_RADIUS * FX_BLAST_SPAN),
       fxFlat('shock', shockK, blast.x, blast.y,
         BLAST_RADIUS * FX_SHOCK_SPAN * (0.35 + 0.65 * (1 - (1 - Math.min(1, Math.max(0, shockK) / 0.6)) ** 2))),
-      k > 0.1 ? fxSprite('cloud', (k - 0.1) / 0.9, blast.x, blast.y, 0, BLAST_RADIUS * 2, { anchorY: 0.2, opacity: fade }) : null,
+      k > 0.03 ? fxSprite('cloud', (k - 0.03) / 0.97, blast.x, blast.y, 0, BLAST_RADIUS * FX_CLOUD_SPAN, { anchorY: 0.2, opacity: fade }) : null,
     ].filter(Boolean);
-    layers.forEach((m, i) => { m.renderOrder = 8100 + i; });   // 火球 → 衝擊波 → 蘑菇雲,由下往上疊
-    if (fxTex.has('blast')) {
+    layers.forEach((m, i) => { m.renderOrder = 8100 + i; });   // 衝擊波在下、蘑菇雲在上
+    if (fxTex.has('cloud')) {
       out.push(...layers);
       return out;
     }
