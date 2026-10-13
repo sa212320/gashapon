@@ -1,7 +1,7 @@
 // 四種道具。全部是純函式,回傳新的 world。
 //
 //   attack  劍 = 衝刺(原型,2026-10-13):鎖定最近的敵人,原地蓄力一下,再追著它高速衝過去;
-//           衝刺中身上帶兩層劍(撞人對方飛更遠、更容易爆,在 physics.step 裡吃 buffs.attack)
+//           威力純粹來自衝得快(撞擊力道跟相對速度走),不另外加爆裂機率 —— 帶劍加成時太強
 //   shield  盾:每一層 8 秒,自己被撞時飛得近、比較難爆
 //   spin    補包:轉速補滿(轉速就是命)
 //   missile 飛彈:鎖定最近敵人**當下的位置**,1.2 秒後從天空落下炸開。不追蹤,圈內敵我都炸
@@ -32,9 +32,8 @@ export const MAX_LAYERS = 3;
 export const HEAL_FLASH = 0.6;      // 補包的綠框閃幾秒(畫面用)
 export const MISSILE_FUSE = 1.2;
 export const DASH_WIND = 0.5;       // 蓄力幾秒(畫面拉箭頭預告要衝誰)
-export const DASH_TIME = 0.9;       // 衝多久
-export const DASH_SPEED = 420;      // 衝刺速度(平常大約 100~150)
-const DASH_LAYERS = 2;              // 衝刺中等於帶幾層劍
+export const DASH_TIME = 0.45;      // 衝多久(0.9 秒太久,快衝過大半個盤子)
+export const DASH_SPEED = 200;      // 衝刺速度(平常大約 100~150)。模擬:撞上後約 13% 爆裂、14% 被撞出局
 export const BLAST_RADIUS = 46;     // 看到的準星圈就是真的會被炸到的範圍
 export const BLAST_POWER = 620;
 
@@ -136,7 +135,6 @@ export function tickDashes(world, dt) {
     const d = Math.hypot(dx, dy) || 1e-4;
     c.vx = (dx / d) * DASH_SPEED;
     c.vy = (dy / d) * DASH_SPEED;
-    c.buffs = { ...c.buffs, attack: Array(DASH_LAYERS).fill(left + 0.2) };
     c.dash = { ...c.dash, targetId: target.id, left };
   }
   return { ...world, combatants };

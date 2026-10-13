@@ -39,12 +39,13 @@ test('蓄力完:速度直直指向目標「現在」的位置,快很多', () => 
   assert.ok(Math.abs(c.vy - DASH_SPEED) < 1e-6);
 });
 
-test('衝刺中撞人更痛:身上帶劍的加成,衝完就沒了', () => {
-  const me = at('red', 0, 0, { dash: { targetId: 'c_blue_0_50', wind: 0, left: DASH_TIME } });
-  let w = tickDashes(world([me, at('blue', 0, 50)]), 1 / 60);
-  assert.ok(w.combatants[0].buffs.attack.length > 0);
-  for (let i = 0; i < 120; i++) w = tickDashes(w, 1 / 60);
+test('衝刺只有一下下(DASH_TIME 秒),不另外加劍的加成', () => {
+  const me = at('red', 0, 0, { dash: { targetId: 'c_blue_0_90', wind: 0, left: DASH_TIME } });
+  let w = tickDashes(world([me, at('blue', 0, 90)]), 1 / 60);
+  assert.deepEqual(w.combatants[0].buffs.attack, []);
+  for (let i = 0; i < Math.ceil(DASH_TIME * 60); i++) w = tickDashes(w, 1 / 60);
   assert.equal(w.combatants[0].dash, null);
+  assert.ok(DASH_TIME <= 0.5);
 });
 
 test('目標先出局了就改衝下一個最近的敵人', () => {
