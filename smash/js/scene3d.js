@@ -506,11 +506,12 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   }
 
   // drop:開場的落下進度(0 = 還在上方,1 = 落地)
-  function draw(world, teams, { drop = 1 } = {}) {
+  // dt:開場時物理還沒跑、world.time 不動,由呼叫端給這一格的秒數,陀螺在空中才會轉
+  function draw(world, teams, { drop = 1, dt: openingDt = null } = {}) {
     const fall = drop < 1 ? (1 - easeOutBounce(Math.max(0, drop))) * 120 : 0;
     frameCamera();
 
-    const dt = Math.max(0, Math.min(0.1, world.time - lastTime));
+    const dt = openingDt ?? Math.max(0, Math.min(0.1, world.time - lastTime));
     lastTime = world.time;
     const live = [];
     for (const c of world.combatants) {

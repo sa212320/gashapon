@@ -122,7 +122,7 @@ function start() {
         el.style.animation = '';
         if (o.index < 3) sfx.hit(0.15); else sfx.drop();
       }
-      scene.draw(world, nameMap(), { drop: o.drop });
+      scene.draw(world, nameMap(), { drop: o.drop, dt });
       raf = requestAnimationFrame(frame);
       return;
     }
