@@ -18,6 +18,7 @@ import * as ART from './art.js';
 import { fxFrame } from './fx-frame.js';
 import { landing } from './opening.js';
 import { slideStep } from './spinout-slide.js';
+import { itemSize, ITEM_SIZE } from './item-size.js';
 import { BOUNDS, heightAt } from './stadium.js';
 
 const GROUND = -4;        // 場地上表面的高度,角色站在這裡
@@ -129,11 +130,20 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     return m;
   }
 
-  function itemVisual(item) {
+  // 盤心附近一個世界單位在螢幕上是幾像素(道具圖示在手機上要放大,見 item-size.js)
+  const PX_A = new THREE.Vector3();
+  const PX_B = new THREE.Vector3();
+  function pxPerUnit() {
+    PX_A.set(0, GROUND, 0).project(camera);
+    PX_B.set(10, GROUND, 0).project(camera);
+    return (Math.abs(PX_B.x - PX_A.x) / 2 * canvas.clientWidth) / 10;
+  }
+
+  function itemVisual(item, size) {
     const icon = new THREE.Sprite(new THREE.SpriteMaterial({
       map: itemTex.get(item.type) ?? null, transparent: true, depthTest: false,
     }));
-    icon.scale.setScalar(16);
+    icon.scale.setScalar(size);
     icon.renderOrder = 9000;
     return icon;
   }
@@ -862,12 +872,13 @@ export function createScene(canvas, { pitch = 55 } = {}) {
 
     // 道具與炸彈都浮在空中,而且要浮得比陀螺高 —— 同高度會直接插在陀螺身上。
     // 浮著就一定要配地上的影子,不然看不出它落點在哪。
+    const size = itemSize(pxPerUnit());
     for (const it of world.items) {
-      const m = itemVisual(it);
-      // 上下輕輕浮動,讓它跟場上的陀螺區分開來
-      m.position.set(it.x, GROUND + heightAt(it.x, it.y) + 17 + Math.sin(world.time * 2.4) * 1.6, it.y);
+      const m = itemVisual(it, size);
+      // 上下輕輕浮動,讓它跟場上的陀螺區分開來;圖示放大時浮高一點,底部才不會插進地板
+      m.position.set(it.x, GROUND + heightAt(it.x, it.y) + 9 + size / 2 + Math.sin(world.time * 2.4) * 1.6, it.y);
       addProp(m);
-      addProp(groundDisc(shadowDisc(0.16), it.x, it.y, 6));
+      addProp(groundDisc(shadowDisc(0.16), it.x, it.y, 6 * size / ITEM_SIZE));
     }
 
     for (const f of world.frosts ?? []) {
