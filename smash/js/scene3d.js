@@ -8,6 +8,7 @@
 // 一個角色先畫完自己所有的描邊,再畫自己所有的本體。否則角色擠在一起時,
 // 旁邊那顆的正面會比這顆的背面還近,把描邊整段吃掉(扭蛋機踩過這個坑)。
 import * as THREE from 'three';
+import { visibleTurn } from './spin-look.js';
 import { HIT_POWER, HIT_FULL } from './physics.js';
 import { INK, outlinable, part } from './outline3d.js';
 import { createStadium } from './stadium3d.js';
@@ -507,7 +508,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
         // 轉速就是命:轉得愈慢,刃轉得愈慢
         // 剛射出去轉最快(約每秒 9 圈),轉速掉下來就慢慢慢下來
         a.spinRate = 6 + 52 * c.spin ** 1.5;
-        a.spin.rotation.y += dt * a.spinRate;
+        a.spin.rotation.y += visibleTurn(a.spinRate, dt);
         a.blur.material.opacity = 0.45 * Math.min(1, Math.max(0, (a.spinRate - 22) / 25));
         a.blur.visible = a.blur.material.opacity > 0.01;
         // 記下這一格的速度與位置:出局時畫面要接著這股慣性演
@@ -574,7 +575,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
         const ny = a.py + a.vy * dt;
         if (bowlDistance(nx, ny) < -c.radius) { a.px = nx; a.py = ny; } else { a.vx = 0; a.vy = 0; }
         a.group.position.set(a.px, GROUND + heightAt(a.px, a.py), a.py);
-        a.spin.rotation.y += dt * a.spinRate * Math.max(0, 1 - t / SPIN_STOP);
+        a.spin.rotation.y += visibleTurn(a.spinRate * Math.max(0, 1 - t / SPIN_STOP), dt);
         const fall = Math.min(1, Math.max(0, (t - SPIN_FALL_AT) / SPIN_FALL));
         const wob = 0.3 * Math.min(1, t / SPIN_FALL_AT) * (1 - fall);
         const lean = (Math.PI / 2) * 0.9 * fall * fall;   // 先慢後快地倒下
@@ -602,7 +603,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
           f.z += f.vz * dt;
           a.group.position.set(f.x, f.y, f.z);
           a.group.rotation.x += dt * 7;
-          a.spin.rotation.y += dt * 20;
+          a.spin.rotation.y += visibleTurn(20, dt);
           a.shadow.visible = false;
           if (t > FLY_TIME * 0.6) setOpacity(a.group, Math.max(0, 1 - (t - FLY_TIME * 0.6) / (FLY_TIME * 0.4)));
           a.group.visible = t < FLY_TIME;
