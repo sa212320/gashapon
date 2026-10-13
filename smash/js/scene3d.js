@@ -13,6 +13,7 @@ import { INK, outlinable, part } from './outline3d.js';
 import { createStadium } from './stadium3d.js';
 import { createBey, setChipTexture, loadChipTextures } from './bey3d.js';
 import { HEAL_FLASH, MISSILE_FUSE, BLAST_RADIUS } from './items.js';
+import { ITEM_URLS } from './art.js';
 import { BOUNDS, heightAt, bowlDistance } from './stadium.js';
 
 const GROUND = -4;        // 場地上表面的高度,角色站在這裡
@@ -65,7 +66,6 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   root.add(stadium);
 
   /* ---------- 共用幾何 ---------- */
-  const BALL = new THREE.SphereGeometry(1, 16, 12);
   const ROD = new THREE.CylinderGeometry(1, 1, 1, 6);
   const SHADOW = new THREE.CircleGeometry(1, 18);
   const RING = new THREE.RingGeometry(0.78, 1, 32);
@@ -73,53 +73,24 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   const STAR = starGeo(11, 0.52);
   const STAR2 = starGeo(9, 0.62);
 
-  // 三種道具:同一顆球,靠顏色跟球面上那個字分辨。
-  // 試過用抽象形狀(尖刺/飛鏢/箭頭),實測只有「變大」猜得出來 ——
-  // 小孩要在半秒內決定「那個值不值得搶」,寫字是唯一不用猜的做法。
-  const ITEM_LOOK = {
-    attack: { color: 0xFF6B4A, label: '攻' },
-    shield: { color: 0x5AA9F2, label: '盾' },
-    spin: { color: 0x5CCB7A, label: '轉' },
-    missile: { color: 0xA970F2, label: '彈' },
-  };
-  const ICONS = new Map();
-
-  function iconTexture(label) {
-    let t = ICONS.get(label);
-    if (t) return t;
-    const c = document.createElement('canvas');
-    c.width = 128;
-    c.height = 128;
-    const ctx = c.getContext('2d');
-    ctx.font = '700 86px ui-rounded, "Hiragino Maru Gothic ProN", "PingFang TC", "Noto Sans TC", system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    // 白字配深色外框:黃色道具上的純白字會糊掉
-    ctx.lineWidth = 10;
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#574239';
-    ctx.strokeText(label, 64, 68);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillText(label, 64, 68);
-    t = new THREE.CanvasTexture(c);
-    ICONS.set(label, t);
-    return t;
+  // 道具:生成的彩色圖示(劍、盾、補包、飛彈),正對鏡頭浮在場上。
+  // 場景一建立就開始載(首頁也預先載過,通常是快取命中),不等第一個道具掉下來。
+  const itemTex = new Map();
+  const texLoader = new THREE.TextureLoader();
+  for (const [type, url] of Object.entries(ITEM_URLS)) {
+    texLoader.load(url, t => { t.colorSpace = THREE.SRGBColorSpace; itemTex.set(type, t); });
   }
 
-  // 一顆寫著字的道具球。字用 Sprite,永遠正對鏡頭 ——
-  // 貼在球面上的話,球一轉字就看不見了。
   function itemVisual(item) {
-    const look = ITEM_LOOK[item.type] ?? ITEM_LOOK.attack;
-    const g = outlinable();
-    part(g, BALL, look.color, { scale: [8, 8, 8], outline: 1 });
     const icon = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: iconTexture(look.label), transparent: true, depthTest: false,
+      map: itemTex.get(item.type) ?? null, transparent: true, depthTest: false,
     }));
-    icon.scale.setScalar(11);
-    g.add(icon);
-    g.userData.fills.push(icon);
-    return g;
+    icon.scale.setScalar(16);
+    icon.renderOrder = 9000;
+    return icon;
   }
+
+  const SWORD_RED = 0xFF6B4A;   // 吃了劍:外框變紅
 
   let actors = new Map();   // combatant.id -> { group, spin, phase, shadow }
   let props = [];           // 道具、炸彈、爆炸,每格重建(數量少)
@@ -144,7 +115,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   function setOutline(group, c, time) {
     const swords = c.buffs?.attack?.length ?? 0;
     const healing = time - (c.healedAt ?? -Infinity) < HEAL_FLASH;
-    const color = healing ? HEAL_GREEN : swords > 0 ? ITEM_LOOK.attack.color : INK;
+    const color = healing ? HEAL_GREEN : swords > 0 ? SWORD_RED : INK;
     const grow = healing ? 1.2 : 1 + 0.12 * swords;
     for (const e of group.userData.edges) {
       e.material.color.set(color);

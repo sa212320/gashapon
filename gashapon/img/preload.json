@@ -29,5 +29,9 @@
   "shared/img/frames/frame-R.webp?v=6bd384be",
   "shared/img/frames/frame-SR.webp?v=a28d6069",
   "shared/img/frames/frame-SSR.webp?v=610568b4",
-  "shared/img/frames/frame-UR.webp?v=27431251"
+  "shared/img/frames/frame-UR.webp?v=27431251",
+  "smash/img/items/attack.webp?v=1dee7e98",
+  "smash/img/items/missile.webp?v=4e2d0c94",
+  "smash/img/items/shield.webp?v=d14eaa13",
+  "smash/img/items/spin.webp?v=ee65c7cb"
 ]

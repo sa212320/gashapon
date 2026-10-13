@@ -23,6 +23,8 @@ function gashaponRefs() {
   for (const m of read('ichiban/js/card-art.js').matchAll(/['"](\.\.\/img\/[^'"]+\.webp\?v=[0-9a-f]{8})['"]/g)) add('ichiban/js', m[1]);
   // 阿彌陀籤(2026-10-02):網址寫在 ghostleg/js/art.js
   for (const m of read('ghostleg/js/art.js').matchAll(/['"](\.\.\/img\/[^'"]+\.webp\?v=[0-9a-f]{8})['"]/g)) add('ghostleg/js', m[1]);
+  // 大亂鬥道具圖示(2026-10-12):網址寫在 smash/js/art.js
+  for (const m of read('smash/js/art.js').matchAll(/['"](\.\.\/img\/[^'"]+\.webp\?v=[0-9a-f]{8})['"]/g)) add('smash/js', m[1]);
   return out;
 }
 

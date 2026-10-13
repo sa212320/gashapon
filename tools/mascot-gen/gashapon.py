@@ -413,6 +413,9 @@ def write_preload_manifest():
     # 阿彌陀籤(2026-10-02):網址寫在 art.js 的 new URL('../img/…?v=…', import.meta.url)
     for m in re.finditer(r"""['"](\.\./img/[^'"]+\.webp\?v=[0-9a-f]{8})['"]""", (ROOT / 'ghostleg' / 'js' / 'art.js').read_text()):
         add('ghostleg/js', m.group(1))
+    # 大亂鬥道具圖示(2026-10-12):網址寫在 smash/js/art.js
+    for m in re.finditer(r"""['"](\.\./img/[^'"]+\.webp\?v=[0-9a-f]{8})['"]""", (ROOT / 'smash' / 'js' / 'art.js').read_text()):
+        add('smash/js', m.group(1))
     path = IMG / 'preload.json'
     path.write_text(json.dumps(sorted(refs), indent=2) + '\n')
     print(f'preload.json: {len(refs)} 張')

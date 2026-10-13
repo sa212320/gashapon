@@ -1,0 +1,15 @@
+{
+  "ref": "shared/img/mascot/key/idle.webp",
+  "style": "Draw a game item icon in exactly the same art style, colouring and soft shading as <image1>: flat 2D cartoon, thick dark brown outlines, cute chunky chibi proportions, soft highlights. No character, no face, no eyes, no text, no letters. A single object, centered, filling most of the frame. No base, no ground, no shadow. Isolated on a solid flat bright pure green #00FF00 background. Do not draw the fox or the ermine from <image1>.",
+  "sheet": "A 2x2 grid of four separate item icons with clear green gaps between them: top-left a short cartoon sword, top-right a round cartoon shield, bottom-left a first-aid kit, bottom-right a cartoon missile pointing down.",
+  "attack": "The item is a short chunky cartoon sword: icy blue steel blade with a white shine, golden cross-guard, brown wrapped handle, pointing up and slightly tilted.",
+  "shield": "The item is a round chunky cartoon shield: pale icy blue face with a white snowflake emblem in the middle, a thick silver rim with rivets.",
+  "spin": "The item is a small chunky first-aid kit: white box with rounded corners, a bold red cross on the front, a short handle on top.",
+  "missile": "The item is a chunky cartoon missile pointing down: white body, red rounded nose cone at the bottom, three small icy blue fins at the top, a little puff of white smoke above it.",
+  "picks": {
+    "attack": "sheet-s2",
+    "shield": "sheet-s1",
+    "spin": "sheet-s3",
+    "missile": "sheet-s2"
+  }
+}
