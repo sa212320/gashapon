@@ -17,7 +17,7 @@ import {
   bowlDistance, bowlNormal, zoneAt, pocketAt, slopeAccel, railAccel, onRail, randomSpot,
 } from './stadium.js';
 import {
-  HIT_POWER, HIT_FULL, ATTACK_GAIN, BUBBLE_TAKEN, BUBBLE_REFLECT, HIT_SPIN_COST, WALL_SPIN_COST,
+  HIT_POWER, HIT_FULL, ATTACK_GAIN, SHIELD_KNOCK, HIT_SPIN_COST, WALL_SPIN_COST,
   statsOf, layers, beyRadius, rollBey, hitStrength, burstChance, decaySpin,
 } from './beys.js';
 import { BLAST_RADIUS } from './items.js';
@@ -78,7 +78,6 @@ function knockOut(c, outBy) {
 }
 
 const STEP_LEN = 1;
-const BUBBLE_POP_SPEED = 40;   // 迎面速度超過這個才算真的撞上泡泡(擦到不會破)
 
 function bounce(c, nx, ny) {
   const vn = c.vx * nx + c.vy * ny;
@@ -239,12 +238,9 @@ export function step(world, dt, rng = Math.random) {
       // 兩邊都乘同一個係數的話,撿到劍的人自己也被彈得一樣遠 —— 玩起來完全沒感覺。
       // 代價是這一撞不守恆動量,但這是給小孩看的卡通碰撞,不是撞球。
       const impulse = (-(1 + RESTITUTION) * along) / (1 / a.mass + 1 / b.mass);
-      // 反彈泡泡(盾):有泡泡的只吃一點力道,撞它的被彈得很遠
-      const bubbled = c => layers(c, 'shield') > 0;
       const onto = (from, to) => statsOf(from).power
         * (1 + layers(from, 'attack') * ATTACK_GAIN)
-        * (bubbled(to) ? BUBBLE_TAKEN : 1)
-        * (bubbled(from) ? BUBBLE_REFLECT : 1);
+        * SHIELD_KNOCK ** layers(to, 'shield');
       const ontoA = onto(b, a);
       const ontoB = onto(a, b);
       a.vx -= (impulse * ontoA * nx) / a.mass;
@@ -262,15 +258,7 @@ export function step(world, dt, rng = Math.random) {
       }
 
       // 被打到的一方扣轉速、擲爆裂骰。兩邊各自算 —— 對撞時兩個都可能爆。
-      // 有泡泡的:不扣、不擲骰;真的撞上(不是擦到)泡泡就破 —— 一次性,3 秒無敵太強
       for (const [me, them, p] of [[a, b, powerA], [b, a, powerB]]) {
-        if (bubbled(me)) {
-          if (-along >= BUBBLE_POP_SPEED) {
-            me.buffs.shield = [];
-            me.bubbleHitAt = world.time;
-          }
-          continue;
-        }
         me.spin -= HIT_SPIN_COST * hitStrength(p);
         // 衝刺中(劍)撞人的那顆不擲骰:反彈力道跟對方一樣大,不擋的話主動撞人的反而常常自己爆
         const dashing = me.dash && me.dash.wind <= 0;

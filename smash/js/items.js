@@ -2,14 +2,14 @@
 //
 //   attack  劍 = 衝刺(原型,2026-10-13):鎖定最近的敵人,原地蓄力一下,再追著它高速衝過去;
 //           威力純粹來自衝得快(撞擊力道跟相對速度走),不另外加爆裂機率 —— 帶劍加成時太強
-//   shield  盾 = 反彈泡泡(原型,2026-10-13):罩上冰泡泡最多 BUBBLE_TIME 秒(buffs.shield 只有一層,再吃是刷新);
-//           第一個撞上來的被猛力彈飛,自己幾乎不動、不會爆,**泡泡就破了**(一次性 —— 3 秒無敵太強);
-//           隕石也只推一點、不會爆,一樣會把泡泡打破(在 physics.step / explodeMissiles 裡算)
+//   shield  盾:每一層 8 秒,自己被撞時飛得近、比較難爆
 //   spin    補包:轉速補滿(轉速就是命)
 //   missile 飛彈:鎖定最近敵人**當下的位置**,1.2 秒後從天空落下炸開。不追蹤,圈內敵我都炸
+//
+// 劍盾最多疊 3 層 —— 不設上限的話疊到 5 層劍幾乎一碰就爆,8 秒內誰也擋不住。
 import { newId } from '../../shared/js/ids.js';
 import { randomSpot } from './stadium.js';
-import { burstChance, HIT_POWER, BUBBLE_BLAST, layers } from './beys.js';
+import { burstChance, HIT_POWER, SHIELD_KNOCK, layers } from './beys.js';
 
 export const ITEM_TYPES = Object.freeze(['attack', 'shield', 'spin', 'missile']);
 
@@ -29,7 +29,6 @@ export function pickItem(enabled, rng = Math.random) {
 
 export const BUFF_TIME = 8;
 export const MAX_LAYERS = 3;
-export const BUBBLE_TIME = 3;       // 反彈泡泡撐幾秒
 export const HEAL_FLASH = 0.6;      // 補包的綠框閃幾秒(畫面用)
 export const MISSILE_FUSE = 1.2;
 export const DASH_WIND = 0.5;       // 蓄力幾秒(畫面拉箭頭預告要衝誰)
@@ -97,7 +96,7 @@ export function applyPickups(world) {
       const target = nearestEnemy(who, combatants);
       if (target) who.dash = { targetId: target.id, wind: DASH_WIND, left: DASH_TIME };
     } else if (item.type === 'shield') {
-      who.buffs.shield = [BUBBLE_TIME];
+      who.buffs.shield = addLayer(who.buffs.shield);
     } else if (item.type === 'spin') {
       who.spin = 1;
       who.healedAt = world.time;
@@ -180,16 +179,10 @@ export function explodeMissiles(world, dt, rng = Math.random) {
       const dist = Math.hypot(dx, dy) || 0.0001;
       if (dist > BLAST_RADIUS) continue;
       const falloff = 1 - dist / BLAST_RADIUS;
-      // 除以質量:重的被炸得比較輕,跟撞擊同一套規則。有泡泡的只被推一點、不會爆,泡泡破掉
-      const shielded = layers(c, 'shield') > 0;
-      const power = (BLAST_POWER * falloff * (shielded ? BUBBLE_BLAST : 1)) / c.mass;
+      // 除以質量、乘盾:重的、有盾的被炸得比較輕,跟撞擊同一套規則
+      const power = (BLAST_POWER * falloff * SHIELD_KNOCK ** layers(c, 'shield')) / c.mass;
       c.vx += (dx / dist) * power;
       c.vy += (dy / dist) * power;
-      if (shielded) {
-        c.buffs = { ...c.buffs, shield: [] };
-        c.bubbleHitAt = world.time;
-        continue;
-      }
       if (power >= HIT_POWER && rng() < burstChance({ power, attacker: null, target: c })) {
         c.alive = false;
         c.outBy = 'burst';

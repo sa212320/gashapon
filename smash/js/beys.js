@@ -52,12 +52,8 @@ export function layers(c, kind) {
 // 每一層劍:對方彈開力道 = 1 + 層數 × ATTACK_GAIN(沿用原本的加成公式)
 export const ATTACK_GAIN = 1.9;
 export const SWORD_BURST = 1.5;   // 每一層劍:對方爆裂機率 ×1.5
-// 盾 = 反彈泡泡:有泡泡的被撞只吃 BUBBLE_TAKEN 的力道,撞上來的被彈 BUBBLE_REFLECT 倍;
-// 被隕石炸只推 BUBBLE_BLAST。泡泡擋一下就破(見 items.js)。
-export const BUBBLE_TAKEN = 0.2;
-export const BUBBLE_REFLECT = 2.5;
-export const BUBBLE_BLAST = 0.3;
-export const SHIELD_BURST = 0.5;  // 每一層盾:自己爆裂機率 ×0.5(泡泡期間其實不擲骰,留著給 burstChance 算)
+export const SHIELD_KNOCK = 0.6;  // 每一層盾:自己被彈開 ×0.6
+export const SHIELD_BURST = 0.5;  // 每一層盾:自己爆裂機率 ×0.5
 
 export function hitStrength(power) {
   return Math.min(1, Math.max(0, (power - HIT_POWER) / (HIT_FULL - HIT_POWER)));
