@@ -8,6 +8,7 @@
   $PY tools/mascot-gen/smash.py pick attack 2         # 或 pick sheet 2(四格一起)
   $PY tools/mascot-gen/smash.py fx impact            # 特效逐格動畫(做法同 ClassBonusSystem):z_image 黑底起始圖 → Wan 2.2 17 格
                                                       #   → 壓黑、圓形漸暗、黑轉透明 → out/smash/fx-impact/s{1,2,3}.png(一列 256×256)
+  $PY tools/mascot-gen/smash.py fx cloud --toon      # 卡通版(深棕描邊,同道具畫風):吉祥物參考 + 綠幕起始圖 → Wan → 每格去綠幕
   $PY tools/mascot-gen/smash.py fx-review             # 動起來疊在盤面色上 → review/smash-fx.html
   $PY tools/mascot-gen/smash.py fx-pick impact 2
   $PY tools/mascot-gen/smash.py build                 # 輸出 smash/img/items/*.webp、smash/img/fx/*.webp,蓋 ?v= 到 smash/js/art.js、重產 preload.json
@@ -73,6 +74,8 @@ def generate(name, prompt, seeds):
 
 
 def cmd_fx(args):
+    if args.toon:
+        return cmd_fx_toon(args)
     cfg = load_cfg()
     fx = cfg['fx'][args.name]
     d = OUT / f'fx-{args.name}'
@@ -92,6 +95,52 @@ def cmd_fx(args):
         frames = [Image.open(io.BytesIO(comfy.fetch(im))) for im in sorted(outs, key=lambda im: im['filename'])]
         fx_strip(frames).save(d / f's{n}.png')
         print(f'fx {args.name} s{n} seed={seed} {len(frames)} 格', flush=True)
+
+
+def cmd_fx_toon(args):
+    """卡通版(跟道具圖示同一個畫風,有深棕描邊):黑底轉透明會把描邊吃掉,所以改成
+    吉祥物當參考圖、Qwen 畫綠幕起始圖 → Wan 長逐格(背景維持綠幕)→ 每格去綠幕。"""
+    cfg = load_cfg()
+    fx = cfg['fx_toon'][args.name]
+    ref = upload_ref(cfg)
+    d = OUT / f'fx-{args.name}'
+    d.mkdir(parents=True, exist_ok=True)
+    for n, seed in enumerate(SEEDS, 1):
+        imgs = comfy.run(comfy.graph_edit([ref], f'{cfg["fx_toon_style"]} {fx["start"]}', seed, f'smash_fxt_{args.name}_s{n}'))
+        start = Image.open(io.BytesIO(comfy.fetch(imgs[0]))).convert('RGB')
+        side = max(start.size)
+        sq = Image.new('RGB', (side, side), (0, 255, 0))   # 補成正方形(Wan 用 640×640)
+        sq.paste(start, ((side - start.width) // 2, (side - start.height) // 2))
+        sq = sq.resize((640, 640), Image.LANCZOS)
+        sq.save(d / f's{n}-start.png')
+        buf = io.BytesIO()
+        sq.save(buf, 'PNG')
+        name = comfy.upload(buf.getvalue(), f'smash_fxt_{args.name}_s{n}.png')
+        outs = comfy.run(comfy.graph(
+            f'2D flat cartoon animation with thick dark brown outlines on a solid bright pure green background: {fx["motion"]}. '
+            'Static camera, the background stays solid pure green the whole time, flat colours, no glow, no text.',
+            'camera movement, scenery, ground, characters, creatures, text, glow, realistic fire, gradient background, background colour change',
+            name, FX_LEN, seed, f'smash_fxtv_{args.name}_s{n}', w=640, h=640))
+        frames = [Image.open(io.BytesIO(comfy.fetch(im))) for im in sorted(outs, key=lambda im: im['filename'])]
+        toon_strip(frames).save(d / f's{n}.png')
+        print(f'fx toon {args.name} s{n} seed={seed} {len(frames)} 格', flush=True)
+
+
+def toon_strip(frames):
+    """每格去綠幕(不裁切,格子大小固定),描邊留著"""
+    cells = []
+    for im in frames:
+        rgb = np.asarray(im.convert('RGB').resize((FX_N, FX_N), Image.LANCZOS)).astype(int)
+        r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+        green = g - np.maximum(r, b)              # 多綠
+        a = np.clip(255 - (green - 40) * 255 / 60, 0, 255)   # 綠 40 以下全留、100 以上全透明,中間漸變
+        out = np.zeros((FX_N, FX_N, 4), np.uint8)
+        out[..., 0] = r
+        out[..., 1] = np.minimum(g, np.maximum(r, b))   # 去綠邊(despill)
+        out[..., 2] = b
+        out[..., 3] = a
+        cells.append(out)
+    return Image.fromarray(np.concatenate(cells, axis=1))
 
 
 def fx_radial():
@@ -263,7 +312,7 @@ def main():
     g = sub.add_parser('gen'); g.add_argument('name', choices=ITEMS); g.add_argument('--seeds')
     r = sub.add_parser('review'); r.add_argument('--bg')
     p = sub.add_parser('pick'); p.add_argument('name', choices=ITEMS + ['sheet']); p.add_argument('n', type=int)
-    f = sub.add_parser('fx'); f.add_argument('name', choices=FX)
+    f = sub.add_parser('fx'); f.add_argument('name', choices=FX); f.add_argument('--toon', action='store_true')
     sub.add_parser('fx-review')
     fp = sub.add_parser('fx-pick'); fp.add_argument('name', choices=FX); fp.add_argument('n', type=int)
     sub.add_parser('build')

@@ -35,5 +35,16 @@
       "start": "a thin bright white and pale orange perfectly circular ring of light in the middle of the picture, seen from directly above",
       "motion": "seen from directly above, a perfectly circular shockwave ring of white dust and pale orange smoke races outward from the centre toward the edges of the picture, the ring gets wider and thinner as it expands, small debris specks fly outward with it, the centre stays empty, then it fades away into pure black"
     }
+  },
+  "fx_toon_style": "Draw a cartoon visual effect in exactly the same art style, colouring and soft shading as <image1>: flat 2D cartoon, thick dark brown outlines around every shape, cute chunky rounded shapes, flat colours with soft highlights. No character, no face, no eyes, no text, no letters. The effect is centred with a wide empty margin on every side. Isolated on a solid flat bright pure green #00FF00 background. Do not draw the fox or the ermine from <image1>.",
+  "fx_toon": {
+    "cloud": {
+      "start": "A small chunky cartoon explosion puff sitting in the lower middle of the picture: a round orange and yellow fireball with a few rounded cloud bumps and three small spiky sparks.",
+      "motion": "the cartoon explosion puff grows and rises into a big chunky cartoon mushroom cloud: a round puffy orange and yellow cloud cap made of big round bumps on top of a thick rising cream-white smoke stem, a ring of round cream puffs spreads along the bottom, every shape keeps its thick dark brown outline, then the cloud puffs shrink and pop away one by one"
+    },
+    "shock": {
+      "start": "Seen from directly above: a thin chunky cartoon ring of small round cream-white smoke puffs with a few orange sparks, a perfect circle in the middle of the picture, empty in the centre.",
+      "motion": "seen from directly above, the cartoon ring of round cream-white smoke puffs and orange sparks expands outward toward the edges of the picture, the puffs keep their thick dark brown outlines, then the puffs shrink and pop away one by one"
+    }
   }
 }
