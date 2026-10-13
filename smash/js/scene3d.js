@@ -265,7 +265,10 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     return out;
   }
 
-  const SHIELD_RING = new THREE.RingGeometry(1.15, 1.35, 40);
+  // 盾:罩住整顆陀螺的冰泡泡 + 深藍底圈 + 頭上一面小盾牌圖示。剛吃到那一下泡泡「啵」地放大再縮回。
+  const SHIELD_DOME = new THREE.SphereGeometry(1.5, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+  const SHIELD_RIM = new THREE.RingGeometry(1.42, 1.62, 40);
+  const SHIELD_POP = 0.35;   // 秒
   const BLUR_RING = new THREE.RingGeometry(0.5, 1.08, 40);
 
   function actorFor(c, color) {
@@ -273,12 +276,19 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     if (a) return a;
     const group = createBey(c.beyType, color);
     const shadow = shadowDisc();
-    // 盾:平躺在陀螺腰上的一圈冰環,層數愈多愈不透明
-    const shield = new THREE.Mesh(SHIELD_RING, new THREE.MeshBasicMaterial({
-      color: 0x9FD8F7, transparent: true, opacity: 0.4, side: THREE.DoubleSide, depthWrite: false,
+    const shield = new THREE.Group();
+    const dome = new THREE.Mesh(SHIELD_DOME, new THREE.MeshBasicMaterial({
+      color: 0xBFE8FF, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false,
     }));
-    shield.rotation.x = -Math.PI / 2;
-    shield.position.y = 0.6;
+    const rim = new THREE.Mesh(SHIELD_RIM, new THREE.MeshBasicMaterial({
+      color: 0x2F7FC0, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false,
+    }));
+    rim.rotation.x = -Math.PI / 2;
+    rim.position.y = 0.08;
+    const badge = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false }));
+    badge.renderOrder = 9000;
+    badge.scale.setScalar(1.3);
+    shield.add(dome, rim, badge);
     shield.visible = false;
     group.add(shield);
     // 高速旋轉的殘影:刃轉太快時,一格一格畫會出現車輪錯覺(看起來變慢、甚至倒轉),
@@ -529,8 +539,17 @@ export function createScene(canvas, { pitch = 55 } = {}) {
         a.shadow.position.set(c.x, ground + 0.25, c.y);
         a.shadow.scale.setScalar(c.radius * 0.95 * (drop < 1 ? 0.4 + 0.6 * easeOutBounce(Math.max(0, drop)) : 1));
         const shields = c.buffs?.shield?.length ?? 0;
+        if (shields > (a.shields ?? 0)) a.shieldAt = world.time;
+        a.shields = shields;
         a.shield.visible = shields > 0;
-        a.shield.material.opacity = 0.25 + 0.2 * shields;
+        if (shields > 0) {
+          const [dome, , badge] = a.shield.children;
+          dome.material.opacity = Math.min(0.6, 0.3 + 0.12 * shields);
+          const pop = Math.min(1, (world.time - (a.shieldAt ?? -Infinity)) / SHIELD_POP);
+          dome.scale.setScalar(1 + 0.6 * (1 - pop) ** 2);
+          if (!badge.material.map && itemTex.get('shield')) { badge.material.map = itemTex.get('shield'); badge.material.needsUpdate = true; }
+          badge.position.y = 2.3 + 0.15 * Math.sin(world.time * 5);
+        }
         setOutline(a.group, c, world.time);
         live.push(a.group);
         continue;
