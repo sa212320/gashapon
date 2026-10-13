@@ -7,8 +7,8 @@
   "spin": "The item is a small chunky first-aid kit: white box with rounded corners, a bold red cross on the front, a short handle on top.",
   "missile": "The item is a chunky cartoon missile pointing down: white body, red rounded nose cone at the bottom, three small icy blue fins at the top, a little puff of white smoke above it.",
   "picks": {
-    "attack": "sheet-s2",
-    "shield": "sheet-s1",
+    "attack": "dash/s3",
+    "shield": "ice/s2",
     "spin": "sheet-s3",
     "missile": "sheet-s2"
   },
@@ -46,5 +46,7 @@
       "start": "Seen from directly above: a thin chunky cartoon ring of small round cream-white smoke puffs with a few orange sparks, a perfect circle in the middle of the picture, empty in the centre.",
       "motion": "seen from directly above, the cartoon ring of round cream-white smoke puffs and orange sparks expands outward toward the edges of the picture, the puffs keep their thick dark brown outlines, then the puffs shrink and pop away one by one"
     }
-  }
+  },
+  "ice": "The item is a big chunky cartoon block of clear ice, seen slightly from above: an irregular rounded cube with bevelled facets, pale translucent icy blue, bright white shine streaks on the upper facets, a few small white cracks, a little white frost along the bottom edge. The block is mostly see-through and empty inside, nothing frozen in it.",
+  "dash": "The item is a chunky cartoon lightning-bolt arrow pointing to the right: a thick zigzag bolt in icy blue and white with a bold triangular arrow head, three white speed lines trailing behind it on the left, a few small sparkles."
 }

@@ -418,9 +418,8 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   const SHIELD_RIM = new THREE.RingGeometry(1.42, 1.62, 40);
   const SHIELD_POP = 0.35;   // 秒
   const BLUR_RING = new THREE.RingGeometry(0.5, 1.08, 40);
-  // 冰凍(盾):包住整顆陀螺的冰塊,半透明冰藍 + 深色稜線
-  const ICE_BOX = new THREE.BoxGeometry(2.5, 1.7, 2.5).translate(0, 0.75, 0);
-  const ICE_EDGES = new THREE.EdgesGeometry(ICE_BOX);
+  // 冰凍(盾):生成的冰塊圖(就是道具圖示那張)半透明罩在陀螺前面,看起來像凍在冰裡
+  const ICE_SIZE = 3;      // 冰塊圖的高度(陀螺單位,陀螺直徑 2)
 
   function actorFor(c, color) {
     let a = actors.get(c.id);
@@ -451,13 +450,9 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     blur.rotation.x = -Math.PI / 2;
     blur.position.y = 0.79;
     group.add(blur);
-    const ice = new THREE.Group();
-    const iceBody = new THREE.Mesh(ICE_BOX, new THREE.MeshBasicMaterial({
-      color: 0xBFE8FF, transparent: true, opacity: 0.55, depthWrite: false,
-    }));
-    const iceEdge = new THREE.LineSegments(ICE_EDGES, new THREE.LineBasicMaterial({ color: 0x2F6F99 }));
-    ice.add(iceBody, iceEdge);
-    ice.rotation.y = 0.5;
+    const ice = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, opacity: 0.8, depthTest: false }));
+    ice.center.set(0.5, 0.3);   // 冰塊底部大約對齊軸尖
+    ice.renderOrder = 8500;
     ice.visible = false;
     group.add(ice);
     root.add(group, shadow);
@@ -683,6 +678,12 @@ export function createScene(canvas, { pitch = 55 } = {}) {
         // 冰塊:刃凍住不轉、沒有殘影;解凍前 0.4 秒冰塊閃一閃
         const iced = c.frozen > 0;
         a.ice.visible = iced && !(c.frozen < 0.4 && Math.floor(c.frozen * 14) % 2 === 0);
+        if (iced && !a.ice.material.map && itemTex.get('shield')) {
+          const t = itemTex.get('shield');
+          a.ice.material.map = t;
+          a.ice.material.needsUpdate = true;
+          a.ice.scale.set(ICE_SIZE * t.image.width / t.image.height, ICE_SIZE, 1);
+        }
         a.spinRate = iced ? 0 : drawnRate(c.spin);
         a.spin.rotation.y += visibleTurn(a.spinRate, dt);
         a.blur.material.opacity = iced ? 0 : blurAlpha(c.spin);

@@ -273,6 +273,8 @@ def cmd_pick(args):
 def picked_image(item, label):
     if label.startswith('sheet-'):
         return split_sheet(OUT / 'sheet' / f'{label[len("sheet-"):]}.png')[item]
+    if '/' in label:   # 例如 'ice/s2':用別的資料夾生的圖(盾改成冰凍、劍改成衝刺,2026-10-13)
+        return Image.open(OUT / f'{label}.png')
     return Image.open(OUT / item / f'{label}.png')
 
 
