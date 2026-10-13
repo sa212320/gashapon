@@ -7,6 +7,7 @@ import { createFighter, pickColor } from './fighters.js';
 import { createWorld, step, think, aliveOf, winnerTeam, HIT_POWER, HIT_FULL } from './physics.js';
 import { ITEM_TYPES, spawnItem, applyPickups, tickBuffs, explodeMissiles } from './items.js';
 import { createScene } from './scene3d.js';
+import { openingAt, OPENING_TIME } from './opening.js';
 import { getActive, replaceSetup, addSetup, removeSetup, entriesChanged } from '../../shared/js/roster.js';
 import { createDialogShell } from '../../shared/js/dialog.js';
 import { createAsk } from '../../shared/js/ask.js';
@@ -65,6 +66,7 @@ function reset() {
   world = createWorld({ fighters: setup.fighters.filter(f => f.count > 0) });
   nextItem = ITEM_EVERY;
   gone = new Set();
+  $('countdown').hidden = true;
   scene.reset();
   scene.resize();
   scene.draw(world, nameMap());
@@ -92,13 +94,40 @@ function start() {
   running = true;
   $('startBtn').disabled = true;
   mascots.setPose('watch');
-  sfx.drop();
+
+  // 開場:3、2、1,Go Shoot! —— 倒數時陀螺停在上方,Go Shoot! 才落進盤裡。點一下畫面直接開打。
+  let opening = 0;
+  let lastIndex = -1;
+  const skip = () => { opening = Math.max(opening, OPENING_TIME); };
+  $('arena').addEventListener('pointerdown', skip, { once: true });
 
   let last = performance.now();
   const frame = now => {
     // dt 封頂:分頁切回來時 now - last 可能是好幾秒,不封的話大家會瞬間飛出場外。
     const dt = Math.min(0.033, (now - last) / 1000);
     last = now;
+
+    const o = openingAt(opening);
+    if (!o.done) {
+      opening += dt;
+      if (o.index !== lastIndex) {
+        lastIndex = o.index;
+        const el = $('countdown');
+        el.hidden = false;
+        el.textContent = o.label;
+        el.classList.toggle('is-go', o.index === 3);
+        // 換字時重新播一次彈出動畫
+        el.style.animation = 'none';
+        void el.offsetWidth;
+        el.style.animation = '';
+        if (o.index < 3) sfx.hit(0.15); else sfx.drop();
+      }
+      scene.draw(world, nameMap(), { drop: o.drop });
+      raf = requestAnimationFrame(frame);
+      return;
+    }
+    $('countdown').hidden = true;
+    $('arena').removeEventListener('pointerdown', skip);
 
     const enabled = ITEM_TYPES.filter(t => getActive(state).items[t]);
     nextItem -= dt;
@@ -158,6 +187,7 @@ addEventListener('resize', () => { scene.resize(); if (world) scene.draw(world, 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden' && running) {
     cancelAnimationFrame(raf);
+    $('countdown').hidden = true;
     finish(winnerTeam(world));
   }
 });

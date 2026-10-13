@@ -73,3 +73,15 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
   font-weight: 700;
   opacity: .5;
 }
+
+/* 開場倒數:大字蓋在場地中央,點一下畫面直接開打 */
+.countdown {
+  position: absolute; inset: 0; margin: 0;
+  display: grid; place-items: center;
+  font-size: clamp(56px, 22vw, 140px); font-weight: 900;
+  color: #fff; -webkit-text-stroke: 6px var(--ink); paint-order: stroke fill;
+  pointer-events: none;
+}
+.countdown.is-go { font-size: clamp(40px, 13vw, 96px); }
+.countdown:not([hidden]) { animation: countdown-pop .5s ease-out; }
+@keyframes countdown-pop { from { transform: scale(1.6); opacity: 0; } 40% { opacity: 1; } to { transform: scale(1); } }

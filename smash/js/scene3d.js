@@ -36,6 +36,16 @@ function starGeo(points, innerRatio) {
   return new THREE.ShapeGeometry(shape);
 }
 
+// 落地時彈一下,像真的陀螺被射進盤裡
+function easeOutBounce(x) {
+  const n = 7.5625;
+  const d = 2.75;
+  if (x < 1 / d) return n * x * x;
+  if (x < 2 / d) return n * (x -= 1.5 / d) * x + 0.75;
+  if (x < 2.5 / d) return n * (x -= 2.25 / d) * x + 0.9375;
+  return n * (x -= 2.625 / d) * x + 0.984375;
+}
+
 function shade(color, k) {
   return new THREE.Color(color).multiplyScalar(k);
 }
@@ -421,7 +431,9 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     camera.lookAt(CAM_LOOK);
   }
 
-  function draw(world, teams) {
+  // drop:開場的落下進度(0 = 還在上方,1 = 落地)
+  function draw(world, teams, { drop = 1 } = {}) {
+    const fall = drop < 1 ? (1 - easeOutBounce(Math.max(0, drop))) * 120 : 0;
     frameCamera();
 
     const dt = Math.max(0, Math.min(0.1, world.time - lastTime));
@@ -435,7 +447,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
       if (c.alive) {
         a.group.visible = true;
         a.shadow.visible = true;
-        a.group.position.set(c.x, ground, c.y);
+        a.group.position.set(c.x, ground + fall, c.y);
         a.group.scale.setScalar(c.radius);
         // 轉速就是命:轉得愈慢,刃轉得愈慢
         a.spin.rotation.y += dt * (6 + 22 * c.spin);
@@ -450,7 +462,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
           a.group.rotation.x = c.vy * 0.0016;
         }
         a.shadow.position.set(c.x, ground + 0.25, c.y);
-        a.shadow.scale.setScalar(c.radius * 0.95);
+        a.shadow.scale.setScalar(c.radius * 0.95 * (drop < 1 ? 0.4 + 0.6 * easeOutBounce(Math.max(0, drop)) : 1));
         const shields = c.buffs?.shield?.length ?? 0;
         a.shield.visible = shields > 0;
         a.shield.material.opacity = 0.25 + 0.2 * shields;
