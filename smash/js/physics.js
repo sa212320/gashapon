@@ -260,7 +260,9 @@ export function step(world, dt, rng = Math.random) {
       // 被打到的一方扣轉速、擲爆裂骰。兩邊各自算 —— 對撞時兩個都可能爆。
       for (const [me, them, p] of [[a, b, powerA], [b, a, powerB]]) {
         me.spin -= HIT_SPIN_COST * hitStrength(p);
-        if (world.time >= BURST_GRACE && p >= HIT_POWER && rng() < burstChance({ power: p, attacker: them, target: me })) {
+        // 衝刺中(劍)撞人的那顆不擲骰:反彈力道跟對方一樣大,不擋的話主動撞人的反而常常自己爆
+        const dashing = me.dash && me.dash.wind <= 0;
+        if (!dashing && world.time >= BURST_GRACE && p >= HIT_POWER && rng() < burstChance({ power: p, attacker: them, target: me })) {
           knockOut(me, 'burst');
         }
       }

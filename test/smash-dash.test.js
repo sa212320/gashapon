@@ -69,3 +69,11 @@ test('真的撞一次:衝的那顆停在附近,被撞的飛得比它遠', async 
   const [a, b] = w.combatants;
   assert.ok(b.x - 0 > a.x - (-30), `衝的走了 ${(a.x + 30).toFixed(0)}、被撞的走了 ${b.x.toFixed(0)}`);
 });
+
+test('衝過去撞人的自己不會爆裂(爆裂骰必中時,只有被撞的爆)', async () => {
+  const { step } = await import('../smash/js/physics.js');
+  const me = at('red', -17, 0, { vx: 200, vy: 0, dash: { targetId: 'c_blue_0_0', wind: 0, left: DASH_TIME } });
+  const w = step(world([me, at('blue', 0, 0)], { time: 10 }), 1 / 60, () => 0);
+  assert.equal(w.combatants[0].alive, true);
+  assert.equal(w.combatants[1].outBy, 'burst');
+});
