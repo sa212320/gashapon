@@ -157,7 +157,8 @@ export function tickDashes(world, dt) {
   const combatants = world.combatants.map(c => ({ ...c }));
   for (const c of combatants) {
     if (!c.dash) continue;
-    if (!c.alive) { c.dash = null; continue; }
+    // 出局或被凍住(冰塊不會自己動,吃到衝刺道具也一樣)就不衝了
+    if (!c.alive || c.frozen > 0) { c.dash = null; continue; }
     if (c.dash.wind > 0) {
       // 蓄力:往目標的反方向退(像拉彈弓)—— 貼著對手發動時才有助跑距離,也是更明顯的預告
       const target = combatants.find(o => o.id === c.dash.targetId && o.alive);
@@ -187,7 +188,10 @@ export function tickDashes(world, dt) {
     if (!target) target = nearestEnemy(c, combatants);
     const left = c.dash.left - dt;
     if (!target || left <= 0) {
+      // 時間到還沒碰到人:一樣頓住 —— 不然全速滑進洞,或下一格撞上人時自己擲爆裂骰
       c.dash = null;
+      c.vx *= DASH_STOP;
+      c.vy *= DASH_STOP;
       continue;
     }
     const dx = target.x - c.x;

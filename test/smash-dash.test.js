@@ -92,3 +92,17 @@ test('衝過去撞人的自己不會爆裂(爆裂骰必中時,只有被撞的爆
   assert.equal(w.combatants[0].alive, true);
   assert.equal(w.combatants[1].outBy, 'burst');
 });
+
+test('被凍住的陀螺不會衝刺(吃到衝刺道具也一樣):衝刺取消、速度不被改', () => {
+  const me = at('red', 0, 0, { vx: 12, vy: 0, frozen: 1, dash: { targetId: 'c_blue_60_0', wind: 0, left: DASH_TIME } });
+  const w = tickDashes(world([me, at('blue', 60, 0)]), 1 / 60);
+  assert.equal(w.combatants[0].dash, null);
+  assert.equal(w.combatants[0].vx, 12);
+});
+
+test('衝刺時間到還沒碰到人:一樣頓住,不會全速滑進洞', () => {
+  const me = at('red', 0, 0, { vx: 200, vy: 0, dash: { targetId: 'c_blue_90_0', wind: 0, left: 0.001 } });
+  const w = tickDashes(world([me, at('blue', 90, 0)]), 1 / 60);
+  assert.equal(w.combatants[0].dash, null);
+  assert.ok(Math.hypot(w.combatants[0].vx, w.combatants[0].vy) <= 200 * 0.2 + 1e-9);
+});

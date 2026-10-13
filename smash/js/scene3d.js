@@ -18,7 +18,7 @@ import * as ART from './art.js';
 import { fxFrame } from './fx-frame.js';
 import { landing } from './opening.js';
 import { slideStep } from './spinout-slide.js';
-import { itemSize, ITEM_SIZE } from './item-size.js';
+import { itemSize } from './item-size.js';
 import { BOUNDS, heightAt } from './stadium.js';
 
 const GROUND = -4;        // 場地上表面的高度,角色站在這裡
@@ -878,7 +878,8 @@ export function createScene(canvas, { pitch = 55 } = {}) {
       // 上下輕輕浮動,讓它跟場上的陀螺區分開來;圖示放大時浮高一點,底部才不會插進地板
       m.position.set(it.x, GROUND + heightAt(it.x, it.y) + 9 + size / 2 + Math.sin(world.time * 2.4) * 1.6, it.y);
       addProp(m);
-      addProp(groundDisc(shadowDisc(0.16), it.x, it.y, 6 * size / ITEM_SIZE));
+      // 影子維持原本大小:它標的是真正撿得到的位置(道具半徑 7),手機上放大的只是圖示
+      addProp(groundDisc(shadowDisc(0.16), it.x, it.y, 6));
     }
 
     for (const f of world.frosts ?? []) {
