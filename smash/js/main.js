@@ -5,7 +5,7 @@
 import { store, seedState, createSmashSetup } from './store.js';
 import { createFighter, pickColor } from './fighters.js';
 import { createWorld, step, think, aliveOf, winnerTeam, HIT_POWER, HIT_FULL } from './physics.js';
-import { ITEM_TYPES, pickItem, spawnItem, applyPickups, tickBuffs, tickDashes, tickFrosts, explodeMissiles } from './items.js';
+import { ITEM_TYPES, pickItem, spawnItem, applyPickups, tickBuffs, tickDashes, tickFrosts, tickWhirls, explodeMissiles } from './items.js';
 import { createScene } from './scene3d.js';
 import { openingAt, OPENING_TIME } from './opening.js';
 import { getActive, replaceSetup, addSetup, removeSetup, entriesChanged } from '../../shared/js/roster.js';
@@ -144,6 +144,7 @@ function start() {
     world = applyPickups(world);
     world = tickDashes(world, dt);
     world = tickFrosts(world, dt);
+    world = tickWhirls(world, dt);
     world = think(world, dt);
     world = step(world, dt);
     // 這一格新出局的:爆裂放爆裂聲,其他(掉出去、停轉)放「喀」一聲

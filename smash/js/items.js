@@ -4,7 +4,8 @@
 //           威力純粹來自衝得快(撞擊力道跟相對速度走),不另外加爆裂機率 —— 帶劍加成時太強
 //   shield  盾 = 冰凍(原型,2026-10-13):寒氣射向最近的 FROST_TARGETS 顆敵人,飛 FROST_FLIGHT 秒打中,
 //           目標變冰塊 FREEZE_TIME 秒 —— 不會自己動、轉速不掉、滑很遠、被撞飛得遠,但不會爆(physics.step 裡算)
-//   spin    補包:轉速補滿(轉速就是命)
+//   spin    補包 = 冰旋風(原型,2026-10-13):轉速補滿,再捲起旋風 WHIRL_TIME 秒,
+//           把 WHIRL_RADIUS 內的敵人往自己拉、繞著轉(被捲過來就撞上、彈開、再被捲回來)
 //   missile 飛彈:鎖定最近敵人**當下的位置**,1.2 秒後從天空落下炸開。不追蹤,圈內敵我都炸
 //
 // 劍盾最多疊 3 層 —— 不設上限的話疊到 5 層劍幾乎一碰就爆,8 秒內誰也擋不住。
@@ -33,6 +34,10 @@ export const MAX_LAYERS = 3;
 export const FROST_TARGETS = 2;
 export const FROST_FLIGHT = 0.35;   // 寒氣飛幾秒(畫面看得到它飛過去)
 export const FREEZE_TIME = 1.5;     // 冰塊幾秒
+export const WHIRL_TIME = 2;
+export const WHIRL_RADIUS = 40;     // 地上那圈雪花漩渦就是這個範圍
+const WHIRL_PULL = 220;             // 往中心拉(每秒加的速度,貼著中心時)
+const WHIRL_SWIRL = 260;            // 繞著轉(切向)
 export const HEAL_FLASH = 0.6;      // 補包的綠框閃幾秒(畫面用)
 export const MISSILE_FUSE = 1.2;
 export const DASH_WIND = 0.5;       // 蓄力幾秒(畫面拉箭頭預告要衝誰)
@@ -114,6 +119,7 @@ export function applyPickups(world) {
     } else if (item.type === 'spin') {
       who.spin = 1;
       who.healedAt = world.time;
+      who.whirl = WHIRL_TIME;
     } else if (item.type === 'missile') {
       // 鎖的是**這一刻**的座標,之後目標怎麼跑都不管 —— 有準星預告,躲得掉才公平
       const target = nearestEnemy(who, combatants);
@@ -123,6 +129,28 @@ export function applyPickups(world) {
 
   if (taken.size === 0) return world;
   return { ...world, combatants, strikes, frosts, items: world.items.filter(i => !taken.has(i.id)) };
+}
+
+// 冰旋風:範圍內的敵人往中心拉、逆時針繞著轉,愈靠近中心愈用力;重的拉得動得少。隊友不受影響。
+export function tickWhirls(world, dt) {
+  if (!world.combatants.some(c => c.whirl > 0)) return world;
+  const combatants = world.combatants.map(c => ({ ...c }));
+  for (const w of combatants) {
+    if (!(w.whirl > 0)) continue;
+    w.whirl = Math.max(0, w.whirl - dt);
+    if (!w.alive) { w.whirl = 0; continue; }
+    for (const c of combatants) {
+      if (!c.alive || c.fighterId === w.fighterId) continue;
+      const dx = w.x - c.x;
+      const dy = w.y - c.y;
+      const d = Math.hypot(dx, dy) || 1e-4;
+      if (d > WHIRL_RADIUS) continue;
+      const k = (1 - d / WHIRL_RADIUS) * dt / (c.mass ?? 1);
+      c.vx += (dx / d) * WHIRL_PULL * k - (dy / d) * WHIRL_SWIRL * k;
+      c.vy += (dy / d) * WHIRL_PULL * k + (dx / d) * WHIRL_SWIRL * k;
+    }
+  }
+  return { ...world, combatants };
 }
 
 // 寒氣飛行:飛 FROST_FLIGHT 秒追上目標(畫面從出發點畫到目標現在的位置),打中就凍成冰塊。

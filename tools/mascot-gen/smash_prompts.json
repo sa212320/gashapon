@@ -48,5 +48,6 @@
     }
   },
   "ice": "The item is a big chunky cartoon block of clear ice, seen slightly from above: an irregular rounded cube with bevelled facets, pale translucent icy blue, bright white shine streaks on the upper facets, a few small white cracks, a little white frost along the bottom edge. The block is mostly see-through and empty inside, nothing frozen in it.",
-  "dash": "The item is a chunky cartoon lightning-bolt arrow pointing to the right: a thick zigzag bolt in icy blue and white with a bold triangular arrow head, three white speed lines trailing behind it on the left, a few small sparkles."
+  "dash": "The item is a chunky cartoon lightning-bolt arrow pointing to the right: a thick zigzag bolt in icy blue and white with a bold triangular arrow head, three white speed lines trailing behind it on the left, a few small sparkles.",
+  "whirl": "The item is a chunky cartoon whirlwind: a small swirling tornado funnel of icy blue and white wind streaks, wide at the top and narrow at the bottom, with a few white snowflakes spinning around it."
 }

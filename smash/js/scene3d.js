@@ -13,7 +13,7 @@ import { HIT_POWER, HIT_FULL } from './physics.js';
 import { INK, outlinable, part } from './outline3d.js';
 import { createStadium } from './stadium3d.js';
 import { createBey, setChipTexture, loadChipTextures } from './bey3d.js';
-import { HEAL_FLASH, MISSILE_FUSE, BLAST_RADIUS, FROST_FLIGHT } from './items.js';
+import { HEAL_FLASH, MISSILE_FUSE, BLAST_RADIUS, FROST_FLIGHT, WHIRL_RADIUS } from './items.js';
 import * as ART from './art.js';
 import { fxFrame } from './fx-frame.js';
 import { landing } from './opening.js';
@@ -300,6 +300,38 @@ export function createScene(canvas, { pitch = 55 } = {}) {
       m.scale.setScalar(s2);
       m.renderOrder = 9000;
       out.push(m);
+    }
+    return out;
+  }
+
+  // 冰旋風:地上一圈淡淡的範圍圈 + 三條雪花旋臂逆時針轉(看得出「被捲進去」),最後 0.3 秒淡掉
+  function whirlVisual(c, time) {
+    const out = [];
+    const fade = Math.min(1, c.whirl / 0.3);
+    const ground = GROUND + heightAt(c.x, c.y);
+    const ring = new THREE.Mesh(RING_FAT, new THREE.MeshBasicMaterial({
+      color: 0xBFE8FF, transparent: true, opacity: 0.45 * fade, side: THREE.DoubleSide, depthWrite: false, depthTest: false,
+    }));
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(c.x, ground + 0.6, c.y);
+    ring.scale.setScalar(WHIRL_RADIUS);
+    ring.renderOrder = 8000;
+    out.push(ring);
+    const turn = time * 5;
+    for (let arm = 0; arm < 3; arm++) {
+      for (let i = 0; i < 6; i++) {
+        const r = WHIRL_RADIUS * (0.3 + 0.13 * i);
+        const a = turn + arm * (Math.PI * 2 / 3) - i * 0.45;   // 往外愈落後 = 螺旋
+        const m = new THREE.Mesh(STAR2, new THREE.MeshBasicMaterial({
+          color: i % 2 ? 0xFFFFFF : 0xBFE8FF, transparent: true, opacity: fade, depthTest: false, depthWrite: false,
+        }));
+        m.position.set(c.x + Math.cos(a) * r, ground + 3 + i * 1.6, c.y + Math.sin(a) * r);
+        m.quaternion.copy(camera.quaternion);
+        m.rotateZ(time * 8 + i);
+        m.scale.setScalar(1.6 + i * 0.35);
+        m.renderOrder = 8600;
+        out.push(m);
+      }
     }
     return out;
   }
@@ -740,6 +772,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
           a.trail = a.trail.slice(1);   // 衝完殘影一格一格收掉
         }
         if (a.trail?.length) for (const m of dashTrailVisual(a.trail, teamColor, c.radius)) addProp(m);
+        if (c.whirl > 0) for (const m of whirlVisual(c, world.time)) addProp(m);
         live.push(a.group);
         continue;
       }
