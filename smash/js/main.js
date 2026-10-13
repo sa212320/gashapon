@@ -34,6 +34,7 @@ let world = null;
 let running = false;
 let raf = 0;
 let nextItem = ITEM_EVERY;
+let gone = new Set();         // 已經出局、放過音效的陀螺
 
 const nameMap = () => new Map(getActive(state).fighters.map(f => [f.id, f]));
 
@@ -63,6 +64,7 @@ function reset() {
   const setup = getActive(state);
   world = createWorld({ fighters: setup.fighters.filter(f => f.count > 0) });
   nextItem = ITEM_EVERY;
+  gone = new Set();
   scene.reset();
   scene.resize();
   scene.draw(world, nameMap());
@@ -105,13 +107,16 @@ function start() {
       nextItem = ITEM_EVERY;
     }
 
-    const before = aliveOf(world).length;
     world = explodeMissiles(world, dt);
     world = tickBuffs(world, dt);
     world = applyPickups(world);
     world = think(world, dt);
     world = step(world, dt);
-    if (aliveOf(world).length < before) sfx.clunk();
+    // 這一格新出局的:爆裂放爆裂聲,其他(掉出去、停轉)放「喀」一聲
+    const fallen = world.combatants.filter(c => !c.alive && !gone.has(c.id));
+    for (const c of fallen) gone.add(c.id);
+    if (fallen.some(c => c.outBy === 'burst')) sfx.burst(1);
+    else if (fallen.length) sfx.clunk();
     hitSound(world.impacts, dt);
 
     scene.draw(world, nameMap());

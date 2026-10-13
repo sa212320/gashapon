@@ -11,6 +11,8 @@ import * as THREE from 'three';
 import { HIT_POWER, HIT_FULL } from './physics.js';
 import { INK, outlinable, part } from './outline3d.js';
 import { createStadium } from './stadium3d.js';
+import { createBey, setChipTexture, loadChipTextures } from './bey3d.js';
+import { HEAL_FLASH } from './items.js';
 import { BOUNDS, heightAt } from './stadium.js';
 
 const GROUND = -4;        // 場地上表面的高度,角色站在這裡
@@ -54,10 +56,6 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   root.add(stadium);
 
   /* ---------- 共用幾何 ---------- */
-  const TIP = new THREE.ConeGeometry(1, 1, 10);
-  const DISC = new THREE.CylinderGeometry(1, 1, 1, 8);      // 八角 = 看得出是有刃的陀螺
-  const PLATE = new THREE.CylinderGeometry(1, 1, 1, 8);
-  const BOLT = new THREE.CylinderGeometry(1, 1, 1, 12);
   const BALL = new THREE.SphereGeometry(1, 16, 12);
   const SPIKE = new THREE.OctahedronGeometry(1, 0);
   const ROD = new THREE.CylinderGeometry(1, 1, 1, 6);
@@ -120,34 +118,24 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   let seenBombs = new Map();  // 上一格看到的炸彈,用來認出「剛剛炸掉的那顆」
   let blasts = [];            // 進行中的爆炸 { x, y, at }
   let sparks = [];            // 進行中的撞擊火花 { x, y, k, at, spin }
+  let lastTime = 0;           // 上一格的 world.time(算這一格的 dt)
 
-  // 一顆戰鬥陀螺。單位空間:尖端踩 y=0,佔地半徑 1,整體再乘上物理的 radius。
-  // 外層 group 負責位置與傾斜,內層 spin 只負責繞 Y 轉 —— 兩個混在同一個
-  // Object3D 上,旋轉軸會跟著傾斜一起歪掉,看起來就不是在原地轉了。
-  function beyblade(color) {
-    const g = outlinable();
-    const spin = new THREE.Group();
-    g.add(spin);
+  // 動物圓片的貼圖:載完之前先建立的陀螺,載完再補上
+  const chipTextures = new Map();
+  loadChipTextures().then(m => {
+    for (const [k, v] of m) chipTextures.set(k, v);
+    for (const a of actors.values()) a.applyChip();
+  }).catch(() => {});   // 圖載不到就只是沒有動物,不影響比賽
 
-    const metal = shade(color, 0.55);
-    // 軸尖:圓錐預設尖端朝上,轉 180° 讓它戳地
-    part(g, TIP, metal, { pos: [0, 0.17, 0], scale: [0.22, 0.36, 0.22], rotX: Math.PI, outline: 0.1, into: spin });
-    part(g, DISC, color, { pos: [0, 0.56, 0], scale: [0.95, 0.56, 0.95], outline: 0.11, into: spin });
-    part(g, PLATE, shade(color, 1.2), { pos: [0, 0.94, 0], scale: [0.66, 0.24, 0.66], outline: 0.11, into: spin });
-    part(g, BOLT, metal, { pos: [0, 1.14, 0], scale: [0.25, 0.16, 0.25], outline: 0.09, into: spin });
-
-    g.userData.spin = spin;
-    return g;
-  }
-
-  // 吃到道具就把整顆陀螺的描邊換成那個道具的顏色、順便撐粗一點。
-  // 這比在頭上掛一個字好:字會被誤認成掉在地上的道具球,而外框長在陀螺身上,
-  // 一看就知道是「這顆陀螺的狀態」。攻擊力優先佔用外框 ——
-  // 速度本來就看得出來(轉得比較快),攻擊力沒有外框就完全沒有線索。
-  function setOutline(group, buffs) {
-    const type = buffs?.attack?.length > 0 ? 'attack' : null;
-    const color = type ? ITEM_LOOK[type].color : INK;
-    const grow = type ? 1.15 : 1;
+  // 狀態長在陀螺身上,一看就知道是「這顆陀螺的」:
+  //   劍:外框變紅、愈多層愈粗    補包:剛補完那一下外框閃綠(優先於劍)
+  // 盾另外是一圈半透明的冰環(見 actor.shield)。
+  const HEAL_GREEN = 0x4CC38A;
+  function setOutline(group, c, time) {
+    const swords = c.buffs?.attack?.length ?? 0;
+    const healing = time - (c.healedAt ?? -Infinity) < HEAL_FLASH;
+    const color = healing ? HEAL_GREEN : swords > 0 ? ITEM_LOOK.attack.color : INK;
+    const grow = healing ? 1.2 : 1 + 0.12 * swords;
     for (const e of group.userData.edges) {
       e.material.color.set(color);
       e.scale.copy(e.userData.base).multiplyScalar(grow);
@@ -268,14 +256,32 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     return out;
   }
 
+  const SHIELD_RING = new THREE.RingGeometry(1.15, 1.35, 40);
+
   function actorFor(c, color) {
     let a = actors.get(c.id);
     if (a) return a;
-    const group = beyblade(new THREE.Color(color));
+    const group = createBey(c.beyType, color);
     const shadow = shadowDisc();
+    // 盾:平躺在陀螺腰上的一圈冰環,層數愈多愈不透明
+    const shield = new THREE.Mesh(SHIELD_RING, new THREE.MeshBasicMaterial({
+      color: 0x9FD8F7, transparent: true, opacity: 0.4, side: THREE.DoubleSide, depthWrite: false,
+    }));
+    shield.rotation.x = -Math.PI / 2;
+    shield.position.y = 0.6;
+    shield.visible = false;
+    group.add(shield);
     root.add(group, shadow);
     // 每顆給一個固定的起始角,不然全場的刃會整齊劃一地同步轉,像同一個物件複製出來的
-    a = { group, spin: group.userData.spin, phase: Math.random() * Math.PI * 2, shadow };
+    a = {
+      group, shadow, shield,
+      spin: group.userData.spin,
+      parts: group.userData.parts,
+      outAt: null, debris: null, faded: false,
+      applyChip() { const t = chipTextures.get(c.animal); if (t) setChipTexture(group, t); },
+    };
+    a.spin.rotation.y = Math.random() * Math.PI * 2;
+    a.applyChip();
     actors.set(c.id, a);
     return a;
   }
@@ -284,8 +290,43 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     for (const a of actors.values()) {
       root.remove(a.group);
       root.remove(a.shadow);
+      for (const d of a.debris ?? []) root.remove(d.obj);
     }
     actors.clear();
+  }
+
+  // 整顆陀螺(含零件)的材質一起淡出
+  function setOpacity(obj, k) {
+    obj.traverse(o => {
+      if (!o.material) return;
+      for (const m of [].concat(o.material)) { m.transparent = true; m.opacity = k; }
+    });
+  }
+
+  const SPIN_FALL = 1;      // 停轉:幾秒倒下
+  const SPIN_FADE = 1;      //        倒下後幾秒淡出
+  const BURST_TIME = 0.9;   // 爆裂:零件飛幾秒
+  const WOBBLE_FROM = 0.35; // 轉速低於這個開始晃
+
+  // 爆裂:三件(戰刃連圓片、固鎖、軸心)從陀螺上拆下來,各往一個方向飛,邊飛邊翻
+  function burstApart(a, c) {
+    const pieces = [a.parts.blade, a.parts.ratchet, a.parts.bit];
+    const chip = a.group.userData.chip;
+    a.parts.blade.attach(chip);
+    const base = Math.random() * Math.PI * 2;
+    a.debris = pieces.map((obj, i) => {
+      root.attach(obj);
+      const dir = base + (i * Math.PI * 2) / 3;
+      const speed = 40 + Math.random() * 20;
+      return {
+        obj,
+        v: new THREE.Vector3(Math.cos(dir) * speed, 55 + Math.random() * 20, Math.sin(dir) * speed),
+        w: new THREE.Vector3((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14),
+      };
+    });
+    a.group.visible = false;
+    a.shadow.visible = false;
+    sparks.push({ x: c.x, y: c.y, k: 1, at: lastTime, spin: Math.random() * Math.PI });
   }
 
   const CAM = new THREE.Vector3();
@@ -358,32 +399,76 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   function draw(world, teams) {
     frameCamera();
 
+    const dt = Math.max(0, Math.min(0.1, world.time - lastTime));
+    lastTime = world.time;
     const live = [];
+    const pocketCount = new Map();   // 同一個出口裡已經有幾顆(錯開放)
     for (const c of world.combatants) {
       const team = teams.get(c.fighterId);
       const a = actorFor(c, team?.color ?? '#CCCCCC');
+      const ground = GROUND + heightAt(c.x, c.y);
       if (c.alive) {
         a.group.visible = true;
         a.shadow.visible = true;
-        a.group.position.set(c.x, GROUND + heightAt(c.x, c.y), c.y);
+        a.group.position.set(c.x, ground, c.y);
         a.group.scale.setScalar(c.radius);
-        // 轉速跟著移動速度加一點,衝過去的時候看起來比較兇
-        const speed = Math.hypot(c.vx, c.vy);
-        // 吃了速度就轉得明顯更快 —— 數值變快但畫面沒變,玩的人是感覺不到的
-        a.spin.rotation.y = a.phase + world.time * (13 + speed * 0.05);
-        // 往行進方向傾:陀螺是靠傾斜在跑的,直挺挺平移看起來像貼紙
-        a.group.rotation.z = -c.vx * 0.0016;
-        a.group.rotation.x = c.vy * 0.0016;
-        a.shadow.position.set(c.x, GROUND + heightAt(c.x, c.y) + 0.25, c.y);
+        // 轉速就是命:轉得愈慢,刃轉得愈慢
+        a.spin.rotation.y += dt * (6 + 22 * c.spin);
+        if (c.spin < WOBBLE_FROM) {
+          // 快停了:整顆繞著軸尖畫圈地晃,愈慢晃愈大
+          const w = (WOBBLE_FROM - c.spin) / WOBBLE_FROM;
+          a.group.rotation.z = Math.sin(world.time * 9) * 0.32 * w;
+          a.group.rotation.x = Math.cos(world.time * 9) * 0.32 * w;
+        } else {
+          // 往行進方向傾:陀螺是靠傾斜在跑的,直挺挺平移看起來像貼紙
+          a.group.rotation.z = -c.vx * 0.0016;
+          a.group.rotation.x = c.vy * 0.0016;
+        }
+        a.shadow.position.set(c.x, ground + 0.25, c.y);
         a.shadow.scale.setScalar(c.radius * 0.95);
+        const shields = c.buffs?.shield?.length ?? 0;
+        a.shield.visible = shields > 0;
+        a.shield.material.opacity = 0.25 + 0.2 * shields;
+        setOutline(a.group, c, world.time);
         live.push(a.group);
-        setOutline(a.group, c.buffs);
-      } else {
-        // 出局的往下掉出畫面 —— 直接消失看起來像被吃掉,掉下去才看得懂發生什麼事
-        a.group.position.y -= 9;
-        a.spin.rotation.y += 0.4;
+        continue;
+      }
+
+      // 出局
+      if (a.outAt === null) {
+        a.outAt = world.time;
+        a.shield.visible = false;
+        setOutline(a.group, { buffs: {} }, world.time);
+        if (c.outBy === 'burst') burstApart(a, c);
+      }
+      const t = world.time - a.outAt;
+      if (c.outBy === 'burst') {
+        for (const d of a.debris ?? []) {
+          d.v.y -= 140 * dt;
+          d.obj.position.addScaledVector(d.v, dt);
+          d.obj.rotation.x += d.w.x * dt;
+          d.obj.rotation.y += d.w.y * dt;
+          d.obj.rotation.z += d.w.z * dt;
+          d.obj.visible = t < BURST_TIME;
+        }
+      } else if (c.outBy === 'spinout') {
+        // 停轉:慢慢倒下,倒好之後淡出
+        a.group.rotation.x = 0;
+        a.group.rotation.z = (Math.PI / 2) * 0.9 * Math.min(1, t / SPIN_FALL);
         a.shadow.visible = false;
-        if (a.group.position.y < -260) a.group.visible = false;
+        if (t > SPIN_FALL) setOpacity(a.group, Math.max(0, 1 - (t - SPIN_FALL) / SPIN_FADE));
+        a.group.visible = t < SPIN_FALL + SPIN_FADE;
+        if (a.group.visible) live.push(a.group);
+      } else {
+        // 場外:停在出口裡(物理已經放好位置),慢慢轉停;同一個出口依出局順序錯開
+        const n = pocketCount.get(c.pocket) ?? 0;
+        pocketCount.set(c.pocket, n + 1);
+        const off = n * c.radius * 0.6;
+        a.group.position.set(c.x + off, ground, c.y);
+        a.group.rotation.set(0, 0, 0.35);
+        a.spin.rotation.y += dt * 6 * Math.max(0, 1 - t / 1.5);
+        a.shadow.visible = false;
+        live.push(a.group);
       }
     }
 
@@ -466,7 +551,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     resize,
     camera,
     ready: stadium.userData.ready,   // 盤子的模型下載完
-    reset() { clearActors(); seenBombs.clear(); blasts = []; sparks = []; },
+    reset() { clearActors(); seenBombs.clear(); blasts = []; sparks = []; lastTime = 0; },
     dispose() { clearProps(); clearActors(); renderer.dispose(); },
   };
 }
