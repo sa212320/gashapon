@@ -77,18 +77,6 @@ body {
   display: block;
 }
 
-/* 大亂鬥:尖角碰撞的星芒 */
-.card__art--smash {
-  border: none;
-  border-radius: 0;
-  clip-path: polygon(
-    50% 0%, 63% 35%, 100% 35%, 71% 57%,
-    82% 95%, 50% 72%, 18% 95%, 29% 57%,
-    0% 35%, 37% 35%
-  );
-  background: var(--sun);
-}
-
 @media (max-width: 380px) {
   .home-grid { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
 }

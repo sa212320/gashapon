@@ -43,3 +43,7 @@ test('首頁的一番賞卡片用了插畫', () => {
 test('首頁的阿彌陀籤卡片用了插畫', () => {
   assert.ok(refs().some(p => p.endsWith('img/home/ghostleg.webp')), refs().join('\n'));
 });
+
+test('首頁的大亂鬥卡片用了插畫', () => {
+  assert.ok(refs().some(p => p.endsWith('img/home/smash.webp')), refs().join('\n'));
+});
