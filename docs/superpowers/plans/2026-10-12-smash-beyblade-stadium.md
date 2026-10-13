@@ -17,7 +17,7 @@
 - **Setup**(存檔):`items` 開關 = `{ attack, shield, spin, missile }`。舊存檔 `speed` → `spin`、`bomb` → `missile`;`shield` 預設開;`giant` 丟掉。存檔 schema 版本不升。
 - **Fighter** = 隊伍 `{ id, name, color, count }`,**不改**,沒有動物欄位。
 - **Combatant**(只在比賽中):開打時隨機 `animal`(10 選 1)與 `beyType`(`attack | defense | stamina`),**兩者各自獨立、完全隨機**;另有 `spin`(0..1,轉速 = 命)、`outBy`(`ringout | spinout | burst`)、`buffs: { attack: [剩餘秒數…], shield: [剩餘秒數…] }`。
-- **Stadium**:一份常數 + 純函式,**物理與畫面共用** —— 圓角方形、外牆整圈封閉、3 個口袋集中在靠鏡頭那一側(兩角落小、中間大)、加速軌道沿外牆繞整圈(口袋處斷開)。
+- **Stadium**:一份常數 + 純函式,**物理與畫面共用** —— 照真的 Xtreme 盤(兩張 Nick__Furry 復刻照 + 官方照):圓形對戰碗(軌道中線直徑 = 盤寬 83%)、碗緣一圈**立起來的加速軌道**(整圈連續,正後方往內凹一個梯形台階)、軌道外是一圈**平台**、最外面是**切角(近八角)的外牆**。陀螺要夠快才跳得過軌道上平台;平台微微往碗裡斜。出局:兩個前角平台上的**深方槽**(掉進去)、前側中間的**弧形斜坡**(要夠快、**飛過前牆**才算)。〔2026-10-13 使用者看過照片後兩度修改:原本是「圓角方形、外牆整圈封閉、3 個口袋」→「圓碗、碗緣是牆」→ 現在這版〕
 - **MissileStrike**(只在比賽中):`{ id, fighterId(發射隊伍), x, y(準星), fuse }`。
 - **數量**:Setup 1:N Fighter;Fighter 1:N Combatant(= count);Combatant 1:1 animal、1:1 beyType。
 - **看到 vs 存下**:動物與陀螺類型看得到但**從不存檔**、每場重抽;存檔只有隊名 / 色 / 人數 / 道具開關。只靠隊伍色分隊。

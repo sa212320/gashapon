@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 
 import { createFighter, pickColor, PALETTE } from '../smash/js/fighters.js';
 import { createWorld, step, think, aliveOf, winnerTeam, HIT_POWER } from '../smash/js/physics.js';
-import { HALF, wallDistance, pocketAt, POCKETS } from '../smash/js/stadium.js';
+import { bowlDistance, zoneAt, pocketAt, POCKETS, ZONE } from '../smash/js/stadium.js';
 import { BEY_TYPES, ANIMALS, TYPE_STATS } from '../smash/js/beys.js';
 
 function seeded(seed) {
@@ -138,50 +138,80 @@ test('impacts 每一格重算,不會累積', () => {
 
 /* ---------- 盤子:牆、口袋 ---------- */
 
-test('撞到牆會彈回來,不會出局', () => {
-  const out = step({ ...arena, combatants: [at('red', 95, 0, 300, 0)] }, 1 / 60, noRng);
+test('慢慢撞到軌道會彈回碗裡,不會出局', () => {
+  const out = step({ ...arena, combatants: [at('red', 84, 0, 20, 0)] }, 1 / 60, noRng);
   const c = out.combatants[0];
   assert.equal(c.alive, true);
+  assert.ok(!c.ledge);
   assert.ok(c.vx < 0, `沒有彈回來:vx ${c.vx}`);
-  assert.ok(wallDistance(c.x, c.y) + c.radius <= 1e-6, '還卡在牆裡');
+  assert.ok(bowlDistance(c.x, c.y) + c.radius <= 0.5, '還卡在軌道上');
 });
 
-test('後牆沒有口袋 —— 往後撞只會彈回來', () => {
-  const out = step({ ...arena, combatants: [at('red', 0, -95, 0, -300)] }, 1 / 60, noRng);
+test('撞得夠快就跳過軌道,上到平台', () => {
+  const out = step({ ...arena, combatants: [at('red', 84, 0, 300, 0)] }, 1 / 60, noRng);
+  assert.equal(out.combatants[0].ledge, true);
   assert.equal(out.combatants[0].alive, true);
 });
 
-test('衝進口袋就出局,停在口袋裡面', () => {
-  let w = { ...arena, combatants: [at('red', 0, 96, 0, 400)] };
+test('平台上撞到外殼會彈回來,不會出局', () => {
+  let w = { ...arena, combatants: [at('red', 95, 0, 300, 0, { ledge: true })] };
   for (let i = 0; i < 10; i++) w = step(w, 1 / 60, noRng);
+  const o = w.combatants[0];
+  assert.equal(o.alive, true);
+  assert.notEqual(zoneAt(o.x, o.y), ZONE.OUT, '跑出盤外了');
+});
+
+test('後面沒有出口 —— 往後撞再快也只會彈回來', () => {
+  let w = { ...arena, combatants: [at('red', 0, -70, 0, -500)] };
+  for (let i = 0; i < 20; i++) w = step(w, 1 / 60, noRng);
+  assert.equal(w.combatants[0].alive, true);
+});
+
+test('前角:夠快就跳過軌道、飛過邊緣,掉進方槽', () => {
+  const k = Math.SQRT1_2;
+  let w = { ...arena, combatants: [at('red', 50, 50, 400 * k, 400 * k)] };
+  for (let i = 0; i < 20 && w.combatants[0].alive; i++) w = step(w, 1 / 60, noRng);
   const c = w.combatants[0];
-  assert.equal(c.alive, false);
   assert.equal(c.outBy, 'ringout');
-  assert.equal(c.pocket, 'center');
-  assert.ok(c.y > HALF, '要停在口袋裡,不是盤面上');
+  assert.equal(c.pocket, 'right');
+  assert.equal(pocketAt(c.x, c.y)?.id, 'right', '要停在方槽裡');
   assert.equal(c.vx, 0);
   assert.equal(c.vy, 0);
 });
 
-test('前側的圓角是牆,不是口袋', () => {
-  const out = step({ ...arena, combatants: [at('red', 84, 84, 300, 300)] }, 1 / 60, noRng);
-  assert.equal(out.combatants[0].alive, true);
+test('前角:在平台上慢慢晃到邊緣,會被擋下來', () => {
+  // 沿 y = 60 往外找到「平台 → 邊緣」的交界,從平台那一側慢慢往邊緣推
+  let x = 60;
+  while (zoneAt(x + 0.5, 60) !== ZONE.LIP) x += 0.5;
+  let w = { ...arena, combatants: [at('red', x - 1, 60, 30, 0, { ledge: true })] };
+  for (let i = 0; i < 30; i++) w = step(w, 1 / 60, noRng);
+  assert.equal(w.combatants[0].alive, true);
 });
 
-test('隨機高速也不會穿牆:除了口袋,永遠不會出現在盤子外面', () => {
+test('正前方:跳過軌道就掉進凹槽', () => {
+  let w = { ...arena, combatants: [at('red', 0, 60, 0, 400)] };
+  for (let i = 0; i < 10 && w.combatants[0].alive; i++) w = step(w, 1 / 60, noRng);
+  const c = w.combatants[0];
+  assert.equal(c.outBy, 'ringout');
+  assert.equal(c.pocket, 'center');
+  assert.equal(pocketAt(c.x, c.y)?.id, 'center');
+});
+
+test('隨機高速也不會穿牆:除了出口,永遠不會出現在盤外或牆裡', () => {
   let seed = 1;
   const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
   for (let i = 0; i < 400; i++) {
     const a = rnd() * Math.PI * 2;
     const v = 200 + rnd() * 900;
-    const c = at('red', (rnd() * 2 - 1) * 60, (rnd() * 2 - 1) * 60, Math.cos(a) * v, Math.sin(a) * v, { radius: 5 });
+    const c = at('red', (rnd() * 2 - 1) * 50, (rnd() * 2 - 1) * 50, Math.cos(a) * v, Math.sin(a) * v, { radius: 5 });
     let w = { ...arena, combatants: [c] };
     for (let f = 0; f < 30; f++) w = step(w, 0.033, noRng);
     const o = w.combatants[0];
     if (o.outBy === 'ringout') {
       assert.ok(POCKETS.some(p => p.id === o.pocket));
     } else {
-      assert.ok(wallDistance(o.x, o.y) <= 1e-6, `#${i} 跑到盤子外面:(${o.x.toFixed(1)}, ${o.y.toFixed(1)})`);
+      const z = zoneAt(o.x, o.y);
+      assert.ok(z !== ZONE.OUT && z !== ZONE.WALL, `#${i} 跑到 (${o.x.toFixed(1)}, ${o.y.toFixed(1)}) 區域 ${z}`);
     }
   }
 });
@@ -189,18 +219,18 @@ test('隨機高速也不會穿牆:除了口袋,永遠不會出現在盤子外面
 /* ---------- 坡度與軌道 ---------- */
 
 test('坡度把靜止在坡上的陀螺往中央拉', () => {
-  const out = step({ ...arena, combatants: [at('red', 80, 0)] }, 1 / 60, noRng);
+  const out = step({ ...arena, combatants: [at('red', 70, 0)] }, 1 / 60, noRng);
   assert.ok(out.combatants[0].vx < 0);
 });
 
 test('軌道上順著牆加速', () => {
-  const out = step({ ...arena, combatants: [at('red', 95, 0, 0, 60)] }, 1 / 60, noRng);
+  const out = step({ ...arena, combatants: [at('red', 83, 0, 0, 60)] }, 1 / 60, noRng);
   assert.ok(out.combatants[0].vy > 60 * 0.995, '沒有沿牆加速');
 });
 
 test('離開軌道的那一格會被往中央甩', () => {
   // 上一格還在軌道上(railing),這一格已經離開 —— 速度要多出朝內的分量
-  const c = at('red', 70, -70, 0, 0, { railing: true });   // (70,-70) 離牆 30,不在軌道上
+  const c = at('red', 40, -40, 0, 0, { railing: true });   // 離碗緣 26,不在軌道上
   const out = step({ ...arena, combatants: [{ ...c, vx: 0, vy: 200 }] }, 1 / 60, noRng);
   const o = out.combatants[0];
   assert.ok(o.vx < -20, `沒有往中央甩:vx ${o.vx}`);
@@ -257,7 +287,7 @@ test('開場:每顆陀螺各自抽動物與類型,生在盤內、轉速滿', () 
     assert.ok(BEY_TYPES.includes(c.beyType));
     assert.equal(c.spin, 1);
     assert.equal(c.mass, TYPE_STATS[c.beyType].mass);
-    assert.ok(wallDistance(c.x, c.y) < -c.radius);
+    assert.ok(bowlDistance(c.x, c.y) < -c.radius);
     assert.deepEqual(c.buffs, { attack: [], shield: [] });
   }
   // Fighter 本身沒有被加上動物欄位
@@ -270,7 +300,7 @@ test('120 個人也全部生在盤內,而且縮小了', () => {
   assert.equal(w.combatants.length, 120);
   for (const c of w.combatants) {
     assert.ok(c.radius < 8);
-    assert.ok(wallDistance(c.x, c.y) < -c.radius);
+    assert.ok(bowlDistance(c.x, c.y) < -c.radius);
   }
 });
 

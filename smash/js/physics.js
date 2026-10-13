@@ -4,15 +4,17 @@
 // 這裡是真的算出來的,所以物理錯了就是結果錯了。
 //
 // 盤子的形狀只在 stadium.js 定義;陀螺的類型、轉速、爆裂在 beys.js。
-// 出局三種:掉進口袋(ringout)、停轉(spinout)、爆裂(burst)。
+// 出局三種:場外(ringout:掉進前角方槽、或軌道正前方外側的凹槽)、停轉(spinout)、爆裂(burst)。
+// 每顆陀螺不是在碗裡,就是在軌道外的平台上(ledge)—— 要夠快才跳得過軌道;
+// 方槽外圍的邊緣也要夠快才飛得過去。高牆、柱子、透明外殼一律彈回來。
 // 停轉是**終止保證**:每顆陀螺的轉速一定會掉到 0,所以每一場一定會結束。
 //
 // 同隊之間**只分離、不施加衝量**:他們會互相推開避免穿透,但永遠不會把隊友撞出去或撞爆。
 import { newId } from '../../shared/js/ids.js';
 import { expand } from '../../shared/js/roster.js';
 import {
-  HALF, WALL_BOUNCE, RAIL_FLING,
-  wallDistance, wallNormal, pocketAt, slopeAccel, railAccel, onRail, pocketRest, randomSpot,
+  WALL_BOUNCE, RAIL_FLING, RING_HOP, LIP_HOP, ZONE,
+  bowlDistance, bowlNormal, zoneAt, pocketAt, slopeAccel, railAccel, onRail, randomSpot,
 } from './stadium.js';
 import {
   HIT_POWER, HIT_FULL, ATTACK_GAIN, SHIELD_KNOCK, HIT_SPIN_COST, WALL_SPIN_COST,
@@ -37,8 +39,8 @@ export function createWorld({ fighters, rng = Math.random }) {
       fighterId: fighter.id,
       x, y,
       // 發射:每顆帶著不小的初速衝進盤裡 —— 初速太小的話大家在中央慢慢磨,幾乎只會停轉出局
-      vx: (rng() - 0.5) * 320,
-      vy: (rng() - 0.5) * 320,
+      vx: (rng() - 0.5) * 160,
+      vy: (rng() - 0.5) * 160,
       radius,
       mass: statsOf({ beyType }).mass,
       alive: true,
@@ -48,6 +50,7 @@ export function createWorld({ fighters, rng = Math.random }) {
       outBy: null,
       pocket: null,
       railing: false,
+      ledge: false,
       buffs: { attack: [], shield: [] },
       healedAt: -Infinity,
     };
@@ -73,6 +76,77 @@ function knockOut(c, outBy) {
   c.vy = 0;
 }
 
+const STEP_LEN = 1;
+
+function bounce(c, nx, ny) {
+  const vn = c.vx * nx + c.vy * ny;
+  if (vn > 0) {
+    c.vx -= (1 + WALL_BOUNCE) * vn * nx;
+    c.vy -= (1 + WALL_BOUNCE) * vn * ny;
+    c.spin -= WALL_SPIN_COST;
+  }
+}
+
+// 擋住陀螺的區域:高牆、盤外;方槽邊緣在不夠快的時候也算
+function solid(z, fast) {
+  return z === ZONE.WALL || z === ZONE.OUT || (z === ZONE.LIP && !fast);
+}
+
+// 牆在哪個方向:繞一圈取樣,把「是牆」的方向加起來(朝外的法線)
+function wallDirection(x, y, fast) {
+  let nx = 0;
+  let ny = 0;
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    const dx = Math.cos(a);
+    const dy = Math.sin(a);
+    if (solid(zoneAt(x + dx * 2.5, y + dy * 2.5), fast)) { nx += dx; ny += dy; }
+  }
+  const l = Math.hypot(nx, ny);
+  return l < 1e-9 ? null : { x: nx / l, y: ny / l };
+}
+
+// 照盤子的規則處理這一步的位置:(px, py) 是這一步之前的位置。
+function contain(c, px, py) {
+  // 軌道:碗裡的陀螺碰到軌道,往外夠快就跳上平台,不然彈回碗裡。
+  // 平台上的陀螺退回碗緣以內,就是滑回碗裡了。
+  const b = bowlDistance(c.x, c.y);
+  if (!c.ledge && b + c.radius > 0) {
+    const n = bowlNormal(c.x, c.y);
+    if (c.vx * n.x + c.vy * n.y > RING_HOP) {
+      c.ledge = true;
+    } else {
+      c.x -= n.x * (b + c.radius);
+      c.y -= n.y * (b + c.radius);
+      bounce(c, n.x, n.y);
+    }
+  } else if (c.ledge && b + c.radius < 0) {
+    c.ledge = false;
+  }
+  if (!c.ledge) return;
+
+  // 中心掉進方槽或凹槽 —— 出局,就停在那裡
+  const pocket = pocketAt(c.x, c.y);
+  if (pocket) {
+    knockOut(c, 'ringout');
+    c.pocket = pocket.id;
+    return;
+  }
+
+  // 前緣(往行進方向一點)撞到牆:退回上一步的位置,彈開
+  const speed = Math.hypot(c.vx, c.vy);
+  const fast = speed > LIP_HOP;
+  const ux = speed > 1e-9 ? c.vx / speed : 0;
+  const uy = speed > 1e-9 ? c.vy / speed : 0;
+  const ahead = zoneAt(c.x + ux * c.radius * 0.7, c.y + uy * c.radius * 0.7);
+  if (solid(zoneAt(c.x, c.y), fast) || solid(ahead, fast)) {
+    const n = wallDirection(c.x, c.y, fast) ?? { x: ux, y: uy };
+    c.x = px;
+    c.y = py;
+    bounce(c, n.x, n.y);
+  }
+}
+
 export function step(world, dt, rng = Math.random) {
   const next = world.combatants.map(c => ({ ...c, buffs: { attack: [...(c.buffs?.attack ?? [])], shield: [...(c.buffs?.shield ?? [])] } }));
   const impacts = [];
@@ -81,18 +155,26 @@ export function step(world, dt, rng = Math.random) {
   for (const c of next) {
     if (!c.alive) continue;
     const slope = slopeAccel(c.x, c.y);
-    const rail = railAccel(c.x, c.y, c.vx, c.vy);
+    const rail = railAccel(c.x, c.y, c.vx, c.vy, c.radius);
     c.vx += (slope.x + rail.x) * dt;
     c.vy += (slope.y + rail.y) * dt;
-    c.x += c.vx * dt;
-    c.y += c.vy * dt;
+    // 切成每步不超過 1 單位:飛彈能把人炸到一格跑 25 單位,牆只有幾單位厚,一步跨過去就穿牆了
+    const n = Math.max(1, Math.ceil((Math.hypot(c.vx, c.vy) * dt) / STEP_LEN));
+    for (let k = 0; k < n && c.alive; k++) {
+      const px = c.x;
+      const py = c.y;
+      c.x += (c.vx * dt) / n;
+      c.y += (c.vy * dt) / n;
+      contain(c, px, py);
+    }
+    if (!c.alive) continue;
     c.vx *= FRICTION;
     c.vy *= FRICTION;
 
     // 衝完軌道的那一格,往中央甩 —— 極限衝刺是衝進戰場撞人,不是把自己送進口袋
-    const railing = onRail(c.x, c.y);
+    const railing = onRail(c.x, c.y, c.radius);
     if (c.railing && !railing) {
-      const n = wallNormal(c.x, c.y);
+      const n = bowlNormal(c.x, c.y);
       const speed = Math.hypot(c.vx, c.vy);
       c.vx -= n.x * speed * RAIL_FLING;
       c.vy -= n.y * speed * RAIL_FLING;
@@ -164,33 +246,11 @@ export function step(world, dt, rng = Math.random) {
     }
   }
 
-  // 3. 牆與口袋、轉速
+  // 3. 互撞把人推進牆裡的,再擋一次;轉速
   for (const c of next) {
     if (!c.alive) continue;
-
-    const pocket = pocketAt(c.x, c.y);
-    if (pocket && c.y > HALF) {
-      // 中心越過前牆線、而且正對著口袋 —— 掉進去,停在口袋裡
-      knockOut(c, 'ringout');
-      c.pocket = pocket.id;
-      Object.assign(c, pocketRest(pocket, c.x));
-      continue;
-    }
-
-    // 口袋開口的地方沒有牆;其他地方一律擋回來。
-    // 不管跑出去多遠都直接推回牆內 —— 飛彈能把人炸到一格跑 25 單位,不能讓它穿牆。
-    const d = wallDistance(c.x, c.y);
-    if (!pocket && d + c.radius > 0) {
-      const n = wallNormal(c.x, c.y);
-      c.x -= n.x * (d + c.radius);
-      c.y -= n.y * (d + c.radius);
-      const vn = c.vx * n.x + c.vy * n.y;
-      if (vn > 0) {
-        c.vx -= (1 + WALL_BOUNCE) * vn * n.x;
-        c.vy -= (1 + WALL_BOUNCE) * vn * n.y;
-        c.spin -= WALL_SPIN_COST;
-      }
-    }
+    contain(c, c.x, c.y);
+    if (!c.alive) continue;
 
     c.spin = decaySpin(c, dt);
     if (c.spin <= 0) {

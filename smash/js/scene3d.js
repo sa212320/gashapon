@@ -9,56 +9,15 @@
 // 旁邊那顆的正面會比這顆的背面還近,把描邊整段吃掉(扭蛋機踩過這個坑)。
 import * as THREE from 'three';
 import { HIT_POWER, HIT_FULL } from './physics.js';
+import { INK, outlinable, part } from './outline3d.js';
+import { createStadium } from './stadium3d.js';
+import { BOUNDS, heightAt } from './stadium.js';
 
-const INK = 0x574239;
 const GROUND = -4;        // 場地上表面的高度,角色站在這裡
 const SPARK_TIME = 0.22;  // 撞擊火花幾秒
 const SPARK_MAX = 5;      // 同時最多幾個火花,再多就是一團糊
 const BLAST_TIME = 0.5;   // 爆炸演出幾秒
 const BLAST_R = 46;       // 跟 items.js 的 BLAST_RADIUS 對齊:看到的圈就是真的會被炸到的範圍
-
-// 一個可描邊的群組:userData.edges / userData.fills 收集所有零件,
-// 排序時整組一起給 renderOrder,零件才不會互相穿插。
-function outlinable() {
-  const g = new THREE.Group();
-  g.userData.edges = [];
-  g.userData.fills = [];
-  return g;
-}
-
-// 把一塊幾何加進群組,順便長出它自己的描邊殼。
-// 描邊是放大的背面殼,所以每個零件都要有一份 —— 只描外框會讓零件黏成一團。
-//
-// depth:true 留給場地那種「只有一個、不會被誰擠到」的東西 —— 讓它照常做深度測試,
-// 背面殼就只露出邊緣那一圈。關掉深度測試的話,它會整片蓋在自己的正面上。
-function part(group, geo, color, opts = {}) {
-  const {
-    pos = [0, 0, 0], scale = [1, 1, 1], rotX = 0,
-    outline = 0.14, depth = false, into = group,
-  } = opts;
-
-  const fill = new THREE.Mesh(geo, Array.isArray(color)
-    ? color.map(c => new THREE.MeshBasicMaterial({ color: c }))
-    : new THREE.MeshBasicMaterial({ color }));
-  fill.position.set(...pos);
-  fill.scale.set(...scale);
-  fill.rotation.x = rotX;
-  into.add(fill);
-  group.userData.fills.push(fill);
-
-  const edge = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
-    color: INK, side: THREE.BackSide, depthTest: depth, depthWrite: depth,
-  }));
-  edge.position.set(...pos);
-  edge.rotation.x = rotX;
-  // 描邊要「加厚一段固定距離」,不是整體放大 —— 直接乘 1.16 的話,
-  // 小零件的邊會細到看不見,大零件的邊又粗得像穿盔甲。
-  edge.scale.set(scale[0] + outline, scale[1] + outline, scale[2] + outline);
-  edge.userData.base = edge.scale.clone();
-  into.add(edge);
-  group.userData.edges.push(edge);
-  return fill;
-}
 
 // 一顆鋸齒星(半徑 1,躺在 XY 平面朝 +Z)。爆炸畫成球體會變成一團半透明的糊,
 // 星形才是小孩認得的「爆炸」。
@@ -80,7 +39,7 @@ function shade(color, k) {
   return new THREE.Color(color).multiplyScalar(k);
 }
 
-export function createScene(canvas) {
+export function createScene(canvas, { pitch = 55 } = {}) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
@@ -90,25 +49,9 @@ export function createScene(canvas) {
   scene.add(root);
 
   /* ---------- 場地 ---------- */
-  // 側面要比上表面暗,而且上表面的邊緣要再畫一圈深色 ——
-  // 只靠輪廓線的話,畫面下半看到的那條線其實是圓盤**底部**的輪廓,
-  // 真正會掉下去的上表面邊界比它高一截,小孩會以為還站得住。
-  const arena = outlinable();
-  part(arena, new THREE.CylinderGeometry(100, 100, 10, 64),
-    [0xE3CDAE, 0xF7E9D6, 0xCDB491], { pos: [0, GROUND - 5, 0], outline: 0.03, depth: true });
-  root.add(arena);
-
-  const rim = new THREE.Mesh(
-    new THREE.RingGeometry(0.94, 1, 64),
-    new THREE.MeshBasicMaterial({ color: INK }));
-  rim.rotation.x = -Math.PI / 2;
-  root.add(rim);
-
-  const inner = new THREE.Mesh(
-    new THREE.CircleGeometry(0.55, 48),
-    new THREE.MeshBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.4 }));
-  inner.rotation.x = -Math.PI / 2;
-  root.add(inner);
+  // 對戰盤的形狀全部在 stadium.js;這裡只是把它放進場景
+  const stadium = createStadium(GROUND);
+  root.add(stadium);
 
   /* ---------- 共用幾何 ---------- */
   const TIP = new THREE.ConeGeometry(1, 1, 10);
@@ -236,7 +179,7 @@ export function createScene(canvas) {
   }
 
   function groundDisc(m, x, y, scale) {
-    m.position.set(x, GROUND + 0.2, y);
+    m.position.set(x, GROUND + heightAt(x, y) + 0.2, y);
     m.scale.setScalar(scale);
     return m;
   }
@@ -258,7 +201,7 @@ export function createScene(canvas) {
     part(g, SPIKE, flash ? 0xFFF1B8 : 0xFF9A3C,
       { pos: [0, 12, -3], scale: flash ? [3.2, 3.2, 3.2] : [2.4, 2.4, 2.4], outline: 0.4 });
 
-    g.position.set(bomb.x, GROUND + 15, bomb.y);
+    g.position.set(bomb.x, GROUND + heightAt(bomb.x, bomb.y) + 15, bomb.y);
     g.scale.setScalar(pulse);
     return g;
   }
@@ -280,7 +223,7 @@ export function createScene(canvas) {
       const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
         color, transparent: true, opacity: fade, depthTest: false, depthWrite: false,
       }));
-      m.position.set(spark.x, GROUND + 7, spark.y);
+      m.position.set(spark.x, GROUND + heightAt(spark.x, spark.y) + 7, spark.y);
       m.quaternion.copy(camera.quaternion);
       m.rotateZ(spark.spin);
       m.scale.setScalar(scale);
@@ -302,7 +245,7 @@ export function createScene(canvas) {
       const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
         color, transparent: true, opacity, depthTest: false, depthWrite: false,
       }));
-      m.position.set(blast.x, GROUND + 16, blast.y);
+      m.position.set(blast.x, GROUND + heightAt(blast.x, blast.y) + 16, blast.y);
       m.quaternion.copy(camera.quaternion);
       m.rotateZ(spin);
       m.scale.setScalar(scale);
@@ -318,7 +261,7 @@ export function createScene(canvas) {
       side: THREE.DoubleSide, depthWrite: false,
     }));
     shock.rotation.x = -Math.PI / 2;
-    shock.position.set(blast.x, GROUND + 0.4, blast.y);
+    shock.position.set(blast.x, GROUND + heightAt(blast.x, blast.y) + 0.4, blast.y);
     shock.scale.setScalar(BLAST_R * ease);
     out.push(shock);
 
@@ -346,61 +289,74 @@ export function createScene(canvas) {
   }
 
   const CAM = new THREE.Vector3();
-  // 鏡頭固定從這個方向斜上方俯視:太正上方就退化成 2D,太低則看不到場地後半。
+  // 鏡頭固定從這個方向斜上方俯視(pitch = 俯角):太正上方就退化成 2D,太低則看不到場地後半。
   // 只有「距離」是算出來的。
-  const CAM_LOOK = new THREE.Vector3(0, 0, 8);
-  const CAM_DIR = new THREE.Vector3(0, 152, 238).normalize();
-  const CAM_DIST = 282;              // 原本手調出來的距離,當成寬螢幕的下限
-  const CAM_SIN = CAM_DIR.y;         // 俯角的 sin / cos,拿來算平面場地的投影高度
-  const CAM_COS = Math.hypot(CAM_DIR.x, CAM_DIR.z);
-  const CAM_MARGIN = 1.06;
+  const CAM_LOOK = new THREE.Vector3(0, GROUND, 0);
+  const CAM_DIR = new THREE.Vector3(0, Math.sin((pitch * Math.PI) / 180), Math.cos((pitch * Math.PI) / 180));
+  const CAM_MARGIN = 0.9;            // 盤子最多佔畫面寬高的這麼多
 
-  // 鏡頭距離每一格重算,讓「場地 + 所有人」一定進得了畫面。
-  //
-  // 兩件事會讓內容撐破畫面,而且**都不是**把鏡頭釘在固定位置能解決的:
-  //   1. 極巨化沒有上限,疊到 5 層身體半徑有 89,比整個場地還大
-  //   2. 視窗變窄時水平視角跟著縮 —— PerspectiveCamera 的 fov 是**垂直**的,
-  //      水平視角是 atan(tan(fov/2) × aspect),aspect 小於 1 就比垂直還窄
-  // 用包住內容的球去算距離,兩個軸取比較窄的那個,就不會有哪一邊被切掉。
+  // 要框進畫面的東西:整台盤子(含透明外殼的高度)。
+  const FIT = [];
+  for (const x of [BOUNDS.x0, BOUNDS.x1]) {
+    for (const z of [BOUNDS.z0, BOUNDS.z1]) {
+      for (const y of [GROUND, GROUND + 30]) FIT.push(new THREE.Vector3(x, y, z));
+    }
+  }
+  const probe = new THREE.Vector3();
+
+  // 盤子的投影範圍(NDC):{ x: 最寬的那一側, top, bottom }
+  function extent(dist) {
+    camera.position.copy(CAM_DIR).multiplyScalar(dist).add(CAM_LOOK);
+    camera.lookAt(CAM_LOOK);
+    camera.updateMatrixWorld();
+    let x = 0;
+    let top = -Infinity;
+    let bottom = Infinity;
+    for (const p of FIT) {
+      probe.copy(p).project(camera);
+      x = Math.max(x, Math.abs(probe.x));
+      top = Math.max(top, probe.y);
+      bottom = Math.min(bottom, probe.y);
+    }
+    return { x, top, bottom };
+  }
+
+  function fits(dist) {
+    const e = extent(dist);
+    return e.x <= CAM_MARGIN && e.top <= CAM_MARGIN && e.bottom >= -CAM_MARGIN;
+  }
+
+  // 距離只跟長寬比有關:盤子不縮、陀螺也不會變大,取景**不看任何人站在哪裡** ——
+  // 第一版拿「最遠那個人到中心的距離」去算,結果整場畫面一直在呼吸。
+  // 用投影去試而不是公式:靠鏡頭那側(口袋)透視會放大,公式算的會把口袋切掉。
+  let fitAspect = 0;
   let camDist = 0;
 
-  function frameCamera(world) {
-    // 取景**不看任何人站在哪裡**。第一版拿「最遠那個人到中心的距離」去算,
-    // 結果人一直在動,鏡頭就一直在呼吸 —— 整場畫面不停放大縮小。
-    //
-    // 真正需要多留空間的是「身體變大」(極巨化疊到 5 層半徑有 89),那是
-    // 撿到道具才會變、而且一整場大多不變的量。場地半徑也用開場的值:
-    // 場地會一路縮小,跟著縮就等於一路推近,也是一種持續變焦。
-    const home = 100 * Math.SQRT2;
-    let fat = 0;
-    for (const c of world.combatants) {
-      if (c.alive) fat = Math.max(fat, c.radius);
+  function frameCamera() {
+    if (camera.aspect !== fitAspect) {
+      // 先找距離,再把盤子上下置中(透視讓靠鏡頭那側比較大,看的點要往前挪),來回幾次就收斂
+      CAM_LOOK.z = 0;
+      for (let pass = 0; pass < 4; pass++) {
+        let lo = 50;
+        let hi = 3000;
+        for (let i = 0; i < 30; i++) {
+          const mid = (lo + hi) / 2;
+          if (fits(mid)) hi = mid; else lo = mid;
+        }
+        camDist = hi;
+        const e = extent(camDist);
+        const off = (e.top + e.bottom) / 2;
+        const vHalf = (camera.fov * Math.PI) / 360;
+        CAM_LOOK.z -= (off * camDist * Math.tan(vHalf)) / CAM_DIR.y;
+      }
+      fitAspect = camera.aspect;
     }
-    const need = home + fat;
-    const tall = fat * 1.3;
-
-    const vHalf = (camera.fov * Math.PI) / 360;
-    const hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
-    // 場地是**平**的,垂直方向會透視壓縮:高度只佔 sin(俯角),
-    // 用包住內容的「球」去算會退太遠,畫面整個縮成一小塊。
-    const wide = need / Math.tan(hHalf);
-    const high = (need * CAM_SIN + tall * CAM_COS) / Math.tan(vHalf);
-    const target = Math.max(CAM_DIST * (need / 100), Math.max(wide, high) * CAM_MARGIN);
-
-    // 撿到極巨化、或巨人出局時距離才會變,這時候用補間滑過去,不要用跳的
-    camDist = camDist ? camDist + (target - camDist) * 0.06 : target;
     camera.position.copy(CAM_DIR).multiplyScalar(camDist).add(CAM_LOOK);
     camera.lookAt(CAM_LOOK);
   }
 
   function draw(world, teams) {
-    frameCamera(world);
-    const r = 100;
-    arena.scale.set(r / 100, 1, r / 100);
-    rim.scale.setScalar(r);
-    rim.position.y = GROUND + 0.15;
-    inner.scale.setScalar(r);
-    inner.position.y = GROUND + 0.1;
+    frameCamera();
 
     const live = [];
     for (const c of world.combatants) {
@@ -409,7 +365,7 @@ export function createScene(canvas) {
       if (c.alive) {
         a.group.visible = true;
         a.shadow.visible = true;
-        a.group.position.set(c.x, GROUND, c.y);
+        a.group.position.set(c.x, GROUND + heightAt(c.x, c.y), c.y);
         a.group.scale.setScalar(c.radius);
         // 轉速跟著移動速度加一點,衝過去的時候看起來比較兇
         const speed = Math.hypot(c.vx, c.vy);
@@ -418,7 +374,7 @@ export function createScene(canvas) {
         // 往行進方向傾:陀螺是靠傾斜在跑的,直挺挺平移看起來像貼紙
         a.group.rotation.z = -c.vx * 0.0016;
         a.group.rotation.x = c.vy * 0.0016;
-        a.shadow.position.set(c.x, GROUND + 0.25, c.y);
+        a.shadow.position.set(c.x, GROUND + heightAt(c.x, c.y) + 0.25, c.y);
         a.shadow.scale.setScalar(c.radius * 0.95);
         live.push(a.group);
         setOutline(a.group, c.buffs);
@@ -438,7 +394,7 @@ export function createScene(canvas) {
     for (const it of world.items) {
       const m = itemVisual(it);
       // 上下輕輕浮動,讓它跟場上的陀螺區分開來
-      m.position.set(it.x, GROUND + 17 + Math.sin(world.time * 2.4) * 1.6, it.y);
+      m.position.set(it.x, GROUND + heightAt(it.x, it.y) + 17 + Math.sin(world.time * 2.4) * 1.6, it.y);
       addProp(m);
       addProp(groundDisc(shadowDisc(0.16), it.x, it.y, 6));
     }
@@ -509,7 +465,8 @@ export function createScene(canvas) {
     draw,
     resize,
     camera,
-    reset() { clearActors(); seenBombs.clear(); blasts = []; sparks = []; camDist = 0; },
+    ready: stadium.userData.ready,   // 盤子的模型下載完
+    reset() { clearActors(); seenBombs.clear(); blasts = []; sparks = []; },
     dispose() { clearProps(); clearActors(); renderer.dispose(); },
   };
 }

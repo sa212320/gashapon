@@ -5,7 +5,7 @@ import {
   ITEM_TYPES, BUFF_TIME, MAX_LAYERS, MISSILE_FUSE, BLAST_RADIUS,
   spawnItem, addLayer, tickBuffs, applyPickups, explodeMissiles,
 } from '../smash/js/items.js';
-import { wallDistance, pocketAt } from '../smash/js/stadium.js';
+import { bowlDistance } from '../smash/js/stadium.js';
 
 function seeded(seed) {
   let a = seed >>> 0;
@@ -34,7 +34,7 @@ test('四種道具就這四種', () => {
 test('道具掉在盤內,不會掉在牆邊或口袋上', () => {
   for (let seed = 0; seed < 80; seed++) {
     const it = spawnItem(world([]), 'attack', seeded(seed)).items[0];
-    assert.ok(wallDistance(it.x, it.y) < -it.radius);
+    assert.ok(bowlDistance(it.x, it.y) < -it.radius);
   }
 });
 
