@@ -294,6 +294,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   }
 
   const SHIELD_RING = new THREE.RingGeometry(1.15, 1.35, 40);
+  const BLUR_RING = new THREE.RingGeometry(0.5, 1.08, 40);
 
   function actorFor(c, color) {
     let a = actors.get(c.id);
@@ -308,10 +309,19 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     shield.position.y = 0.6;
     shield.visible = false;
     group.add(shield);
+    // 高速旋轉的殘影:刃轉太快時,一格一格畫會出現車輪錯覺(看起來變慢、甚至倒轉),
+    // 疊一層半透明的隊伍色圓盤,看得出「轉很快」,也蓋掉錯覺。轉速掉了就淡掉,刃的形狀露出來。
+    const blur = new THREE.Mesh(BLUR_RING, new THREE.MeshBasicMaterial({
+      color: new THREE.Color(color).lerp(new THREE.Color(0xFFFFFF), 0.15), transparent: true, opacity: 0,
+      side: THREE.DoubleSide, depthWrite: false,
+    }));
+    blur.rotation.x = -Math.PI / 2;
+    blur.position.y = 0.79;
+    group.add(blur);
     root.add(group, shadow);
     // 每顆給一個固定的起始角,不然全場的刃會整齊劃一地同步轉,像同一個物件複製出來的
     a = {
-      group, shadow, shield,
+      group, shadow, shield, blur,
       spin: group.userData.spin,
       parts: group.userData.parts,
       outAt: null, debris: null, faded: false,
@@ -524,8 +534,11 @@ export function createScene(canvas, { pitch = 55 } = {}) {
         a.group.position.set(c.x, ground + fall, c.y);
         a.group.scale.setScalar(c.radius);
         // 轉速就是命:轉得愈慢,刃轉得愈慢
-        a.spinRate = 6 + 22 * c.spin;
+        // 剛射出去轉最快(約每秒 9 圈),轉速掉下來就慢慢慢下來
+        a.spinRate = 6 + 52 * c.spin ** 1.5;
         a.spin.rotation.y += dt * a.spinRate;
+        a.blur.material.opacity = 0.45 * Math.min(1, Math.max(0, (a.spinRate - 22) / 25));
+        a.blur.visible = a.blur.material.opacity > 0.01;
         // 記下這一格的速度與位置:出局時畫面要接著這股慣性演
         a.vx = c.vx;
         a.vy = c.vy;
@@ -555,6 +568,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
       if (a.outAt === null) {
         a.outAt = world.time;
         a.shield.visible = false;
+        a.blur.visible = false;
         setOutline(a.group, { buffs: {} }, world.time);
         if (c.outBy === 'burst') burstApart(a, c, team?.color ?? '#CCCCCC');
         // 掉進出口的會被牆擋住一部分:描邊也要照深度畫,不然整圈描邊會蓋在牆上
