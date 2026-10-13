@@ -72,7 +72,6 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   root.add(stadium);
 
   /* ---------- 共用幾何 ---------- */
-  const ROD = new THREE.CylinderGeometry(1, 1, 1, 6);
   const SHADOW = new THREE.CircleGeometry(1, 18);
   const RING = new THREE.RingGeometry(0.78, 1, 32);
   const RING_FAT = new THREE.RingGeometry(0.9, 1, 48);
@@ -228,26 +227,30 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     return g;
   }
 
-  // 卡通飛彈:白色彈身 + 紅色彈頭 + 冰藍尾翼,從左上方斜斜落到準星。不追蹤 —— 落點就是準星。
+  // 飛彈從左上方斜斜落到準星。不追蹤 —— 落點就是準星。
   const MISSILE_FROM = new THREE.Vector3(-70, 130, -40);   // 不能太遠,不然大半段倒數都在畫面外
-  const NOSE = new THREE.ConeGeometry(1, 1, 12);
-  const FIN = new THREE.BoxGeometry(1, 1, 1);
+  // 落下的飛彈就是吃到的那個道具圖示(彈頭朝上的圖),轉成彈頭朝著落點:
+  // 把這一格的位置與落點投影到螢幕上,算出畫面上的飛行方向。
+  const MISSILE_SIZE = 26;
+  const P0 = new THREE.Vector3();
+  const P1 = new THREE.Vector3();
   function missileVisual(strike) {
     const k = 1 - Math.max(0, strike.fuse) / MISSILE_FUSE;
     const ease = k * k;                          // 先慢後快,像在加速落下
     const target = new THREE.Vector3(strike.x, GROUND + heightAt(strike.x, strike.y), strike.y);
     const from = target.clone().add(MISSILE_FROM);
-    const g = outlinable();
-    part(g, ROD, 0xFFFFFF, { pos: [0, 0, 0], scale: [3, 12, 3], outline: 0.5 });
-    part(g, NOSE, 0xE4572E, { pos: [0, -8.5, 0], scale: [3, 5, 3], rotX: Math.PI, outline: 0.5 });
-    for (let i = 0; i < 3; i++) {
-      const a = (i * Math.PI * 2) / 3;
-      part(g, FIN, 0x8EC5E8, { pos: [Math.cos(a) * 2.6, 5, Math.sin(a) * 2.6], scale: [2.4, 4, 0.6], outline: 0.4 });
-    }
-    g.position.copy(from.lerp(target, ease));
-    g.lookAt(target);
-    g.rotateX(Math.PI / 2);   // 讓彈頭(-y)朝向落點
-    return g;
+    const tex = itemTex.get('missile');
+    const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex ?? null, transparent: true, depthTest: false }));
+    m.renderOrder = 9000;
+    m.position.copy(from.lerp(target, ease));
+    P0.copy(m.position).project(camera);
+    P1.copy(target).project(camera);
+    const angle = Math.atan2(P1.y - P0.y, (P1.x - P0.x) * camera.aspect);
+    m.material.rotation = angle - Math.PI / 2;   // 圖裡彈頭朝上(+90°)
+    const w = tex?.image ? tex.image.width / tex.image.height : 0.53;
+    m.scale.set(MISSILE_SIZE * w, MISSILE_SIZE, 1);
+    m.center.set(0.5, 0.8);   // 對準彈頭附近,落地那一刻是彈頭碰到準星
+    return m;
   }
 
   // 撞擊火花。物理那邊已經把「靠在一起互推」濾掉了,這裡收到的都是真的重擊,
