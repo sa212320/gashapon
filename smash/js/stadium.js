@@ -64,11 +64,11 @@ export const WALL_BOUNCE = 0.7;   // 撞牆的反彈係數
 
 // 區域圖的代號(跟 stadium-grid.js 一致)
 export const ZONE = Object.freeze({
-  OUT: 0, BOWL: 1, PLATEAU: 2, LIP: 3, WALL: 4, OVER_LEFT: 5, OVER_RIGHT: 6, XTREME: 7,
+  OUT: 0, BOWL: 1, PLATEAU: 2, LIP: 3, WALL: 4, OVER_LEFT: 5, OVER_RIGHT: 6, XTREME: 7, PILLAR: 8,
 });
 
-// 各區域站上去的高度(碗心 = 0),實測取整
-const ZONE_HEIGHT = Object.freeze({ 2: 10.2, 3: 15, 4: 30, 5: 3.6, 6: 3.6, 7: 3.4, 0: 0 });
+// 各區域的高度(碗心 = 0),實測取整。畫面照這個把每一區拉高
+export const ZONE_HEIGHT = Object.freeze({ 2: 10.2, 3: 15, 4: 30, 5: 3.6, 6: 3.6, 7: 3.4, 8: 48, 0: 0 });
 
 export const POCKETS = Object.freeze([
   Object.freeze({ id: 'left', zone: ZONE.OVER_LEFT }),

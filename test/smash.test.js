@@ -211,7 +211,7 @@ test('隨機高速也不會穿牆:除了出口,永遠不會出現在盤外或牆
       assert.ok(POCKETS.some(p => p.id === o.pocket));
     } else {
       const z = zoneAt(o.x, o.y);
-      assert.ok(z !== ZONE.OUT && z !== ZONE.WALL, `#${i} 跑到 (${o.x.toFixed(1)}, ${o.y.toFixed(1)}) 區域 ${z}`);
+      assert.ok(z !== ZONE.OUT && z !== ZONE.WALL && z !== ZONE.PILLAR, `#${i} 跑到 (${o.x.toFixed(1)}, ${o.y.toFixed(1)}) 區域 ${z}`);
     }
   }
 });

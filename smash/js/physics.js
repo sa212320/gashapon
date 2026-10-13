@@ -89,7 +89,7 @@ function bounce(c, nx, ny) {
 
 // 擋住陀螺的區域:高牆、盤外;方槽邊緣在不夠快的時候也算
 function solid(z, fast) {
-  return z === ZONE.WALL || z === ZONE.OUT || (z === ZONE.LIP && !fast);
+  return z === ZONE.WALL || z === ZONE.PILLAR || z === ZONE.OUT || (z === ZONE.LIP && !fast);
 }
 
 // 牆在哪個方向:繞一圈取樣,把「是牆」的方向加起來(朝外的法線)

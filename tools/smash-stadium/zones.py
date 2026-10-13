@@ -15,7 +15,7 @@ def h(x,y):
             if 0<=i<hm.shape[0] and 0<=j<hm.shape[1] and not np.isnan(hm[i,j]): vals.append(hm[i,j])
     return max(vals) if vals else float('nan')
 X0,X1,Y0,Y1=-101,101,-91,123
-# 0 盤外 1 碗(軌道外緣以內) 2 平台 3 邊緣(跳得過) 4 高牆/柱子 5 左方槽 6 右方槽 7 中間凹槽
+# 0 盤外 1 碗(軌道外緣以內) 2 平台 3 邊緣(跳得過) 4 高牆 5 左方槽 6 右方槽 7 中間凹槽 8 柱子
 codes=[]
 for y in range(Y0,Y1):
     for x in range(X0,X1):
@@ -31,8 +31,9 @@ for y in range(Y0,Y1):
             if abs(cx)<32 and 60<cy<90: codes.append(7)
             elif abs(cx)>=56 and cy<102: codes.append(5 if cx<0 else 6)
             else: codes.append(0)
+        elif v>=40: codes.append(8)
         elif v>=20: codes.append(4)
-        elif v>14: codes.append(3)
+        elif v>14: codes.append(3 if abs(cx)>=50 or cy<0 else 4)   # 前方正中那一段的斜面歸給高牆
         else: codes.append(2)
 # RLE:每段 = 區域代號(1 字元)+ 長度(base36,用 '.' 結尾)
 rle=[]; prev=codes[0]; n=0
@@ -44,12 +45,12 @@ W=X1-X0; H=Y1-Y0
 with open(out,'w') as f:
     f.write("// 對戰盤的區域圖(自動產生,不要手改)。來源:tools/smash-stadium 從 Nick__Furry 的 Xtreme 盤 3D 檔\n")
     f.write("// (MakerWorld 1147551,CC BY-NC)拼回原位後算的高度圖。每格 1 單位,x 從 %d、y 從 %d,寬 %d 高 %d。\n"%(X0,Y0,W,H))
-    f.write("// 區域:0 盤外 1 碗 2 平台 3 方槽邊緣(跳得過) 4 高牆/柱子 5 左方槽 6 右方槽 7 中間凹槽\n")
+    f.write("// 區域:0 盤外 1 碗 2 平台 3 方槽邊緣(跳得過) 4 高牆 5 左方槽 6 右方槽 7 中間凹槽 8 柱子\n")
     f.write(f"export const GRID = Object.freeze({{ x0: {X0}, y0: {Y0}, w: {W}, h: {H}, rle: '{s}' }});\n")
 import collections
 print('cells',len(codes),'rle chars',len(s),collections.Counter(codes))
 # 預覽
 from PIL import Image
-pal={0:(0,0,0),1:(110,150,210),2:(200,220,240),3:(240,200,80),4:(120,60,40),5:(220,60,60),6:(60,180,60),7:(160,60,200)}
+pal={8:(60,20,10),0:(0,0,0),1:(110,150,210),2:(200,220,240),3:(240,200,80),4:(120,60,40),5:(220,60,60),6:(60,180,60),7:(160,60,200)}
 img=np.array([pal[c] for c in codes],np.uint8).reshape(H,W,3)[::-1]
 Image.fromarray(img).resize((W*3,H*3),Image.NEAREST).save(out+'.png')

@@ -116,7 +116,7 @@ test('方槽外圍有一圈邊緣:要飛過去才掉得進去', () => {
 test('軌道正前方外側是中間凹槽,再外面是高牆', () => {
   assert.equal(zoneAt(0, 76), ZONE.XTREME);
   assert.equal(pocketAt(0, 76)?.id, 'center');
-  assert.equal(zoneAt(0, 96), ZONE.WALL);
+  assert.ok([ZONE.WALL, ZONE.PILLAR].includes(zoneAt(0, 96)));
 });
 
 test('後面沒有出口', () => {

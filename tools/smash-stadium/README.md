@@ -1,4 +1,4 @@
-# 大亂鬥對戰盤:從 3D 檔做出 `stadium.bin` 與 `stadium-grid.js`
+# 大亂鬥對戰盤:從 3D 檔量出 `stadium-grid.js`
 
 來源模型:Nick__Furry 照 Takara Tomy 原版復刻的 Beyblade X Xtreme 盤
 (MakerWorld <https://makerworld.com/models/1147551>,授權 CC BY-NC)。
@@ -16,8 +16,8 @@
    再用內緣弧線(半徑 163mm ≈ 軌道正前方 165mm)對到碗心。
 4. `heightmap.py full.json hm.npy` —— 整台的頂面高度圖。
 5. `zones.py hm.npy stadium-grid.js` —— 物理用的區域圖(每格 1 單位),複製到 `smash/js/`。
-6. `export.py full.json stadium.bin` —— 減面後的網格,複製到 `smash/models/`,
-   並更新 `smash/js/stadium3d.js` 裡 `stadium.bin?v=` 的雜湊(sha1 前 8 碼)。
+6.(不再使用)`export.py` 是早期直接放原檔網格的做法;現在畫面由 `smash/js/stadium3d.js`
+   照 `stadium-grid.js` 與 `stadium.js` 的實測表自己畫,面數約 8 千。
 
 `render3d.py`、`render_idx.py` 是檢查用的預覽圖。外殼(shell)零件跟外圈沒有共用切面,沒有拼;
-畫面上的透明冰牆是照 `BOUNDS` 畫的。
+畫面上的透明冰牆沿著區域圖的外框畫。
