@@ -16,7 +16,7 @@ export function createSmashSetup({ name = '我的大亂鬥', fighters = [], item
     id: newId('sm'),
     name,
     fighters,
-    items: items ?? { attack: true, speed: true, giant: true, bomb: true },
+    items: items ?? { attack: true, shield: true, spin: true, missile: true },
   };
 }
 
@@ -40,8 +40,12 @@ function sanitizeSetup(raw) {
       count: Number.isFinite(f.count) ? Math.max(0, Math.min(12, Math.floor(f.count))) : 0,
     }));
 
+  // 舊存檔的道具改名了:速度 → 補包(spin)、炸彈 → 飛彈(missile)。
+  // 盾牌是新的,舊存檔沒有就是開;變大(giant)拿掉了,直接忽略。
+  const ITEM_ALIASES = { spin: 'speed', missile: 'bomb' };
+  const rawItems = raw.items && typeof raw.items === 'object' && !Array.isArray(raw.items) ? raw.items : {};
   const items = {};
-  for (const t of ITEM_TYPES) items[t] = raw.items?.[t] !== false;
+  for (const t of ITEM_TYPES) items[t] = (rawItems[t] ?? rawItems[ITEM_ALIASES[t]]) !== false;
 
   return {
     id: raw.id,

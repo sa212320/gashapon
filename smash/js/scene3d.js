@@ -129,8 +129,9 @@ export function createScene(canvas) {
   // 小孩要在半秒內決定「那個值不值得搶」,寫字是唯一不用猜的做法。
   const ITEM_LOOK = {
     attack: { color: 0xFF6B4A, label: '攻' },
-    speed: { color: 0xFFC44A, label: '速' },
-    giant: { color: 0xA970F2, label: '大' },
+    shield: { color: 0x5AA9F2, label: '盾' },
+    spin: { color: 0x5CCB7A, label: '轉' },
+    missile: { color: 0xA970F2, label: '彈' },
   };
   const ICONS = new Map();
 

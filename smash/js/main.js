@@ -100,13 +100,15 @@ function start() {
 
     const enabled = ITEM_TYPES.filter(t => getActive(state).items[t]);
     nextItem -= dt;
-    if (false && nextItem <= 0 && enabled.length > 0) {   // 暫停:道具在 Task 5/6 改版
-      const type = enabled[Math.floor(Math.random() * enabled.length)];
-      world = type === 'bomb' ? spawnBomb(world) : spawnItem(world, type);
+    if (nextItem <= 0 && enabled.length > 0) {
+      world = spawnItem(world, enabled[Math.floor(Math.random() * enabled.length)]);
       nextItem = ITEM_EVERY;
     }
 
     const before = aliveOf(world).length;
+    world = explodeMissiles(world, dt);
+    world = tickBuffs(world, dt);
+    world = applyPickups(world);
     world = think(world, dt);
     world = step(world, dt);
     if (aliveOf(world).length < before) sfx.clunk();
@@ -212,7 +214,7 @@ function renderTeams() {
   }));
 }
 
-const ITEM_INPUT = { attack: 'itemAttack', speed: 'itemSpeed', giant: 'itemGiant', bomb: 'itemBomb' };
+const ITEM_INPUT = { attack: 'itemAttack', shield: 'itemShield', spin: 'itemSpin', missile: 'itemMissile' };
 
 function renderItems() {
   for (const t of ITEM_TYPES) $(ITEM_INPUT[t]).checked = draft.items[t];
