@@ -13,7 +13,7 @@ import { HIT_POWER, HIT_FULL } from './physics.js';
 import { INK, outlinable, part } from './outline3d.js';
 import { createStadium } from './stadium3d.js';
 import { createBey, setChipTexture, loadChipTextures } from './bey3d.js';
-import { HEAL_FLASH, MISSILE_FUSE, BLAST_RADIUS } from './items.js';
+import { HEAL_FLASH, MISSILE_FUSE, BLAST_RADIUS, FROST_FLIGHT } from './items.js';
 import * as ART from './art.js';
 import { fxFrame } from './fx-frame.js';
 import { landing } from './opening.js';
@@ -270,6 +270,32 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     return g;
   }
 
+  // 寒氣:一顆冰晶邊轉邊飛向目標現在的位置,後面拖幾顆小冰點;外框是發射隊伍色
+  function frostVisual(f, target, color) {
+    const k = Math.min(1, f.t / FROST_FLIGHT);
+    const out = [];
+    const at = q => {
+      const x = f.fromX + (target.x - f.fromX) * q;
+      const y = f.fromY + (target.y - f.fromY) * q;
+      // 拋一點弧線,看得出是「射過去」
+      return new THREE.Vector3(x, GROUND + heightAt(x, y) + 6 + Math.sin(q * Math.PI) * 14, y);
+    };
+    for (const [q, size, geo, col] of [
+      [k, 9, STAR, color], [k, 7.4, STAR2, 0xE6F7FF],
+      [k - 0.12, 3.5, STAR2, 0xBFE8FF], [k - 0.24, 2.6, STAR2, 0xBFE8FF], [k - 0.36, 1.8, STAR2, 0xBFE8FF],
+    ]) {
+      if (q < 0) continue;
+      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: col, transparent: true, depthTest: false, depthWrite: false }));
+      m.position.copy(at(q));
+      m.quaternion.copy(camera.quaternion);
+      m.rotateZ(f.t * 14);
+      m.scale.setScalar(size);
+      m.renderOrder = 9000;
+      out.push(m);
+    }
+    return out;
+  }
+
   // 衝刺的殘影:最近幾格的位置各留一個淡淡的隊伍色圓盤,愈舊愈淡
   function dashTrailVisual(trail, color, radius) {
     return trail.map((p, i) => {
@@ -392,6 +418,9 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   const SHIELD_RIM = new THREE.RingGeometry(1.42, 1.62, 40);
   const SHIELD_POP = 0.35;   // 秒
   const BLUR_RING = new THREE.RingGeometry(0.5, 1.08, 40);
+  // 冰凍(盾):包住整顆陀螺的冰塊,半透明冰藍 + 深色稜線
+  const ICE_BOX = new THREE.BoxGeometry(2.5, 1.7, 2.5).translate(0, 0.75, 0);
+  const ICE_EDGES = new THREE.EdgesGeometry(ICE_BOX);
 
   function actorFor(c, color) {
     let a = actors.get(c.id);
@@ -422,10 +451,19 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     blur.rotation.x = -Math.PI / 2;
     blur.position.y = 0.79;
     group.add(blur);
+    const ice = new THREE.Group();
+    const iceBody = new THREE.Mesh(ICE_BOX, new THREE.MeshBasicMaterial({
+      color: 0xBFE8FF, transparent: true, opacity: 0.55, depthWrite: false,
+    }));
+    const iceEdge = new THREE.LineSegments(ICE_EDGES, new THREE.LineBasicMaterial({ color: 0x2F6F99 }));
+    ice.add(iceBody, iceEdge);
+    ice.rotation.y = 0.5;
+    ice.visible = false;
+    group.add(ice);
     root.add(group, shadow);
     // 每顆給一個固定的起始角,不然全場的刃會整齊劃一地同步轉,像同一個物件複製出來的
     a = {
-      group, shadow, shield, blur,
+      group, shadow, shield, blur, ice,
       spin: group.userData.spin,
       parts: group.userData.parts,
       outAt: null, debris: null, faded: false,
@@ -642,9 +680,12 @@ export function createScene(canvas, { pitch = 55 } = {}) {
         a.group.scale.setScalar(c.radius);
         // 轉速就是命:轉得愈慢,刃轉得愈慢
         // 剛射出去轉最快(約每秒 9 圈),轉速掉下來就慢慢慢下來
-        a.spinRate = drawnRate(c.spin);
+        // 冰塊:刃凍住不轉、沒有殘影;解凍前 0.4 秒冰塊閃一閃
+        const iced = c.frozen > 0;
+        a.ice.visible = iced && !(c.frozen < 0.4 && Math.floor(c.frozen * 14) % 2 === 0);
+        a.spinRate = iced ? 0 : drawnRate(c.spin);
         a.spin.rotation.y += visibleTurn(a.spinRate, dt);
-        a.blur.material.opacity = blurAlpha(c.spin);
+        a.blur.material.opacity = iced ? 0 : blurAlpha(c.spin);
         a.blur.visible = a.blur.material.opacity > 0.01;
         // 記下這一格的速度與位置:出局時畫面要接著這股慣性演
         a.vx = c.vx;
@@ -699,6 +740,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
         a.outAt = world.time;
         a.shield.visible = false;
         a.blur.visible = false;
+        a.ice.visible = false;
         setOutline(a.group, { buffs: {} }, world.time);
         if (c.outBy === 'burst') burstApart(a, c, team?.color ?? '#CCCCCC');
         // 掉進出口的會被牆擋住一部分:描邊也要照深度畫,不然整圈描邊會蓋在牆上
@@ -788,6 +830,10 @@ export function createScene(canvas, { pitch = 55 } = {}) {
       addProp(groundDisc(shadowDisc(0.16), it.x, it.y, 6));
     }
 
+    for (const f of world.frosts ?? []) {
+      const target = world.combatants.find(c => c.id === f.targetId);
+      if (target) for (const m of frostVisual(f, target, teams.get(f.fighterId)?.color ?? '#574239')) addProp(m);
+    }
     for (const st of world.strikes ?? []) {
       const color = teams.get(st.fighterId)?.color ?? '#574239';
       addProp(crosshairVisual(st, color));

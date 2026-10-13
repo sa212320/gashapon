@@ -2,7 +2,8 @@
 //
 //   attack  劍 = 衝刺(原型,2026-10-13):鎖定最近的敵人,原地蓄力一下,再追著它高速衝過去;
 //           威力純粹來自衝得快(撞擊力道跟相對速度走),不另外加爆裂機率 —— 帶劍加成時太強
-//   shield  盾:每一層 8 秒,自己被撞時飛得近、比較難爆
+//   shield  盾 = 冰凍(原型,2026-10-13):寒氣射向最近的 FROST_TARGETS 顆敵人,飛 FROST_FLIGHT 秒打中,
+//           目標變冰塊 FREEZE_TIME 秒 —— 不會自己動、轉速不掉、滑很遠、被撞飛得遠,但不會爆(physics.step 裡算)
 //   spin    補包:轉速補滿(轉速就是命)
 //   missile 飛彈:鎖定最近敵人**當下的位置**,1.2 秒後從天空落下炸開。不追蹤,圈內敵我都炸
 //
@@ -29,6 +30,9 @@ export function pickItem(enabled, rng = Math.random) {
 
 export const BUFF_TIME = 8;
 export const MAX_LAYERS = 3;
+export const FROST_TARGETS = 2;
+export const FROST_FLIGHT = 0.35;   // 寒氣飛幾秒(畫面看得到它飛過去)
+export const FREEZE_TIME = 1.5;     // 冰塊幾秒
 export const HEAL_FLASH = 0.6;      // 補包的綠框閃幾秒(畫面用)
 export const MISSILE_FUSE = 1.2;
 export const DASH_WIND = 0.5;       // 蓄力幾秒(畫面拉箭頭預告要衝誰)
@@ -62,8 +66,15 @@ export function tickBuffs(world, dt) {
     combatants: world.combatants.map(c => ({
       ...c,
       buffs: { attack: tick(c.buffs?.attack ?? []), shield: tick(c.buffs?.shield ?? []) },
+      ...(c.frozen ? { frozen: Math.max(0, c.frozen - dt) } : {}),
     })),
   };
+}
+
+function enemiesByDistance(who, combatants) {
+  return combatants
+    .filter(c => c.alive && c.fighterId !== who.fighterId)
+    .sort((a, b) => Math.hypot(a.x - who.x, a.y - who.y) - Math.hypot(b.x - who.x, b.y - who.y));
 }
 
 function nearestEnemy(who, combatants) {
@@ -85,6 +96,7 @@ export function applyPickups(world) {
     ...c, buffs: { attack: [...(c.buffs?.attack ?? [])], shield: [...(c.buffs?.shield ?? [])] },
   }));
   const strikes = [...(world.strikes ?? [])];
+  const frosts = [...(world.frosts ?? [])];
   const taken = new Set();
 
   for (const item of world.items) {
@@ -96,7 +108,9 @@ export function applyPickups(world) {
       const target = nearestEnemy(who, combatants);
       if (target) who.dash = { targetId: target.id, wind: DASH_WIND, left: DASH_TIME };
     } else if (item.type === 'shield') {
-      who.buffs.shield = addLayer(who.buffs.shield);
+      for (const target of enemiesByDistance(who, combatants).slice(0, FROST_TARGETS)) {
+        frosts.push({ id: newId('fr'), fighterId: who.fighterId, fromX: who.x, fromY: who.y, targetId: target.id, t: 0 });
+      }
     } else if (item.type === 'spin') {
       who.spin = 1;
       who.healedAt = world.time;
@@ -108,7 +122,30 @@ export function applyPickups(world) {
   }
 
   if (taken.size === 0) return world;
-  return { ...world, combatants, strikes, items: world.items.filter(i => !taken.has(i.id)) };
+  return { ...world, combatants, strikes, frosts, items: world.items.filter(i => !taken.has(i.id)) };
+}
+
+// 寒氣飛行:飛 FROST_FLIGHT 秒追上目標(畫面從出發點畫到目標現在的位置),打中就凍成冰塊。
+// 目標在途中出局了就作廢。
+export function tickFrosts(world, dt) {
+  const all = world.frosts ?? [];
+  if (all.length === 0) return world;
+  const combatants = world.combatants.map(c => ({ ...c }));
+  const frosts = [];
+  for (const f of all) {
+    const target = combatants.find(c => c.id === f.targetId);
+    if (!target?.alive) continue;
+    const t = f.t + dt;
+    if (t >= FROST_FLIGHT) {
+      target.frozen = FREEZE_TIME;
+      target.dash = null;  // 正在衝刺也凍住
+      target.vx *= 0.3;   // 凍住那一下頓住
+      target.vy *= 0.3;
+      continue;
+    }
+    frosts.push({ ...f, t });
+  }
+  return { ...world, combatants, frosts };
 }
 
 // 衝刺:先蓄力(踩煞車、畫面預告),再每一格把速度對準目標**現在**的位置 —— 追蹤,一定撞得到。

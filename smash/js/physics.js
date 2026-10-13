@@ -26,6 +26,8 @@ export { HIT_POWER, HIT_FULL };
 
 const RESTITUTION = 1.15;
 const FRICTION = 0.995;
+const FROZEN_FRICTION = 0.9995;
+const FROZEN_KNOCK = 1.8;   // 冰塊被撞飛得遠這麼多倍(不會爆,出局方式是被撞出場)
 const SPAWN_MARGIN = 30;
 const BURST_GRACE = 3;   // 開場幾秒內不會爆裂:開場那一波重擊很密,不設保護期常常一開打就有人爆掉
 
@@ -56,7 +58,7 @@ export function createWorld({ fighters, rng = Math.random }) {
       healedAt: -Infinity,
     };
   });
-  return { combatants, items: [], strikes: [], time: 0 };
+  return { combatants, items: [], strikes: [], frosts: [], time: 0 };
 }
 
 export function aliveOf(world) {
@@ -189,8 +191,10 @@ export function step(world, dt, rng = Math.random) {
       contain(c, px, py);
     }
     if (!c.alive) continue;
-    c.vx *= FRICTION;
-    c.vy *= FRICTION;
+    // 冰塊在冰上滑:摩擦小很多
+    const friction = c.frozen > 0 ? FROZEN_FRICTION : FRICTION;
+    c.vx *= friction;
+    c.vy *= friction;
 
     // 衝完軌道的那一格,往中央甩 —— 極限衝刺是衝進戰場撞人,不是把自己送進口袋
     const railing = onRail(c.x, c.y, c.radius);
@@ -240,7 +244,8 @@ export function step(world, dt, rng = Math.random) {
       const impulse = (-(1 + RESTITUTION) * along) / (1 / a.mass + 1 / b.mass);
       const onto = (from, to) => statsOf(from).power
         * (1 + layers(from, 'attack') * ATTACK_GAIN)
-        * SHIELD_KNOCK ** layers(to, 'shield');
+        * SHIELD_KNOCK ** layers(to, 'shield')
+        * (to.frozen > 0 ? FROZEN_KNOCK : 1);
       const ontoA = onto(b, a);
       const ontoB = onto(a, b);
       a.vx -= (impulse * ontoA * nx) / a.mass;
@@ -259,6 +264,7 @@ export function step(world, dt, rng = Math.random) {
 
       // 被打到的一方扣轉速、擲爆裂骰。兩邊各自算 —— 對撞時兩個都可能爆。
       for (const [me, them, p] of [[a, b, powerA], [b, a, powerB]]) {
+        if (me.frozen > 0) continue;   // 冰塊:零件凍住了,不扣轉速、不會爆
         me.spin -= HIT_SPIN_COST * hitStrength(p);
         // 衝刺中(劍)撞人的那顆不擲骰:反彈力道跟對方一樣大,不擋的話主動撞人的反而常常自己爆
         const dashing = me.dash && me.dash.wind <= 0;
@@ -275,7 +281,7 @@ export function step(world, dt, rng = Math.random) {
     contain(c, c.x, c.y);
     if (!c.alive) continue;
 
-    c.spin = decaySpin(c, dt);
+    if (!(c.frozen > 0)) c.spin = decaySpin(c, dt);   // 冰塊的刃凍住了,轉速停在那裡
     if (c.spin <= 0) {
       c.spin = 0;
       knockOut(c, 'spinout');
@@ -316,7 +322,7 @@ export function think(world, dt) {
   if (alive.length === 0) return world;
 
   const combatants = world.combatants.map(c => {
-    if (!c.alive) return c;
+    if (!c.alive || c.frozen > 0) return c;   // 冰塊不會自己動
     const want = { x: 0, y: 0 };
 
     for (const s of world.strikes ?? []) {
