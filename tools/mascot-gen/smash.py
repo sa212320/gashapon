@@ -35,12 +35,12 @@ REVIEW = HERE / 'review' / 'smash'
 CFG = HERE / 'smash_prompts.json'
 IMG = ROOT / 'smash' / 'img' / 'items'
 ART_JS = ROOT / 'smash' / 'js' / 'art.js'
-ITEMS = ['attack', 'shield', 'spin', 'missile']
+ITEMS = ['dash', 'freeze', 'vortex', 'meteor']
 FX = ['impact', 'blast', 'cloud', 'shock']   # 撞擊火花;飛彈爆炸 = 大圓火球 + 蘑菇雲 + 衝擊波(Wan 逐格動畫)
 FX_N = 256                         # 每格邊長
 FX_LEN = 17                        # Wan 的格數(4n+1)
 FX_IMG = ROOT / 'smash' / 'img' / 'fx'
-SHEET_ORDER = ['attack', 'shield', 'spin', 'missile']   # 左上、右上、左下、右下
+SHEET_ORDER = ['dash', 'freeze', 'vortex', 'meteor']   # 左上、右上、左下、右下
 SEEDS = [11, 22, 33]
 
 

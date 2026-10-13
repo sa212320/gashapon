@@ -1,25 +1,21 @@
-// 四種道具。全部是純函式,回傳新的 world。
+// 四種道具,每一個都是「事件」(看得見、有前兆、有結果)。全部是純函式,回傳新的 world。
 //
-//   attack  劍 = 衝刺(原型,2026-10-13):鎖定最近的敵人,原地蓄力一下,再追著它高速衝過去;
-//           威力純粹來自衝得快(撞擊力道跟相對速度走),不另外加爆裂機率 —— 帶劍加成時太強
-//   shield  盾 = 冰凍(原型,2026-10-13):寒氣射向最近的 FROST_TARGETS 顆敵人,飛 FROST_FLIGHT 秒打中,
-//           目標變冰塊 FREEZE_TIME 秒 —— 不會自己動、轉速不掉、滑很遠、被撞飛得遠,但不會爆(physics.step 裡算)
-//   spin    補包 = 冰旋風(原型,2026-10-13):轉速補滿,再捲起旋風 WHIRL_TIME 秒,
-//           把 WHIRL_RADIUS 內的敵人往自己拉、繞著轉(被捲過來就撞上、彈開、再被捲回來)
-//   missile 飛彈:鎖定最近敵人**當下的位置**,1.2 秒後從天空落下炸開。不追蹤,圈內敵我都炸
-//
-// 劍盾最多疊 3 層 —— 不設上限的話疊到 5 層劍幾乎一碰就爆,8 秒內誰也擋不住。
+//   dash    衝刺:鎖定最近的敵人,蓄力往後退,再追著它衝過去;碰到敵人就結束、自己頓住
+//   freeze  冰塊:丟兩顆冰塊打最近兩個敵人,打中凍 FREEZE_TIME 秒(不動、不掉轉速、滑很遠、被撞飛得遠、不會爆)
+//   vortex  冰旋渦:轉速補滿,再把 WHIRL_RADIUS 內的敵人往自己捲 WHIRL_TIME 秒
+//   meteor  冰隕石:鎖定最近敵人**當下的位置**,METEOR_FUSE 秒後從天空落下砸開。不追蹤,圈內敵我都炸
 import { newId } from '../../shared/js/ids.js';
 import { randomSpot } from './stadium.js';
 import { burstChance, HIT_POWER, SHIELD_KNOCK, layers } from './beys.js';
 
-export const ITEM_TYPES = Object.freeze(['attack', 'shield', 'spin', 'missile']);
+export const ITEM_TYPES = Object.freeze(['dash', 'freeze', 'vortex', 'meteor']);
 
-// 出現機率(權重)。飛彈一炸一大片,少一點比較稀奇。
-export const ITEM_WEIGHTS = Object.freeze({ attack: 30, shield: 30, spin: 25, missile: 15 });
+// 出現機率(權重):四種一樣多
+export const ITEM_WEIGHTS = Object.freeze({ dash: 25, freeze: 25, vortex: 25, meteor: 25 });
 
 // 從開著的道具裡照權重抽一個(關掉的不算,比例照剩下的重算)
 export function pickItem(enabled, rng = Math.random) {
+  if (enabled.length === 0) return undefined;
   const total = enabled.reduce((s, t) => s + (ITEM_WEIGHTS[t] ?? 0), 0);
   let r = rng() * total;
   for (const t of enabled) {
@@ -39,7 +35,7 @@ export const WHIRL_RADIUS = 40;     // 地上那圈雪花漩渦就是這個範�
 const WHIRL_PULL = 220;             // 往中心拉(每秒加的速度,貼著中心時)
 const WHIRL_SWIRL = 260;            // 繞著轉(切向)
 export const HEAL_FLASH = 0.6;      // 補包的綠框閃幾秒(畫面用)
-export const MISSILE_FUSE = 1.2;
+export const METEOR_FUSE = 1.2;
 export const DASH_WIND = 0.5;       // 蓄力幾秒(畫面拉箭頭預告要衝誰)
 export const DASH_TIME = 0.45;      // 衝多久(0.9 秒太久,快衝過大半個盤子)
 const DASH_BACKOFF = 50;            // 蓄力時往後退的速度(0.5 秒退 25 單位)
@@ -100,7 +96,7 @@ export function applyPickups(world) {
   const combatants = world.combatants.map(c => ({
     ...c, buffs: { attack: [...(c.buffs?.attack ?? [])], shield: [...(c.buffs?.shield ?? [])] },
   }));
-  const strikes = [...(world.strikes ?? [])];
+  const meteors = [...(world.meteors ?? [])];
   const frosts = [...(world.frosts ?? [])];
   const taken = new Set();
 
@@ -109,26 +105,26 @@ export function applyPickups(world) {
     if (!who) continue;
     taken.add(item.id);
 
-    if (item.type === 'attack') {
+    if (item.type === 'dash') {
       const target = nearestEnemy(who, combatants);
       if (target) who.dash = { targetId: target.id, wind: DASH_WIND, left: DASH_TIME };
-    } else if (item.type === 'shield') {
+    } else if (item.type === 'freeze') {
       for (const target of enemiesByDistance(who, combatants).slice(0, FROST_TARGETS)) {
         frosts.push({ id: newId('fr'), fighterId: who.fighterId, fromX: who.x, fromY: who.y, targetId: target.id, t: 0 });
       }
-    } else if (item.type === 'spin') {
+    } else if (item.type === 'vortex') {
       who.spin = 1;
       who.healedAt = world.time;
       who.whirl = WHIRL_TIME;
-    } else if (item.type === 'missile') {
+    } else if (item.type === 'meteor') {
       // 鎖的是**這一刻**的座標,之後目標怎麼跑都不管 —— 有準星預告,躲得掉才公平
       const target = nearestEnemy(who, combatants);
-      if (target) strikes.push({ id: newId('ms'), fighterId: who.fighterId, x: target.x, y: target.y, fuse: MISSILE_FUSE });
+      if (target) meteors.push({ id: newId('mt'), fighterId: who.fighterId, x: target.x, y: target.y, fuse: METEOR_FUSE });
     }
   }
 
   if (taken.size === 0) return world;
-  return { ...world, combatants, strikes, frosts, items: world.items.filter(i => !taken.has(i.id)) };
+  return { ...world, combatants, meteors, frosts, items: world.items.filter(i => !taken.has(i.id)) };
 }
 
 // 冰旋風:範圍內的敵人往中心拉、逆時針繞著轉,愈靠近中心愈用力;重的拉得動得少。隊友不受影響。
@@ -227,13 +223,13 @@ export function tickDashes(world, dt) {
 }
 
 // 準星倒數;歸零就炸開。圈內**不分敵我**都被推開,每一顆都擲一次爆裂骰。
-export function explodeMissiles(world, dt, rng = Math.random) {
-  const all = world.strikes ?? [];
+export function explodeMeteors(world, dt, rng = Math.random) {
+  const all = world.meteors ?? [];
   if (all.length === 0) return world;
 
-  const strikes = all.map(s => ({ ...s, fuse: s.fuse - dt }));
-  const blown = strikes.filter(s => s.fuse <= 0);
-  if (blown.length === 0) return { ...world, strikes };
+  const meteors = all.map(s => ({ ...s, fuse: s.fuse - dt }));
+  const blown = meteors.filter(s => s.fuse <= 0);
+  if (blown.length === 0) return { ...world, meteors };
 
   const combatants = world.combatants.map(c => ({ ...c }));
   for (const s of blown) {
@@ -257,5 +253,5 @@ export function explodeMissiles(world, dt, rng = Math.random) {
     }
   }
 
-  return { ...world, combatants, strikes: strikes.filter(s => s.fuse > 0) };
+  return { ...world, combatants, meteors: meteors.filter(s => s.fuse > 0) };
 }

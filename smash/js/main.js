@@ -5,7 +5,7 @@
 import { store, seedState, createSmashSetup } from './store.js';
 import { createFighter, pickColor } from './fighters.js';
 import { createWorld, step, think, aliveOf, winnerTeam, HIT_POWER, HIT_FULL } from './physics.js';
-import { ITEM_TYPES, pickItem, spawnItem, applyPickups, tickBuffs, tickDashes, tickFrosts, tickWhirls, explodeMissiles } from './items.js';
+import { ITEM_TYPES, pickItem, spawnItem, applyPickups, tickBuffs, tickDashes, tickFrosts, tickWhirls, explodeMeteors } from './items.js';
 import { createScene } from './scene3d.js';
 import { openingAt, OPENING_TIME } from './opening.js';
 import { getActive, replaceSetup, addSetup, removeSetup, entriesChanged } from '../../shared/js/roster.js';
@@ -139,7 +139,7 @@ function start() {
       nextItem = ITEM_EVERY;
     }
 
-    world = explodeMissiles(world, dt);
+    world = explodeMeteors(world, dt);
     world = tickBuffs(world, dt);
     world = applyPickups(world);
     world = tickDashes(world, dt);
@@ -270,10 +270,11 @@ function renderTeams() {
   }));
 }
 
-const ITEM_INPUT = { attack: 'itemAttack', shield: 'itemShield', spin: 'itemSpin', missile: 'itemMissile' };
+// 設定頁的開關。快取裡的舊 index.html 可能沒有這些元素 —— 找不到就跳過,不讓整頁壞掉。
+const ITEM_INPUT = { dash: 'itemDash', freeze: 'itemFreeze', vortex: 'itemVortex', meteor: 'itemMeteor' };
 
 function renderItems() {
-  for (const t of ITEM_TYPES) $(ITEM_INPUT[t]).checked = draft.items[t];
+  for (const t of ITEM_TYPES) { const el = $(ITEM_INPUT[t]); if (el) el.checked = draft.items[t]; }
 }
 
 function renderOther() {
@@ -336,7 +337,7 @@ const settings = createDialogShell({
 $('nameInput').addEventListener('input', () => { draft.name = $('nameInput').value; });
 $('soundInput').addEventListener('change', () => { draft.soundOn = $('soundInput').checked; });
 for (const t of ITEM_TYPES) {
-  $(ITEM_INPUT[t]).addEventListener('change', () => { draft.items[t] = $(ITEM_INPUT[t]).checked; });
+  $(ITEM_INPUT[t])?.addEventListener('change', e => { draft.items[t] = e.target.checked; });
 }
 $('addTeamBtn').addEventListener('click', () => {
   draft.fighters.push(createFighter({

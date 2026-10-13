@@ -58,7 +58,7 @@ export function createWorld({ fighters, rng = Math.random }) {
       healedAt: -Infinity,
     };
   });
-  return { combatants, items: [], strikes: [], frosts: [], time: 0 };
+  return { combatants, items: [], meteors: [], frosts: [], time: 0 };
 }
 
 export function aliveOf(world) {
@@ -325,7 +325,7 @@ export function think(world, dt) {
     if (!c.alive || c.frozen > 0) return c;   // 冰塊不會自己動
     const want = { x: 0, y: 0 };
 
-    for (const s of world.strikes ?? []) {
+    for (const s of world.meteors ?? []) {
       if (s.fuse > STRIKE_FEAR) continue;
       const dx = c.x - s.x;
       const dy = c.y - s.y;

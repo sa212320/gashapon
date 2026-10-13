@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { createFighter } from '../smash/js/fighters.js';
 import { createWorld, step, think, aliveOf, winnerTeam } from '../smash/js/physics.js';
 import { TYPE_STATS } from '../smash/js/beys.js';
-import { ITEM_TYPES, spawnItem, applyPickups, tickBuffs, explodeMissiles } from '../smash/js/items.js';
+import { ITEM_TYPES, spawnItem, applyPickups, tickBuffs, explodeMeteors } from '../smash/js/items.js';
 
 function seeded(seed) {
   let a = seed >>> 0;
@@ -38,7 +38,7 @@ function playMatch({ fighters, seed, withItems = true, maxTime = MAX_TIME }) {
         nextItem = 2.6;
       }
     }
-    world = explodeMissiles(world, dt, rng);
+    world = explodeMeteors(world, dt, rng);
     world = tickBuffs(world, dt);
     world = applyPickups(world);
     world = think(world, dt);

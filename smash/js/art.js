@@ -1,10 +1,10 @@
 // 大亂鬥道具圖示與特效的網址(tools/mascot-gen/smash.py build 產生,不要手改)。
 // 帶 ?v= 內容雜湊:Pages 會快取 10 分鐘,換圖不換網址的話小孩會看到舊圖。
 export const ITEM_URLS = {
-  attack: new URL('../img/items/attack.webp?v=09fb34fc', import.meta.url).href,
-  shield: new URL('../img/items/shield.webp?v=996fdc7c', import.meta.url).href,
-  spin: new URL('../img/items/spin.webp?v=3108f449', import.meta.url).href,
-  missile: new URL('../img/items/missile.webp?v=4e2d0c94', import.meta.url).href,
+  dash: new URL('../img/items/dash.webp?v=09fb34fc', import.meta.url).href,
+  freeze: new URL('../img/items/freeze.webp?v=996fdc7c', import.meta.url).href,
+  vortex: new URL('../img/items/vortex.webp?v=3108f449', import.meta.url).href,
+  meteor: new URL('../img/items/meteor.webp?v=4e2d0c94', import.meta.url).href,
 };
 
 // 特效逐格動畫(撞擊火花、飛彈爆炸):一列 frames 格的橫條,照時間一格一格換

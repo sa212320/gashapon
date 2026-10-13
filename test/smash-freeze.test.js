@@ -12,8 +12,8 @@ const at = (fighterId, x, y, extra = {}) => ({
   radius: 8, mass: 1, alive: true, spin: 0.5, outBy: null, pocket: null, railing: false,
   beyType: 'attack', buffs: { attack: [], shield: [] }, healedAt: -Infinity, ...extra,
 });
-const world = (combatants, extra = {}) => ({ combatants, items: [], strikes: [], frosts: [], time: 10, ...extra });
-const item = { id: 'i', type: 'shield', x: 0, y: 0, radius: 7 };
+const world = (combatants, extra = {}) => ({ combatants, items: [], meteors: [], frosts: [], time: 10, ...extra });
+const item = { id: 'i', type: 'freeze', x: 0, y: 0, radius: 7 };
 const frozen = { frozen: FREEZE_TIME };
 
 test('吃到盾:寒氣射向最近的兩顆敵人(不打隊友),不再是加一層盾', () => {

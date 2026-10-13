@@ -16,7 +16,7 @@ export function createSmashSetup({ name = '我的大亂鬥', fighters = [], item
     id: newId('sm'),
     name,
     fighters,
-    items: items ?? { attack: true, shield: true, spin: true, missile: true },
+    items: items ?? { dash: true, freeze: true, vortex: true, meteor: true },
   };
 }
 
@@ -40,12 +40,16 @@ function sanitizeSetup(raw) {
       count: Number.isFinite(f.count) ? Math.max(0, Math.min(12, Math.floor(f.count))) : 0,
     }));
 
-  // 舊存檔的道具改名了:速度 → 補包(spin)、炸彈 → 飛彈(missile)。
-  // 盾牌是新的,舊存檔沒有就是開;變大(giant)拿掉了,直接忽略。
-  const ITEM_ALIASES = { spin: 'speed', missile: 'bomb' };
+  // 道具改名兩次:速度 / 炸彈 → 補包 / 飛彈(2026-10-12),
+  // 劍 / 盾 / 補包 / 飛彈 → 衝刺 / 冰塊 / 冰旋渦 / 冰隕石(2026-10-13)。
+  // 依序找新鍵 → 上一代 → 更舊的,第一個有值的決定;只有 false 是關。變大(giant)直接忽略。
+  const ITEM_ALIASES = { dash: ['attack'], freeze: ['shield'], vortex: ['spin', 'speed'], meteor: ['missile', 'bomb'] };
   const rawItems = raw.items && typeof raw.items === 'object' && !Array.isArray(raw.items) ? raw.items : {};
   const items = {};
-  for (const t of ITEM_TYPES) items[t] = (rawItems[t] ?? rawItems[ITEM_ALIASES[t]]) !== false;
+  for (const t of ITEM_TYPES) {
+    const key = [t, ...ITEM_ALIASES[t]].find(k => rawItems[k] !== undefined);
+    items[t] = key === undefined || rawItems[key] !== false;
+  }
 
   return {
     id: raw.id,

@@ -8,11 +8,11 @@ const at = (fighterId, x, y, extra = {}) => ({
   radius: 8, mass: 1, alive: true, spin: 0.3, outBy: null, pocket: null, railing: false,
   beyType: 'attack', buffs: { attack: [], shield: [] }, healedAt: -Infinity, ...extra,
 });
-const world = (combatants, extra = {}) => ({ combatants, items: [], strikes: [], frosts: [], time: 10, ...extra });
+const world = (combatants, extra = {}) => ({ combatants, items: [], meteors: [], frosts: [], time: 10, ...extra });
 const whirling = { whirl: WHIRL_TIME, spin: 1 };
 
 test('吃到補包:轉速補滿,捲起旋風', () => {
-  const w = applyPickups(world([at('red', 0, 0)], { items: [{ id: 'i', type: 'spin', x: 0, y: 0, radius: 7 }] }));
+  const w = applyPickups(world([at('red', 0, 0)], { items: [{ id: 'i', type: 'vortex', x: 0, y: 0, radius: 7 }] }));
   assert.equal(w.combatants[0].spin, 1);
   assert.equal(w.combatants[0].whirl, WHIRL_TIME);
 });

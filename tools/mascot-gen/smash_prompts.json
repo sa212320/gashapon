@@ -7,10 +7,10 @@
   "spin": "The item is a small chunky first-aid kit: white box with rounded corners, a bold red cross on the front, a short handle on top.",
   "missile": "The item is a chunky cartoon missile pointing down: white body, red rounded nose cone at the bottom, three small icy blue fins at the top, a little puff of white smoke above it.",
   "picks": {
-    "attack": "dash/s3",
-    "shield": "ice/s2",
-    "spin": "whirl/s2",
-    "missile": "sheet-s2"
+    "dash": "dash/s3",
+    "freeze": "ice/s2",
+    "vortex": "whirl/s2",
+    "meteor": "sheet-s2"
   },
   "fx_picks": {
     "impact": "s1",

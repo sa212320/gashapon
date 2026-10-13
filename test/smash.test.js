@@ -23,7 +23,7 @@ function seeded(seed) {
   };
 }
 
-const arena = { items: [], strikes: [], time: 0 };
+const arena = { items: [], meteors: [], time: 0 };
 // 測試用的陀螺:預設耐久型以外的「中性」類型(沒有 beyType)—— 數值全是 1,
 // 這樣原本那些撞擊測試的數字不必跟著類型表改。
 const at = (fighterId, x, y, vx = 0, vy = 0, extra = {}) => ({
@@ -394,7 +394,7 @@ test('場中央不會被邊緣的斥力干擾', async () => {
 
 test('道具比敵人近的時候會先去撿', async () => {
   const { think } = await import('../smash/js/physics.js');
-  const w = { ...arena, combatants: [at('red', 0, 0), at('blue', -70, 0)], items: [{ id: 'i', type: 'attack', x: 20, y: 0, radius: 7 }] };
+  const w = { ...arena, combatants: [at('red', 0, 0), at('blue', -70, 0)], items: [{ id: 'i', type: 'dash', x: 20, y: 0, radius: 7 }] };
   assert.ok(think(w, 1 / 60).combatants[0].vx > 0, '沒有先去撿旁邊的道具');
 });
 
@@ -410,14 +410,14 @@ test('找人的力道比以前弱一半(90 → 45)', () => {
 });
 
 test('準星快落下時,圈內的陀螺會往外偏一點', () => {
-  const w = { ...arena, combatants: [at('red', 10, 0), at('blue', -60, 0)], strikes: [{ id: 's', fighterId: 'blue', x: 0, y: 0, fuse: 0.3 }] };
+  const w = { ...arena, combatants: [at('red', 10, 0), at('blue', -60, 0)], meteors: [{ id: 's', fighterId: 'blue', x: 0, y: 0, fuse: 0.3 }] };
   // 敵人在左邊,不躲的話 vx 會是負的(往左追)
   const out = think(w, 1 / 60);
-  const plain = think({ ...w, strikes: [] }, 1 / 60);
+  const plain = think({ ...w, meteors: [] }, 1 / 60);
   assert.ok(out.combatants[0].vx > plain.combatants[0].vx, '沒有往外偏');
 });
 
 test('準星還早就不理它', () => {
-  const w = { ...arena, combatants: [at('red', 10, 0), at('blue', -60, 0)], strikes: [{ id: 's', fighterId: 'blue', x: 0, y: 0, fuse: 1.1 }] };
-  assert.equal(think(w, 1 / 60).combatants[0].vx, think({ ...w, strikes: [] }, 1 / 60).combatants[0].vx);
+  const w = { ...arena, combatants: [at('red', 10, 0), at('blue', -60, 0)], meteors: [{ id: 's', fighterId: 'blue', x: 0, y: 0, fuse: 1.1 }] };
+  assert.equal(think(w, 1 / 60).combatants[0].vx, think({ ...w, meteors: [] }, 1 / 60).combatants[0].vx);
 });

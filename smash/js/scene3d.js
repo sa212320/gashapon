@@ -13,7 +13,7 @@ import { HIT_POWER, HIT_FULL } from './physics.js';
 import { INK, outlinable, part } from './outline3d.js';
 import { createStadium } from './stadium3d.js';
 import { createBey, setChipTexture, loadChipTextures } from './bey3d.js';
-import { HEAL_FLASH, MISSILE_FUSE, BLAST_RADIUS, FROST_FLIGHT, WHIRL_RADIUS, WHIRL_TIME } from './items.js';
+import { HEAL_FLASH, METEOR_FUSE, BLAST_RADIUS, FROST_FLIGHT, WHIRL_RADIUS, WHIRL_TIME } from './items.js';
 import * as ART from './art.js';
 import { fxFrame } from './fx-frame.js';
 import { landing } from './opening.js';
@@ -208,7 +208,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   // 圈的大小 = BLAST_RADIUS —— 看到的圈就是真的會被炸到的範圍。
   const BAR = new THREE.PlaneGeometry(1, 1);
   function crosshairVisual(strike, color) {
-    const k = 1 - Math.max(0, strike.fuse) / MISSILE_FUSE;   // 0 → 1
+    const k = 1 - Math.max(0, strike.fuse) / METEOR_FUSE;   // 0 → 1
     const blink = strike.fuse < 0.4 && Math.floor(strike.fuse * 16) % 2 === 0;
     const g = new THREE.Group();
     // 碗底往外翹,平平一圈放在中間的高度會被碗底吃掉 —— 不做深度測試,直接畫在最上層
@@ -277,7 +277,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   // 落到目標身上剛好是罩住它的冰塊大小 —— 「吃到冰塊 → 丟過去 → 對手被凍住」前後連得起來。
   function frostVisual(f, target) {
     const k = Math.min(1, f.t / FROST_FLIGHT);
-    const tex = itemTex.get('shield');
+    const tex = itemTex.get('freeze');
     const out = [];
     const at = q => {
       const x = f.fromX + (target.x - f.fromX) * q;
@@ -337,7 +337,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
 
   function whirlVisual(c, time) {
     const out = [];
-    const tex = itemTex.get('spin');
+    const tex = itemTex.get('vortex');
     const age = WHIRL_TIME - c.whirl;
     const fade = Math.min(1, c.whirl / 0.3);
     const grow = Math.min(1, age / 0.25);
@@ -391,11 +391,11 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   const P0 = new THREE.Vector3();
   const P1 = new THREE.Vector3();
   function missileVisual(strike) {
-    const k = 1 - Math.max(0, strike.fuse) / MISSILE_FUSE;
+    const k = 1 - Math.max(0, strike.fuse) / METEOR_FUSE;
     const ease = k * k;                          // 先慢後快,像在加速落下
     const target = new THREE.Vector3(strike.x, GROUND + heightAt(strike.x, strike.y), strike.y);
     const from = target.clone().add(MISSILE_FROM);
-    const tex = itemTex.get('missile');
+    const tex = itemTex.get('meteor');
     const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex ?? null, transparent: true, depthTest: false }));
     m.renderOrder = 9000;
     m.position.copy(from.lerp(target, ease));
@@ -751,8 +751,8 @@ export function createScene(canvas, { pitch = 55 } = {}) {
         // 冰塊:刃凍住不轉、沒有殘影;解凍前 0.4 秒冰塊閃一閃
         const iced = c.frozen > 0;
         a.ice.visible = iced && !(c.frozen < 0.4 && Math.floor(c.frozen * 14) % 2 === 0);
-        if (iced && !a.ice.material.map && itemTex.get('shield')) {
-          const t = itemTex.get('shield');
+        if (iced && !a.ice.material.map && itemTex.get('freeze')) {
+          const t = itemTex.get('freeze');
           a.ice.material.map = t;
           a.ice.material.needsUpdate = true;
           a.ice.scale.set(ICE_SIZE * t.image.width / t.image.height, ICE_SIZE, 1);
@@ -787,7 +787,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
           dome.material.opacity = Math.min(0.6, 0.3 + 0.12 * shields);
           const pop = Math.min(1, (world.time - (a.shieldAt ?? -Infinity)) / SHIELD_POP);
           dome.scale.setScalar(1 + 0.6 * (1 - pop) ** 2);
-          if (!badge.material.map && itemTex.get('shield')) { badge.material.map = itemTex.get('shield'); badge.material.needsUpdate = true; }
+          if (!badge.material.map && itemTex.get('freeze')) { badge.material.map = itemTex.get('freeze'); badge.material.needsUpdate = true; }
           badge.position.y = 2.3 + 0.15 * Math.sin(world.time * 5);
         }
         setOutline(a.group, c, world.time);
@@ -909,16 +909,16 @@ export function createScene(canvas, { pitch = 55 } = {}) {
       const target = world.combatants.find(c => c.id === f.targetId);
       if (target) for (const m of frostVisual(f, target)) addProp(m);
     }
-    for (const st of world.strikes ?? []) {
+    for (const st of world.meteors ?? []) {
       const color = teams.get(st.fighterId)?.color ?? '#574239';
       addProp(crosshairVisual(st, color));
       addProp(missileVisual(st));
     }
     // 爆炸:上一格還在、這一格不見了的空襲,就是剛炸開的那一顆。
     // 這樣物理那邊不必為了演出多回傳一個欄位 —— 爆炸純粹是畫面的事。
-    for (const st of world.strikes ?? []) seenStrikes.set(st.id, st);
+    for (const st of world.meteors ?? []) seenStrikes.set(st.id, st);
     for (const [id, st] of seenStrikes) {
-      if (!(world.strikes ?? []).some(x => x.id === id)) {
+      if (!(world.meteors ?? []).some(x => x.id === id)) {
         blasts.push({ x: st.x, y: st.y, at: world.time, spin: Math.random() * Math.PI });
         seenStrikes.delete(id);
       }

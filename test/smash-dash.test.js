@@ -8,8 +8,8 @@ const at = (fighterId, x, y, extra = {}) => ({
   radius: 8, mass: 1, alive: true, spin: 1, outBy: null, pocket: null, railing: false,
   buffs: { attack: [], shield: [] }, healedAt: -Infinity, ...extra,
 });
-const world = (combatants, extra = {}) => ({ combatants, items: [], strikes: [], time: 3, ...extra });
-const sword = { id: 'i_attack', type: 'attack', x: 0, y: 0, radius: 7 };
+const world = (combatants, extra = {}) => ({ combatants, items: [], meteors: [], time: 3, ...extra });
+const sword = { id: 'i_attack', type: 'dash', x: 0, y: 0, radius: 7 };
 
 test('吃到劍:鎖定最近的敵人,開始蓄力(不再是加一層)', () => {
   const w = applyPickups(world([at('red', 0, 0), at('blue', 40, 0), at('blue', -70, 0), at('red', 10, 0)], { items: [sword] }));
