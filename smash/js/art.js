@@ -4,12 +4,12 @@ export const ITEM_URLS = {
   dash: new URL('../img/items/dash.webp?v=09fb34fc', import.meta.url).href,
   freeze: new URL('../img/items/freeze.webp?v=996fdc7c', import.meta.url).href,
   vortex: new URL('../img/items/vortex.webp?v=3108f449', import.meta.url).href,
-  meteor: new URL('../img/items/meteor.webp?v=4e2d0c94', import.meta.url).href,
+  meteor: new URL('../img/items/meteor.webp?v=dedadd24', import.meta.url).href,
 };
 
-// 特效逐格動畫(撞擊火花、飛彈爆炸):一列 frames 格的橫條,照時間一格一格換
+// 特效逐格動畫(撞擊火花、冰隕石砸開):一列 frames 格的橫條,照時間一格一格換
 export const FX_URLS = {
   impact: { url: new URL('../img/fx/impact.webp?v=63bd8260', import.meta.url).href, frames: 17 },
-  cloud: { url: new URL('../img/fx/cloud.webp?v=7f199ec1', import.meta.url).href, frames: 17 },
+  shatter: { url: new URL('../img/fx/shatter.webp?v=d4156fb7', import.meta.url).href, frames: 17 },
   shock: { url: new URL('../img/fx/shock.webp?v=6f03a024', import.meta.url).href, frames: 17 },
 };

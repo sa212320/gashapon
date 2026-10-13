@@ -26,9 +26,9 @@ test('圖示檔案存在,網址的 ?v= 跟內容一致', () => {
   }
 });
 
-test('特效逐格動畫:撞擊、爆炸兩層(蘑菇雲、衝擊波)都有,網址的 ?v= 跟內容一致,格數對得上圖寬', async () => {
+test('特效逐格動畫:撞擊、冰隕石兩層(冰晶爆開、衝擊波)都有,網址的 ?v= 跟內容一致,格數對得上圖寬', async () => {
   const { FX_URLS } = await import('../smash/js/art.js');
-  assert.deepEqual(Object.keys(FX_URLS ?? {}).sort(), ['cloud', 'impact', 'shock']);
+  assert.deepEqual(Object.keys(FX_URLS ?? {}).sort(), ['impact', 'shatter', 'shock']);
   for (const [name, { url, frames }] of Object.entries(FX_URLS)) {
     const m = url.match(/smash\/img\/fx\/(\w+)\.webp\?v=([0-9a-f]{8})$/);
     assert.ok(m, url);

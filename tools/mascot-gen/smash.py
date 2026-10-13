@@ -1,4 +1,4 @@
-"""大亂鬥道具圖示(2026-10-12,issue #4):劍、盾、補包、飛彈。
+"""大亂鬥道具圖示與特效(2026-10-12 起,issue #4):衝刺、冰塊、冰旋渦、冰隕石(2026-10-13 前是劍、盾、補包、飛彈)。
 
 在 repo 根目錄執行(先 export COMFY_URL=http://<ComfyUI 那台的 IP>:8188):
   PY=tools/mascot-gen/.venv/bin/python
@@ -36,7 +36,7 @@ CFG = HERE / 'smash_prompts.json'
 IMG = ROOT / 'smash' / 'img' / 'items'
 ART_JS = ROOT / 'smash' / 'js' / 'art.js'
 ITEMS = ['dash', 'freeze', 'vortex', 'meteor']
-FX = ['impact', 'blast', 'cloud', 'shock']   # 撞擊火花;飛彈爆炸 = 大圓火球 + 蘑菇雲 + 衝擊波(Wan 逐格動畫)
+FX = ['impact', 'blast', 'cloud', 'shock', 'shatter']   # 撞擊火花;冰隕石砸開 = 冰晶爆開(shatter)+ 衝擊波(shock)。blast/cloud 是試過沒用的發光火焰版
 FX_N = 256                         # 每格邊長
 FX_LEN = 17                        # Wan 的格數(4n+1)
 FX_IMG = ROOT / 'smash' / 'img' / 'fx'
@@ -301,7 +301,7 @@ def cmd_build(args):
         '// 大亂鬥道具圖示與特效的網址(tools/mascot-gen/smash.py build 產生,不要手改)。\n'
         '// 帶 ?v= 內容雜湊:Pages 會快取 10 分鐘,換圖不換網址的話小孩會看到舊圖。\n'
         'export const ITEM_URLS = {\n' + '\n'.join(lines) + '\n};\n\n'
-        '// 特效逐格動畫(撞擊火花、飛彈爆炸):一列 frames 格的橫條,照時間一格一格換\n'
+        '// 特效逐格動畫(撞擊火花、冰隕石砸開):一列 frames 格的橫條,照時間一格一格換\n'
         'export const FX_URLS = {\n' + '\n'.join(fx_lines) + '\n};\n')
     write_preload_manifest()
     print('smash item icons done')

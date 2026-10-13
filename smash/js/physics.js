@@ -180,7 +180,7 @@ export function step(world, dt, rng = Math.random) {
     const rail = railAccel(c.x, c.y, c.vx, c.vy, c.radius);
     c.vx += (slope.x + rail.x) * dt;
     c.vy += (slope.y + rail.y) * dt;
-    // 切成每步不超過 1 單位:飛彈能把人炸到一格跑 25 單位,牆只有幾單位厚,一步跨過去就穿牆了
+    // 切成每步不超過 1 單位:冰隕石能把人砸到一格跑 25 單位,牆只有幾單位厚,一步跨過去就穿牆了
     const n = Math.max(1, Math.ceil((Math.hypot(c.vx, c.vy) * dt) / STEP_LEN));
     for (let k = 0; k < n && c.alive; k++) {
       const px = c.x;
@@ -289,7 +289,7 @@ export function step(world, dt, rng = Math.random) {
 // 每一格重新決定要往哪裡推。真的陀螺不會思考,所以這支刻意很弱 ——
 // 主角是坡度與軌道,這裡只是讓陀螺「微微偏向敵人」,免得人少時各自在角落轉到停。
 //
-//   1. 躲快落下的飛彈準星 —— 力道很小,不然飛彈永遠炸不到人
+//   1. 躲快落下的冰隕石準星 —— 力道很小,不然冰隕石永遠砸不到人
 //   2. 撿道具 —— 只有在道具比敵人近的時候才繞路
 //   3. 追最近的敵人
 //

@@ -10,11 +10,11 @@
     "dash": "dash/s3",
     "freeze": "ice/s2",
     "vortex": "whirl/s2",
-    "meteor": "sheet-s2"
+    "meteor": "meteor/s3"
   },
   "fx_picks": {
     "impact": "s1",
-    "cloud": "s2",
+    "shatter": "s2",
     "shock": "s2"
   },
   "fx_black": "Absolutely no letters, no words, no text. Everything else is pure black #000000. The effect is centred and stays completely inside the picture with a wide pure black margin on every side. No characters, no creatures, no scenery.",
@@ -34,6 +34,10 @@
     "shock": {
       "start": "a thin bright white and pale orange perfectly circular ring of light in the middle of the picture, seen from directly above",
       "motion": "seen from directly above, a perfectly circular shockwave ring of white dust and pale orange smoke races outward from the centre toward the edges of the picture, the ring gets wider and thinner as it expands, small debris specks fly outward with it, the centre stays empty, then it fades away into pure black"
+    },
+    "shatter": {
+      "start": "a small bright white and pale blue starburst flash of ice in the lower middle of the picture",
+      "motion": "a cartoon ice explosion: the flash bursts into many sharp pale-blue and white ice crystal shards flying outward in all directions, then a big puffy white snow mist cloud spreads out and rises a little, glittering ice sparkles, then everything fades away into pure black"
     }
   },
   "fx_toon_style": "Draw a cartoon visual effect in exactly the same art style, colouring and soft shading as <image1>: flat 2D cartoon, thick dark brown outlines around every shape, cute chunky rounded shapes, flat colours with soft highlights. No character, no face, no eyes, no text, no letters. The effect is centred with a wide empty margin on every side. Isolated on a solid flat bright pure green #00FF00 background. Do not draw the fox or the ermine from <image1>.",
@@ -49,5 +53,6 @@
   },
   "ice": "The item is a big chunky cartoon block of clear ice, seen slightly from above: an irregular rounded cube with bevelled facets, pale translucent icy blue, bright white shine streaks on the upper facets, a few small white cracks, a little white frost along the bottom edge. The block is mostly see-through and empty inside, nothing frozen in it.",
   "dash": "The item is a chunky cartoon lightning-bolt arrow pointing to the right: a thick zigzag bolt in icy blue and white with a bold triangular arrow head, three white speed lines trailing behind it on the left, a few small sparkles.",
-  "whirl": "The item is a cartoon ice whirlpool swirl seen from directly above, drawn like a spiral swirl symbol: four curved arms of icy blue and white frosty wind spiralling inward to a small dark blue centre, clear empty gaps between the arms, the outer ends of the arms are loose curling wisps that trail off. NOT a ball, NOT a sphere, NOT a disc, no enclosing circle, no outline around the whole shape, no shading as if round. A few small snowflakes caught in the swirl. Flat, top-down."
+  "whirl": "The item is a cartoon ice whirlpool swirl seen from directly above, drawn like a spiral swirl symbol: four curved arms of icy blue and white frosty wind spiralling inward to a small dark blue centre, clear empty gaps between the arms, the outer ends of the arms are loose curling wisps that trail off. NOT a ball, NOT a sphere, NOT a disc, no enclosing circle, no outline around the whole shape, no shading as if round. A few small snowflakes caught in the swirl. Flat, top-down.",
+  "meteor": "The item is a chunky cartoon ice meteor falling down: a big jagged pale-blue ice crystal rock with white shine, pointing down, with a short icy blue and white streaking tail above it and a few small ice sparkles."
 }

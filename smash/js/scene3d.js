@@ -24,9 +24,9 @@ const GROUND = -4;        // 場地上表面的高度,角色站在這裡
 const SPARK_TIME = 0.4;   // 撞擊火花幾秒(逐格動畫 17 格)
 const SPARK_MAX = 5;      // 同時最多幾個火花,再多就是一團糊
 // 生成的圖裡衝擊波只佔格子中間一部分:整格要放大幾倍,畫出來才剛好是爆炸範圍的直徑
-const FX_CLOUD_SPAN = 3.4;  // 蘑菇雲的高度(格子)約是爆炸範圍半徑的幾倍
+const FX_SHATTER_SPAN = 2.6;  // 冰晶碎片噴到大約爆炸範圍邊緣:整格是範圍半徑的幾倍
 const FX_SHOCK_SPAN = 2.5;   // 衝擊波的圈在圖裡大約佔 80%,再隨時間從 35% 擴散到 100%
-const BLAST_TIME = 1.6;   // 爆炸演出幾秒(蘑菇雲逐格動畫 17 格)
+const BLAST_TIME = 1.6;   // 冰隕石砸開演出幾秒(冰晶爆開逐格動畫 17 格)
 
 // 一顆鋸齒星(半徑 1,躺在 XY 平面朝 +Z)。爆炸畫成球體會變成一團半透明的糊,
 // 星形才是小孩認得的「爆炸」。
@@ -79,7 +79,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   const STAR = starGeo(11, 0.52);
   const STAR2 = starGeo(9, 0.62);
 
-  // 道具:生成的彩色圖示(劍、盾、補包、飛彈),正對鏡頭浮在場上。
+  // 道具:生成的彩色圖示(衝刺、冰塊、冰旋渦、冰隕石),正對鏡頭浮在場上。
   // 場景一建立就開始載(首頁也預先載過,通常是快取命中),不等第一個道具掉下來。
   const itemTex = new Map();
   const texLoader = new THREE.TextureLoader();
@@ -102,7 +102,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     });
   }
 
-  // anchorY:圖的哪個高度對準 (x, y)。0.5 = 正中間;蘑菇雲要從地面冒上來,對準雲的底部
+  // anchorY:圖的哪個高度對準 (x, y)。0.5 = 正中間;從地面爆開的特效對準靠下的地方
   function fxSprite(name, k, x, y, lift, size, { anchorY = 0.5, opacity = 1 } = {}) {
     const frames = fxTex.get(name);
     if (!frames) return null;
@@ -228,7 +228,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   }
 
   // 衝刺(劍)的預告:從陀螺拉一條隊伍色虛線箭頭指向目標,目標腳下一個小準星圈。
-  // 跟飛彈同一種語言 —— 先讓大家看到「它要衝那顆了」,再衝。
+  // 跟冰隕石同一種語言 —— 先讓大家看到「它要衝那顆了」,再衝。
   const ARROW_HEAD = new THREE.ShapeGeometry(new THREE.Shape([
     new THREE.Vector2(0, 1), new THREE.Vector2(-0.8, -0.6), new THREE.Vector2(0.8, -0.6),
   ]));
@@ -379,18 +379,19 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     });
   }
 
-  // 飛彈從左上方斜斜落到準星。不追蹤 —— 落點就是準星。
-  const MISSILE_FROM = new THREE.Vector3(-70, 130, -40);   // 不能太遠,不然大半段倒數都在畫面外
-  // 落下的飛彈就是吃到的那個道具圖示(彈頭朝上的圖),轉成彈頭朝著落點:
+  // 冰隕石從左上方斜斜落到準星。不追蹤 —— 落點就是準星。
+  const METEOR_FROM = new THREE.Vector3(-70, 130, -40);   // 不能太遠,不然大半段倒數都在畫面外
+  // 落下的冰隕石就是吃到的那個道具圖示,轉成尖端朝著落點:
   // 把這一格的位置與落點投影到螢幕上,算出畫面上的飛行方向。
-  const MISSILE_SIZE = 26;
+  const METEOR_SIZE = 26;
+  const METEOR_HEADING = -123 * Math.PI / 180;   // 圖裡冰塊往左下飛、尾巴在右上(量出來的方向)
   const P0 = new THREE.Vector3();
   const P1 = new THREE.Vector3();
-  function missileVisual(strike) {
+  function meteorVisual(strike) {
     const k = 1 - Math.max(0, strike.fuse) / METEOR_FUSE;
     const ease = k * k;                          // 先慢後快,像在加速落下
     const target = new THREE.Vector3(strike.x, GROUND + heightAt(strike.x, strike.y), strike.y);
-    const from = target.clone().add(MISSILE_FROM);
+    const from = target.clone().add(METEOR_FROM);
     const tex = itemTex.get('meteor');
     const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex ?? null, transparent: true, depthTest: false }));
     m.renderOrder = 9000;
@@ -398,10 +399,10 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     P0.copy(m.position).project(camera);
     P1.copy(target).project(camera);
     const angle = Math.atan2(P1.y - P0.y, (P1.x - P0.x) * camera.aspect);
-    m.material.rotation = angle - Math.PI / 2;   // 圖裡彈頭朝上(+90°)
-    const w = tex?.image ? tex.image.width / tex.image.height : 0.53;
-    m.scale.set(MISSILE_SIZE * w, MISSILE_SIZE, 1);
-    m.center.set(0.5, 0.8);   // 對準彈頭附近,落地那一刻是彈頭碰到準星
+    m.material.rotation = angle - METEOR_HEADING;
+    const w = tex?.image ? tex.image.width / tex.image.height : 0.75;
+    m.scale.set(METEOR_SIZE * w, METEOR_SIZE, 1);
+    m.center.set(0.42, 0.3);   // 對準冰塊那頭,落地那一刻是冰塊砸到準星
     return m;
   }
 
@@ -453,16 +454,16 @@ export function createScene(canvas, { pitch = 55 } = {}) {
       out.push(m);
     };
 
-    // 兩層:盤面上往外擴散到爆炸範圍邊緣的衝擊波(圈裡的都會被炸)、從中心冒上來的蘑菇雲。
+    // 兩層:盤面上往外擴散到爆炸範圍邊緣的衝擊波(圈裡的都會被砸到)、冰晶碎片 + 雪霧爆開。
     //生成的圖最後幾格還沒完全散掉,最後 30% 再淡出。
     const shockK = (k - 0.05) / 0.6;
     const layers = [
       fxFlat('shock', shockK, blast.x, blast.y,
         BLAST_RADIUS * FX_SHOCK_SPAN * (0.35 + 0.65 * (1 - (1 - Math.min(1, Math.max(0, shockK) / 0.6)) ** 2))),
-      k > 0.03 ? fxSprite('cloud', (k - 0.03) / 0.97, blast.x, blast.y, 0, BLAST_RADIUS * FX_CLOUD_SPAN, { anchorY: 0.2, opacity: fade }) : null,
+      k > 0.03 ? fxSprite('shatter', (k - 0.03) / 0.97, blast.x, blast.y, 0, BLAST_RADIUS * FX_SHATTER_SPAN, { anchorY: 0.3, opacity: fade }) : null,
     ].filter(Boolean);
-    layers.forEach((m, i) => { m.renderOrder = 8100 + i; });   // 衝擊波在下、蘑菇雲在上
-    if (fxTex.has('cloud')) {
+    layers.forEach((m, i) => { m.renderOrder = 8100 + i; });   // 衝擊波在下、冰晶爆開在上
+    if (fxTex.has('shatter')) {
       out.push(...layers);
       return out;
     }
@@ -876,7 +877,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     for (const st of world.meteors ?? []) {
       const color = teams.get(st.fighterId)?.color ?? '#574239';
       addProp(crosshairVisual(st, color));
-      addProp(missileVisual(st));
+      addProp(meteorVisual(st));
     }
     // 爆炸:上一格還在、這一格不見了的空襲,就是剛炸開的那一顆。
     // 這樣物理那邊不必為了演出多回傳一個欄位 —— 爆炸純粹是畫面的事。
