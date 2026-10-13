@@ -2,7 +2,7 @@
 //
 // 這是整個站上**唯一結果不預先決定**的模式 —— 其他模式都是先算好再重播演出,
 // 這裡是一格一格算出來的,所以不能有「先決定誰贏」的捷徑。
-import { store, seedState, createSmashSetup } from './store.js';
+import { store, seedState, createSmashSetup, MAX_TEAM_SIZE } from './store.js';
 import { createFighter, pickColor } from './fighters.js';
 import { createWorld, step, think, aliveOf, winnerTeam, HIT_POWER, HIT_FULL } from './physics.js';
 import { ITEM_TYPES, pickItem, spawnItem, applyPickups, tickDashes, tickFrosts, tickWhirls, explodeMeteors } from './items.js';
@@ -274,7 +274,7 @@ function renderTeams() {
     name.addEventListener('input', () => { draft.fighters[i].name = name.value; });
     const count = document.createElement('input');
     count.className = 'field__input edit-row__count';
-    bindCountInput(count, { value: f.count, max: 12, onCount: v => { draft.fighters[i].count = v; renderTeamHint(); } });
+    bindCountInput(count, { value: f.count, max: MAX_TEAM_SIZE, onCount: v => { draft.fighters[i].count = v; renderTeamHint(); } });
     const del = document.createElement('button');
     del.className = 'chip chip--danger';
     del.type = 'button';

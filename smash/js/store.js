@@ -11,6 +11,9 @@ const SEED = [
   { name: '藍隊', count: 3 },
 ];
 
+// 每隊最多幾人(2026-10-13 從 12 調到 30)
+export const MAX_TEAM_SIZE = 30;
+
 export function createSmashSetup({ name = '我的大亂鬥', fighters = [], items = null } = {}) {
   return {
     id: newId('sm'),
@@ -37,7 +40,7 @@ function sanitizeSetup(raw) {
       name: typeof f.name === 'string' ? f.name : '隊伍',
       color: PALETTE.includes(f.color) ? f.color : PALETTE[i % PALETTE.length],
       // Infinity / NaN 會讓展開的迴圈跑不完,當成 0 比憑空多一個人安全
-      count: Number.isFinite(f.count) ? Math.max(0, Math.min(12, Math.floor(f.count))) : 0,
+      count: Number.isFinite(f.count) ? Math.max(0, Math.min(MAX_TEAM_SIZE, Math.floor(f.count))) : 0,
     }));
 
   // 道具改名兩次:速度 / 炸彈 → 補包 / 飛彈(2026-10-12),

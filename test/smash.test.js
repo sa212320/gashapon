@@ -308,6 +308,13 @@ test('120 個人也全部生在盤內,而且縮小了', () => {
   }
 });
 
+test('每隊上限 30 人:10 隊 × 30 = 300 個人也全部生在盤內', () => {
+  const fighters = Array.from({ length: 10 }, (_, i) => createFighter({ name: `隊${i}`, count: 30 }));
+  const w = createWorld({ fighters, rng: Math.random });
+  assert.equal(w.combatants.length, 300);
+  for (const c of w.combatants) assert.ok(bowlDistance(c.x, c.y) < -c.radius);
+});
+
 /* ---------- 勝負 ---------- */
 
 test('還在場內就不會被誤判淘汰', () => {

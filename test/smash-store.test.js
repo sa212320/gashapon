@@ -54,3 +54,10 @@ test('隊伍資料沒有多出動物欄位', () => {
   const s = loadFrom(oldSave({})).setups[0];
   assert.deepEqual(Object.keys(s.fighters[0]).sort(), ['color', 'count', 'id', 'name']);
 });
+
+test('每隊最多 30 人:存檔裡超過的壓回 30,30 以內照原本', () => {
+  const save = n => ({ schema: 1, state: { activeSetupId: 's1', setups: [{ id: 's1', name: 'x', fighters: [{ id: 'f1', name: '紅', color: '#E4572E', count: n }], items: {} }] } });
+  assert.equal(loadFrom(save(30)).setups[0].fighters[0].count, 30);
+  assert.equal(loadFrom(save(25)).setups[0].fighters[0].count, 25);
+  assert.equal(loadFrom(save(99)).setups[0].fighters[0].count, 30);
+});
