@@ -9,7 +9,7 @@
   "picks": {
     "attack": "dash/s3",
     "shield": "ice/s2",
-    "spin": "sheet-s3",
+    "spin": "whirl/s2",
     "missile": "sheet-s2"
   },
   "fx_picks": {
@@ -49,5 +49,5 @@
   },
   "ice": "The item is a big chunky cartoon block of clear ice, seen slightly from above: an irregular rounded cube with bevelled facets, pale translucent icy blue, bright white shine streaks on the upper facets, a few small white cracks, a little white frost along the bottom edge. The block is mostly see-through and empty inside, nothing frozen in it.",
   "dash": "The item is a chunky cartoon lightning-bolt arrow pointing to the right: a thick zigzag bolt in icy blue and white with a bold triangular arrow head, three white speed lines trailing behind it on the left, a few small sparkles.",
-  "whirl": "The item is a chunky cartoon whirlwind: a small swirling tornado funnel of icy blue and white wind streaks, wide at the top and narrow at the bottom, with a few white snowflakes spinning around it."
+  "whirl": "The item is a cartoon ice whirlpool swirl seen from directly above, drawn like a spiral swirl symbol: four curved arms of icy blue and white frosty wind spiralling inward to a small dark blue centre, clear empty gaps between the arms, the outer ends of the arms are loose curling wisps that trail off. NOT a ball, NOT a sphere, NOT a disc, no enclosing circle, no outline around the whole shape, no shading as if round. A few small snowflakes caught in the swirl. Flat, top-down."
 }

@@ -3,7 +3,7 @@
 export const ITEM_URLS = {
   attack: new URL('../img/items/attack.webp?v=09fb34fc', import.meta.url).href,
   shield: new URL('../img/items/shield.webp?v=996fdc7c', import.meta.url).href,
-  spin: new URL('../img/items/spin.webp?v=ee65c7cb', import.meta.url).href,
+  spin: new URL('../img/items/spin.webp?v=3108f449', import.meta.url).href,
   missile: new URL('../img/items/missile.webp?v=4e2d0c94', import.meta.url).href,
 };
 

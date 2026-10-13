@@ -13,7 +13,7 @@ import { HIT_POWER, HIT_FULL } from './physics.js';
 import { INK, outlinable, part } from './outline3d.js';
 import { createStadium } from './stadium3d.js';
 import { createBey, setChipTexture, loadChipTextures } from './bey3d.js';
-import { HEAL_FLASH, MISSILE_FUSE, BLAST_RADIUS, FROST_FLIGHT, WHIRL_RADIUS } from './items.js';
+import { HEAL_FLASH, MISSILE_FUSE, BLAST_RADIUS, FROST_FLIGHT, WHIRL_RADIUS, WHIRL_TIME } from './items.js';
 import * as ART from './art.js';
 import { fxFrame } from './fx-frame.js';
 import { landing } from './opening.js';
@@ -185,7 +185,10 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   }
 
   function clearProps() {
-    for (const p of props) root.remove(p);
+    for (const p of props) {
+      root.remove(p);
+      if (p.userData.ownGeometry) p.geometry.dispose();   // 每格重建的網格(冰旋渦)要放掉,不然 GPU 記憶體一直漲
+    }
     props = [];
   }
 
@@ -304,34 +307,64 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     return out;
   }
 
-  // 冰旋風:地上一圈淡淡的範圍圈 + 三條雪花旋臂逆時針轉(看得出「被捲進去」),最後 0.3 秒淡掉
+  // 冰旋渦:把漩渦圖(道具圖示那張)貼在盤面上(跟著碗的弧度彎),大小 = 捲入範圍。
+  // 像漩渦而不是轉盤:**愈靠中心轉得愈快**,紋路一直被扭進中心;再加幾片雪花沿螺旋捲進中心。
+  const VORTEX_RINGS = 8;
+  const VORTEX_SEGS = 48;
+  function vortexGeometry(cx, cy, radius, t) {
+    const pos = [];
+    const uv = [];
+    const vert = (i, j) => {
+      const r = j / VORTEX_RINGS;
+      const a = (i / VORTEX_SEGS) * Math.PI * 2;
+      const x = cx + Math.cos(a) * r * radius;
+      const y = cy + Math.sin(a) * r * radius;
+      pos.push(x, GROUND + heightAt(x, y) + 0.5, y);
+      const twist = a + t * (3 + 9 * (1 - r) ** 2);   // 中心轉得快、外圈慢
+      uv.push(0.5 + 0.5 * r * Math.cos(twist), 0.5 + 0.5 * r * Math.sin(twist));
+    };
+    for (let j = 0; j < VORTEX_RINGS; j++) {
+      for (let i = 0; i < VORTEX_SEGS; i++) {
+        vert(i, j); vert(i + 1, j); vert(i + 1, j + 1);
+        vert(i, j); vert(i + 1, j + 1); vert(i, j + 1);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    return g;
+  }
+
   function whirlVisual(c, time) {
     const out = [];
+    const tex = itemTex.get('spin');
+    const age = WHIRL_TIME - c.whirl;
     const fade = Math.min(1, c.whirl / 0.3);
+    const grow = Math.min(1, age / 0.25);
+    const radius = WHIRL_RADIUS * (0.3 + 0.7 * grow);
+    if (tex) {
+      const m = new THREE.Mesh(vortexGeometry(c.x, c.y, radius, age), new THREE.MeshBasicMaterial({
+        map: tex, transparent: true, opacity: 0.75 * fade, depthWrite: false, side: THREE.DoubleSide,
+      }));
+      m.renderOrder = -0.5;   // 疊在盤面上、陀螺下面
+      m.userData.ownGeometry = true;
+      out.push(m);
+    }
+    // 雪花沿螺旋從外圈捲進中心,到中心消失、再從外圈出現
     const ground = GROUND + heightAt(c.x, c.y);
-    const ring = new THREE.Mesh(RING_FAT, new THREE.MeshBasicMaterial({
-      color: 0xBFE8FF, transparent: true, opacity: 0.45 * fade, side: THREE.DoubleSide, depthWrite: false, depthTest: false,
-    }));
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.set(c.x, ground + 0.6, c.y);
-    ring.scale.setScalar(WHIRL_RADIUS);
-    ring.renderOrder = 8000;
-    out.push(ring);
-    const turn = time * 5;
-    for (let arm = 0; arm < 3; arm++) {
-      for (let i = 0; i < 6; i++) {
-        const r = WHIRL_RADIUS * (0.3 + 0.13 * i);
-        const a = turn + arm * (Math.PI * 2 / 3) - i * 0.45;   // 往外愈落後 = 螺旋
-        const m = new THREE.Mesh(STAR2, new THREE.MeshBasicMaterial({
-          color: i % 2 ? 0xFFFFFF : 0xBFE8FF, transparent: true, opacity: fade, depthTest: false, depthWrite: false,
-        }));
-        m.position.set(c.x + Math.cos(a) * r, ground + 3 + i * 1.6, c.y + Math.sin(a) * r);
-        m.quaternion.copy(camera.quaternion);
-        m.rotateZ(time * 8 + i);
-        m.scale.setScalar(1.6 + i * 0.35);
-        m.renderOrder = 8600;
-        out.push(m);
-      }
+    for (let i = 0; i < 12; i++) {
+      const p = (age * 0.9 + i / 12) % 1;
+      const r = radius * (1 - p);
+      const a = i * 2.4 + p * 7;
+      const m = new THREE.Mesh(STAR2, new THREE.MeshBasicMaterial({
+        color: 0xFFFFFF, transparent: true, opacity: fade * Math.sin(p * Math.PI), depthTest: false, depthWrite: false,
+      }));
+      m.position.set(c.x + Math.cos(a) * r, ground + 2 + 4 * (1 - p), c.y + Math.sin(a) * r);
+      m.quaternion.copy(camera.quaternion);
+      m.rotateZ(age * 6 + i);
+      m.scale.setScalar(1.4 + 1.6 * (1 - p));
+      m.renderOrder = 8600;
+      out.push(m);
     }
     return out;
   }
