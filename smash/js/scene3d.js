@@ -19,7 +19,7 @@ import { fxFrame } from './fx-frame.js';
 import { landing } from './opening.js';
 import { slideStep } from './spinout-slide.js';
 import { itemSize } from './item-size.js';
-import { BOUNDS, heightAt } from './stadium.js';
+import { BOUNDS, heightAt, ZONE, ZONE_HEIGHT } from './stadium.js';
 
 const GROUND = -4;        // 場地上表面的高度,角色站在這裡
 const SPARK_TIME = 0.4;   // 撞擊火花幾秒(逐格動畫 17 格)
@@ -317,6 +317,8 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   // 像漩渦而不是轉盤:**愈靠中心轉得愈快**,紋路一直被扭進中心;再加幾片雪花沿螺旋捲進中心。
   const VORTEX_RINGS = 8;
   const VORTEX_SEGS = 48;
+  // 漩渦只鋪在碗與平台上:比平台高的地方(牆、柱子)整個三角形不畫,不然靠牆時漩渦會爬上牆面
+  const VORTEX_TOP = ZONE_HEIGHT[ZONE.PLATEAU] + 0.5;
   function vortexGeometry(cx, cy, radius, t) {
     const pos = [];
     const uv = [];
@@ -325,14 +327,24 @@ export function createScene(canvas, { pitch = 55 } = {}) {
       const a = (i / VORTEX_SEGS) * Math.PI * 2;
       const x = cx + Math.cos(a) * r * radius;
       const y = cy + Math.sin(a) * r * radius;
-      pos.push(x, GROUND + heightAt(x, y) + 0.5, y);
       const twist = a + t * (3 + 9 * (1 - r) ** 2);   // 中心轉得快、外圈慢
-      uv.push(0.5 + 0.5 * r * Math.cos(twist), 0.5 + 0.5 * r * Math.sin(twist));
+      return { x, y, h: heightAt(x, y), u: 0.5 + 0.5 * r * Math.cos(twist), v: 0.5 + 0.5 * r * Math.sin(twist) };
+    };
+    const tri = (...vs) => {
+      if (vs.some(p => p.h > VORTEX_TOP)) return;
+      for (const p of vs) {
+        pos.push(p.x, GROUND + p.h + 0.5, p.y);
+        uv.push(p.u, p.v);
+      }
     };
     for (let j = 0; j < VORTEX_RINGS; j++) {
       for (let i = 0; i < VORTEX_SEGS; i++) {
-        vert(i, j); vert(i + 1, j); vert(i + 1, j + 1);
-        vert(i, j); vert(i + 1, j + 1); vert(i, j + 1);
+        const a = vert(i, j);
+        const b = vert(i + 1, j);
+        const c = vert(i + 1, j + 1);
+        const d = vert(i, j + 1);
+        tri(a, b, c);
+        tri(a, c, d);
       }
     }
     const g = new THREE.BufferGeometry();
