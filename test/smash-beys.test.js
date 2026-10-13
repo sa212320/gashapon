@@ -77,9 +77,11 @@ test('輕輕碰到不會爆裂', () => {
   assert.equal(burstChance({ power: HIT_POWER - 1, attacker: bey('attack'), target: bey('stamina') }), 0);
 });
 
-test('最重的一擊大約 25%(耐久對耐久、滿轉速)', () => {
+// 開場大家都是滿轉速、又都帶著初速衝進來 —— 滿轉速也很容易爆的話,常常一開打就有人爆掉。
+// 真的陀螺也是轉速掉了、零件鬆了才容易被撞散。
+test('滿轉速很難爆:最重的一擊也不到 6%', () => {
   const p = burstChance({ power: HIT_FULL, attacker: bey('stamina'), target: bey('stamina') });
-  assert.ok(Math.abs(p - 0.25) < 1e-9, `${p}`);
+  assert.ok(p > 0 && p < 0.06, `${p}`);
 });
 
 test('攻擊型與劍讓對方更容易爆;防禦型與盾讓自己比較難爆', () => {
@@ -90,10 +92,11 @@ test('攻擊型與劍讓對方更容易爆;防禦型與盾讓自己比較難爆'
   assert.ok(burstChance({ power: 200, attacker: bey('stamina'), target: bey('stamina', { buffs: { attack: [], shield: [8] } }) }) < base);
 });
 
-test('轉速愈低愈容易爆,但最多兩倍', () => {
-  const full = burstChance({ power: 200, attacker: null, target: bey('stamina') });
-  const low = burstChance({ power: 200, attacker: null, target: bey('stamina', { spin: 0 }) });
-  assert.ok(Math.abs(low - full * 2) < 1e-9);
+test('轉速愈低愈容易爆:快停的時候比滿轉速容易好幾倍', () => {
+  const at = spin => burstChance({ power: 200, attacker: null, target: bey('stamina', { spin }) });
+  assert.ok(at(0.5) > at(1) * 2);
+  assert.ok(at(0) > at(1) * 6);
+  assert.ok(at(0.2) > at(0.5));
 });
 
 test('機率有上限,三層劍加攻擊型也不會必爆', () => {

@@ -59,22 +59,25 @@ export function hitStrength(power) {
   return Math.min(1, Math.max(0, (power - HIT_POWER) / (HIT_FULL - HIT_POWER)));
 }
 
-const BURST_BASE = 0.25;   // 最重的一擊、雙方都中性、滿轉速時的爆裂機率
+const BURST_BASE = 0.5;    // 最重的一擊、雙方都中性、轉速快沒了的時候的爆裂機率
+const FULL_SPIN_BURST = 0.04;   // 滿轉速時只剩這個倍數 —— 開場大家都滿轉速,不能一撞就爆
 const BURST_CAP = 0.9;     // 再怎麼疊也不會必爆
 
 // target 被 power 這麼重的一下打到時,爆裂的機率。attacker 是 null 代表飛彈。
-// 轉速愈低愈脆(轉速 0 時 ×2)—— 這只影響爆裂,不影響撞擊力。
+// 爆裂主要發生在轉速掉下來之後(真的陀螺也是轉慢了、零件鬆了才容易被撞散):
+// 滿轉速 ×0.04,轉速愈低愈脆,歸零時 ×1。這只影響爆裂,不影響撞擊力。
 export function burstChance({ power, attacker, target }) {
   const k = hitStrength(power);
   if (k === 0) return 0;
   const dealt = attacker ? statsOf(attacker).burstDealt * SWORD_BURST ** layers(attacker, 'attack') : 1;
   const taken = statsOf(target).burstTaken * SHIELD_BURST ** layers(target, 'shield');
-  const fragile = 1 + (1 - Math.min(1, Math.max(0, target.spin ?? 1)));
+  const loose = 1 - Math.min(1, Math.max(0, target.spin ?? 1));
+  const fragile = FULL_SPIN_BURST + (1 - FULL_SPIN_BURST) * loose ** 3;   // 還有七成轉速時幾乎不會爆,掉到兩三成才真的脆
   return Math.min(BURST_CAP, BURST_BASE * k * dealt * taken * fragile);
 }
 
 export const SPIN_DECAY = 1 / 30;   // 中性陀螺每秒掉這麼多(約 30 秒轉完)
-export const HIT_SPIN_COST = 0.25;  // 被最重的一擊打到時扣這麼多,依撞擊強度縮放
+export const HIT_SPIN_COST = 0.18;  // 被最重的一擊打到時扣這麼多,依撞擊強度縮放
 export const WALL_SPIN_COST = 0.01; // 撞一次牆扣這麼多
 
 export function decaySpin(c, dt) {
