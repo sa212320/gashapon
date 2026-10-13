@@ -8,7 +8,7 @@
 // 一個角色先畫完自己所有的描邊,再畫自己所有的本體。否則角色擠在一起時,
 // 旁邊那顆的正面會比這顆的背面還近,把描邊整段吃掉(扭蛋機踩過這個坑)。
 import * as THREE from 'three';
-import { visibleTurn } from './spin-look.js';
+import { visibleTurn, drawnRate, blurAlpha, DRAW_MAX } from './spin-look.js';
 import { HIT_POWER, HIT_FULL } from './physics.js';
 import { INK, outlinable, part } from './outline3d.js';
 import { createStadium } from './stadium3d.js';
@@ -20,9 +20,9 @@ import { landing } from './opening.js';
 import { BOUNDS, heightAt, bowlDistance } from './stadium.js';
 
 const GROUND = -4;        // 場地上表面的高度,角色站在這裡
-const SPARK_TIME = 0.22;  // 撞擊火花幾秒
+const SPARK_TIME = 0.4;   // 撞擊火花幾秒(逐格動畫 17 格)
 const SPARK_MAX = 5;      // 同時最多幾個火花,再多就是一團糊
-const BLAST_TIME = 0.5;   // 爆炸演出幾秒
+const BLAST_TIME = 1.1;   // 爆炸演出幾秒(蘑菇雲逐格動畫 17 格)
 
 // 一顆鋸齒星(半徑 1,躺在 XY 平面朝 +Z)。爆炸畫成球體會變成一團半透明的糊,
 // 星形才是小孩認得的「爆炸」。
@@ -99,12 +99,14 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     });
   }
 
-  function fxSprite(name, k, x, y, lift, size) {
+  // anchorY:圖的哪個高度對準 (x, y)。0.5 = 正中間;蘑菇雲要從地面冒上來,對準雲的底部
+  function fxSprite(name, k, x, y, lift, size, { anchorY = 0.5, opacity = 1 } = {}) {
     const frames = fxTex.get(name);
     if (!frames) return null;
     const m = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: frames[fxFrame(k, frames.length)], transparent: true, depthTest: false, depthWrite: false,
+      map: frames[fxFrame(k, frames.length)], transparent: true, opacity, depthTest: false, depthWrite: false,
     }));
+    m.center.set(0.5, anchorY);
     m.position.set(x, GROUND + heightAt(x, y) + lift, y);
     m.scale.setScalar(size);
     return m;
@@ -279,7 +281,8 @@ export function createScene(canvas, { pitch = 55 } = {}) {
       out.push(m);
     };
 
-    const anim = fxSprite('blast', k, blast.x, blast.y, 16, BLAST_RADIUS * 2.4);
+    // 生成的蘑菇雲最後幾格還沒完全散掉,最後 30% 再淡出
+    const anim = fxSprite('blast', k, blast.x, blast.y, 0, BLAST_RADIUS * 2.2, { anchorY: 0.2, opacity: fade });
     if (anim) {
       out.push(anim);
     } else {
@@ -554,9 +557,9 @@ export function createScene(canvas, { pitch = 55 } = {}) {
         a.group.scale.setScalar(c.radius);
         // 轉速就是命:轉得愈慢,刃轉得愈慢
         // 剛射出去轉最快(約每秒 9 圈),轉速掉下來就慢慢慢下來
-        a.spinRate = 6 + 52 * c.spin ** 1.5;
+        a.spinRate = drawnRate(c.spin);
         a.spin.rotation.y += visibleTurn(a.spinRate, dt);
-        a.blur.material.opacity = 0.45 * Math.min(1, Math.max(0, (a.spinRate - 22) / 25));
+        a.blur.material.opacity = blurAlpha(c.spin);
         a.blur.visible = a.blur.material.opacity > 0.01;
         // 記下這一格的速度與位置:出局時畫面要接著這股慣性演
         a.vx = c.vx;
@@ -659,7 +662,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
           f.z += f.vz * dt;
           a.group.position.set(f.x, f.y, f.z);
           a.group.rotation.x += dt * 7;
-          a.spin.rotation.y += visibleTurn(20, dt);
+          a.spin.rotation.y += visibleTurn(DRAW_MAX, dt);
           a.shadow.visible = false;
           if (t > FLY_TIME * 0.6) setOpacity(a.group, Math.max(0, 1 - (t - FLY_TIME * 0.6) / (FLY_TIME * 0.4)));
           a.group.visible = t < FLY_TIME;

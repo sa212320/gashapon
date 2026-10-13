@@ -25,3 +25,23 @@ test('轉速愈高轉愈多(不會倒過來變慢)', () => {
     prev = t;
   }
 });
+
+import { drawnRate, blurAlpha } from '../smash/js/spin-look.js';
+
+test('畫出來的轉速跟著剩餘轉速一路變,不會整場都卡在上限(轉速就是命,要看得出來)', () => {
+  const rates = [0.2, 0.4, 0.6, 0.8, 1].map(drawnRate);
+  for (let i = 1; i < rates.length; i++) assert.ok(rates[i] > rates[i - 1] + 0.5, rates.join());
+});
+
+test('滿轉速在 60 fps 下每格也小於最密的齒(防禦型外框 12 個凸起)間距的一半', () => {
+  assert.ok(drawnRate(1) / 60 < (Math.PI * 2 / 12) / 2, `${drawnRate(1) / 60}`);
+});
+
+test('快停了還是看得到在轉', () => {
+  assert.ok(drawnRate(0) >= 3);
+});
+
+test('模糊圈:剛射出去最明顯,轉速掉一半就看不到', () => {
+  assert.ok(blurAlpha(1) > 0.3);
+  assert.equal(blurAlpha(0.4), 0);
+});
