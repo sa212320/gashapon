@@ -16,6 +16,7 @@ import { createAsk } from '../../shared/js/ask.js';
 import { loadPrefs, savePrefs } from '../../shared/js/prefs.js';
 import { sfx, setEnabled, unlock } from '../../shared/js/sound.js';
 import { requestPersistence } from '../../shared/js/storage.js';
+import { bindCountInput } from '../../shared/js/count-input.js';
 import { mountMascots } from '../../shared/js/mascot.js';
 
 const $ = id => document.getElementById(id);
@@ -435,12 +436,17 @@ function renderPlayers() {
   }));
 }
 
-function renderPrizes() {
+// 只更新「幾個獎、幾個人」那行。打數量時用這個,不重畫清單(重畫會把正在打字的輸入框換掉)
+function renderPrizeHint() {
   const total = draft.prizes.reduce((a, p) => a + p.count, 0);
   const n = draft.players.length;
   $('prizeHint').textContent = total >= n
     ? `${total} 個獎,${n} 個人 —— 每局隨機挑 ${n} 個上場`
     : `${total} 個獎,${n} 個人 —— 不夠的 ${n - total} 個會補「銘謝惠顧」`;
+}
+
+function renderPrizes() {
+  renderPrizeHint();
   $('prizeList').replaceChildren(...draft.prizes.flatMap((p, i) => {
     const li = document.createElement('li');
     li.className = 'edit-row';
@@ -455,15 +461,7 @@ function renderPrizes() {
     name.addEventListener('input', () => { draft.prizes[i].name = name.value; });
     const count = document.createElement('input');
     count.className = 'field__input edit-row__count';
-    count.type = 'number';
-    count.min = '0';
-    count.max = '99';
-    count.value = String(p.count);
-    count.addEventListener('input', () => {
-      const v = Number(count.value);
-      draft.prizes[i].count = Number.isFinite(v) ? Math.max(0, Math.min(99, Math.floor(v))) : 0;
-      renderPrizes();
-    });
+    bindCountInput(count, { value: p.count, max: 99, onCount: v => { draft.prizes[i].count = v; renderPrizeHint(); } });
     const del = document.createElement('button');
     del.className = 'chip chip--danger';
     del.type = 'button';

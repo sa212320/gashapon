@@ -13,6 +13,7 @@ import { createDialogShell } from '../../shared/js/dialog.js';
 import { createAsk } from '../../shared/js/ask.js';
 import { loadPrefs, savePrefs } from '../../shared/js/prefs.js';
 import { sfx, setEnabled, unlock } from '../../shared/js/sound.js';
+import { bindCountInput } from '../../shared/js/count-input.js';
 import { requestPersistence } from '../../shared/js/storage.js';
 import { mountMascots } from '../../shared/js/mascot.js';
 
@@ -252,9 +253,14 @@ function isDirty() {
     || entriesChanged(s.fighters, draft.fighters);
 }
 
-function renderTeams() {
+// 只更新「幾隊幾個人」那行。打人數時用這個,不重畫清單(重畫會把正在打字的輸入框換掉)
+function renderTeamHint() {
   const people = draft.fighters.reduce((a, f) => a + f.count, 0);
   $('teamHint').textContent = `${draft.fighters.length} 隊 · ${people} 個人(人數就是隊伍大小)`;
+}
+
+function renderTeams() {
+  renderTeamHint();
   $('teamList').replaceChildren(...draft.fighters.map((f, i) => {
     const li = document.createElement('li');
     li.className = 'edit-row';
@@ -268,15 +274,7 @@ function renderTeams() {
     name.addEventListener('input', () => { draft.fighters[i].name = name.value; });
     const count = document.createElement('input');
     count.className = 'field__input edit-row__count';
-    count.type = 'number';
-    count.min = '0';
-    count.max = '12';
-    count.value = String(f.count);
-    count.addEventListener('input', () => {
-      const v = Number(count.value);
-      draft.fighters[i].count = Number.isFinite(v) ? Math.max(0, Math.min(12, Math.floor(v))) : 0;
-      renderTeams();
-    });
+    bindCountInput(count, { value: f.count, max: 12, onCount: v => { draft.fighters[i].count = v; renderTeamHint(); } });
     const del = document.createElement('button');
     del.className = 'chip chip--danger';
     del.type = 'button';
