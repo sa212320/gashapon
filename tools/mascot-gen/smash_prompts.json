@@ -11,5 +11,30 @@
     "shield": "sheet-s1",
     "spin": "sheet-s3",
     "missile": "sheet-s2"
+  },
+  "fx_picks": {
+    "impact": "s1",
+    "cloud": "s2",
+    "blast": "s1",
+    "shock": "s2"
+  },
+  "fx_black": "Absolutely no letters, no words, no text. Everything else is pure black #000000. The effect is centred and stays completely inside the picture with a wide pure black margin on every side. No characters, no creatures, no scenery.",
+  "fx": {
+    "impact": {
+      "start": "a small bright white and yellow four-pointed star-shaped impact flash with a few tiny sparks",
+      "motion": "a cartoon hit impact: the bright white-yellow star flash bursts outward into a big spiky starburst, little yellow stars and white sparks fly out in all directions, then it quickly fades away into pure black"
+    },
+    "blast": {
+      "start": "a small bright white-orange explosion flash core with short spikes",
+      "motion": "a cartoon explosion: a big round orange and yellow fireball bursts outward with a spiky shockwave ring, then turns into puffy grey smoke while orange embers fly out, then everything fades away into pure black"
+    },
+    "cloud": {
+      "start": "a small bright white-orange explosion flash with short spikes, sitting in the lower part of the picture",
+      "motion": "a cartoon explosion: a bright orange and yellow fireball bursts up from the bottom, then a big puffy cartoon mushroom cloud rises upward from it, a round billowing orange and grey-white cloud cap on top of a thick rising smoke stem, a ring of grey smoke spreads out along the bottom, orange embers glow inside, then everything fades away into pure black"
+    },
+    "shock": {
+      "start": "a thin bright white and pale orange perfectly circular ring of light in the middle of the picture, seen from directly above",
+      "motion": "seen from directly above, a perfectly circular shockwave ring of white dust and pale orange smoke races outward from the centre toward the edges of the picture, the ring gets wider and thinner as it expands, small debris specks fly outward with it, the centre stays empty, then it fades away into pure black"
+    }
   }
 }

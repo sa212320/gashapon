@@ -24,7 +24,7 @@ def upload(png_bytes, name):
     return json.load(urllib.request.urlopen(req))['name']
 
 
-def graph(prompt, negative, start, length, seed, prefix, end=None):
+def graph(prompt, negative, start, length, seed, prefix, end=None, w=W, h=H):
     g = {
         '1': {'class_type': 'UNETLoader', 'inputs': {'unet_name': 'wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors', 'weight_dtype': 'default'}},
         '2': {'class_type': 'UNETLoader', 'inputs': {'unet_name': 'wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors', 'weight_dtype': 'default'}},
@@ -42,7 +42,7 @@ def graph(prompt, negative, start, length, seed, prefix, end=None):
         '15': {'class_type': 'VAEDecode', 'inputs': {'samples': ['14', 0], 'vae': ['8', 0]}},
         '16': {'class_type': 'SaveImage', 'inputs': {'images': ['15', 0], 'filename_prefix': prefix}},
     }
-    common = {'positive': ['10', 0], 'negative': ['11', 0], 'vae': ['8', 0], 'width': W, 'height': H, 'length': length, 'batch_size': 1}
+    common = {'positive': ['10', 0], 'negative': ['11', 0], 'vae': ['8', 0], 'width': w, 'height': h, 'length': length, 'batch_size': 1}
     if end:
         g['17'] = {'class_type': 'LoadImage', 'inputs': {'image': end}}
         g['12'] = {'class_type': 'WanFirstLastFrameToVideo', 'inputs': {**common, 'start_image': ['9', 0], 'end_image': ['17', 0]}}

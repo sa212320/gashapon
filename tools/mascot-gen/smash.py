@@ -6,7 +6,11 @@
   $PY tools/mascot-gen/smash.py gen attack            # 拼圖不行就分開生成,3 個 seed → out/smash/attack/s{1,2,3}.png
   $PY tools/mascot-gen/smash.py review [--bg PATH]    # 去背、疊在盤面截圖上並排 → review/smash.html
   $PY tools/mascot-gen/smash.py pick attack 2         # 或 pick sheet 2(四格一起)
-  $PY tools/mascot-gen/smash.py build                 # 輸出 smash/img/items/*.webp、蓋 ?v= 到 smash/js/art.js、重產 preload.json
+  $PY tools/mascot-gen/smash.py fx impact            # 特效逐格動畫(做法同 ClassBonusSystem):z_image 黑底起始圖 → Wan 2.2 17 格
+                                                      #   → 壓黑、圓形漸暗、黑轉透明 → out/smash/fx-impact/s{1,2,3}.png(一列 256×256)
+  $PY tools/mascot-gen/smash.py fx-review             # 動起來疊在盤面色上 → review/smash-fx.html
+  $PY tools/mascot-gen/smash.py fx-pick impact 2
+  $PY tools/mascot-gen/smash.py build                 # 輸出 smash/img/items/*.webp、smash/img/fx/*.webp,蓋 ?v= 到 smash/js/art.js、重產 preload.json
 """
 import argparse
 import io
@@ -31,6 +35,10 @@ CFG = HERE / 'smash_prompts.json'
 IMG = ROOT / 'smash' / 'img' / 'items'
 ART_JS = ROOT / 'smash' / 'js' / 'art.js'
 ITEMS = ['attack', 'shield', 'spin', 'missile']
+FX = ['impact', 'blast', 'cloud', 'shock']   # 撞擊火花;飛彈爆炸 = 大圓火球 + 蘑菇雲 + 衝擊波(Wan 逐格動畫)
+FX_N = 256                         # 每格邊長
+FX_LEN = 17                        # Wan 的格數(4n+1)
+FX_IMG = ROOT / 'smash' / 'img' / 'fx'
 SHEET_ORDER = ['attack', 'shield', 'spin', 'missile']   # 左上、右上、左下、右下
 SEEDS = [11, 22, 33]
 
@@ -62,6 +70,86 @@ def generate(name, prompt, seeds):
         imgs = comfy.run(comfy.graph_edit([ref], f'{cfg["style"]} {prompt}', seed, f'smash_{name}_s{n}'))
         (d / f's{n}.png').write_bytes(comfy.fetch(imgs[0]))
         print(f'{name} s{n} seed={seed}', flush=True)
+
+
+def cmd_fx(args):
+    cfg = load_cfg()
+    fx = cfg['fx'][args.name]
+    d = OUT / f'fx-{args.name}'
+    d.mkdir(parents=True, exist_ok=True)
+    for n, seed in enumerate(SEEDS, 1):
+        imgs = comfy.run(comfy.graph_t2i(
+            f'{fx["start"]}, on a pure black background, 2D cartoon game visual effect style, bright with a soft glow. '
+            f'The shape is clearly recognisable. {cfg["fx_black"]}', '', 640, 640, seed, f'smash_fxs_{args.name}_s{n}'))
+        first = comfy.fetch(imgs[0])
+        (d / f's{n}-start.png').write_bytes(first)
+        name = comfy.upload(first, f'smash_fxs_{args.name}_s{n}.png')
+        outs = comfy.run(comfy.graph(
+            f'2D cartoon game visual effect animation on a pure black background: {fx["motion"]}. '
+            f'Static camera, the background stays pure black the whole time. {cfg["fx_black"]}',
+            'camera movement, scenery, ground, characters, creatures, text, background colour, smoke filling the screen',
+            name, FX_LEN, seed, f'smash_fxv_{args.name}_s{n}', w=640, h=640))
+        frames = [Image.open(io.BytesIO(comfy.fetch(im))) for im in sorted(outs, key=lambda im: im['filename'])]
+        fx_strip(frames).save(d / f's{n}.png')
+        print(f'fx {args.name} s{n} seed={seed} {len(frames)} 格', flush=True)
+
+
+def fx_radial():
+    """圓形漸暗:邊緣淡到 0,方形邊界才不會在畫面上切出一條線"""
+    yy, xx = np.mgrid[0:FX_N, 0:FX_N]
+    r = np.hypot(xx - FX_N / 2 + 0.5, yy - FX_N / 2 + 0.5) / (FX_N / 2)
+    t = np.clip((r - 0.62) / (0.98 - 0.62), 0, 1)
+    return 1 - t * t * (3 - 2 * t)
+
+
+def black_to_alpha(rgb):
+    """黑底 → 透明:最亮的通道當透明度,顏色除以透明度還原(疊在黑底上跟原圖一樣)。
+    同 ClassBonusSystem 的 blackToAlpha;極暗的雜訊直接全透明。"""
+    a = rgb.max(axis=2)
+    out = np.zeros((*rgb.shape[:2], 4), np.uint8)
+    keep = a >= 12
+    out[..., :3][keep] = np.clip(rgb[keep] * 255.0 / a[keep, None], 0, 255).astype(np.uint8)
+    out[..., 3] = np.where(keep, a, 0)
+    return out
+
+
+def fx_strip(frames):
+    mask = fx_radial()
+    cells = []
+    for im in frames:
+        v = np.asarray(im.convert('RGB').resize((FX_N, FX_N), Image.LANCZOS)).astype(float)
+        v = np.where(v < 14, 0, (v - 14) * 255 / 241) * mask[..., None]   # 壓黑:Wan 的黑底帶一點灰
+        cells.append(black_to_alpha(v.round().astype(np.uint8)))
+    return Image.fromarray(np.concatenate(cells, axis=1))
+
+
+def cmd_fx_review(args):
+    REVIEW.mkdir(parents=True, exist_ok=True)
+    html = ['<!doctype html><meta charset=utf-8><body style="background:#EAF6FD;font:14px system-ui">',
+            '<style>.fx{width:192px;height:192px;display:inline-block;margin:6px;background-size:auto 100%;'
+            'animation-iteration-count:infinite;border-radius:12px}</style>']
+    for name in FX:
+        html.append(f'<h3>{name}</h3>')
+        for src in sorted((OUT / f'fx-{name}').glob('s?.png')):
+            im = Image.open(src)
+            n = im.width // im.height
+            dst = REVIEW / f'fx-{name}-{src.name}'
+            im.save(dst)
+            dur = 0.45 if name == 'impact' else 1.1
+            anim = f'{name}{src.stem}'
+            html.append(f'<style>@keyframes {anim}{{from{{background-position:0 0}}to{{background-position:-{192 * n}px 0}}}}</style>')
+            cells = ''.join(f'<div class="fx" style="background-color:{bg};background-image:url(smash/{dst.name});'
+                            f'animation:{anim} {dur}s steps({n}) infinite"></div>' for bg in ['#D3EAF8', '#A9D3EE', '#3E5A73'])
+            html.append(f'<div><b>{src.stem}</b>({n} 格,{dur}s)<br>{cells}'
+                        f'<br><img src="smash/{dst.name}" style="height:64px;background:#A9D3EE"></div>')
+    (REVIEW.parent / 'smash-fx.html').write_text('\n'.join(html))
+    print('開 http://localhost:8765/tools/mascot-gen/review/smash-fx.html')
+
+
+def cmd_fx_pick(args):
+    cfg = load_cfg()
+    cfg.setdefault('fx_picks', {})[args.name] = f's{args.n}'
+    save_cfg(cfg)
 
 
 def cmd_sheet(args):
@@ -145,15 +233,25 @@ def cmd_build(args):
     if missing:
         sys.exit(f'還沒 pick:{", ".join(missing)}')
     IMG.mkdir(parents=True, exist_ok=True)
+    FX_IMG.mkdir(parents=True, exist_ok=True)
     lines = []
     for i in ITEMS:
         path = IMG / f'{i}.webp'
         webp(icon_cut(picked_image(i, cfg['picks'][i])), path, q=80)
         lines.append(f"  {i}: new URL('../img/items/{i}.webp?v={content_hash(path)}', import.meta.url).href,")
+    fx_lines = []
+    for name, pick in cfg.get('fx_picks', {}).items():
+        strip = Image.open(OUT / f'fx-{name}' / f'{pick}.png')
+        path = FX_IMG / f'{name}.webp'
+        strip.save(path, 'WEBP', quality=80, method=6)
+        fx_lines.append(f"  {name}: {{ url: new URL('../img/fx/{name}.webp?v={content_hash(path)}', import.meta.url).href, "
+                        f"frames: {strip.width // strip.height} }},")
     ART_JS.write_text(
-        '// 大亂鬥道具圖示的網址(tools/mascot-gen/smash.py build 產生,不要手改)。\n'
+        '// 大亂鬥道具圖示與特效的網址(tools/mascot-gen/smash.py build 產生,不要手改)。\n'
         '// 帶 ?v= 內容雜湊:Pages 會快取 10 分鐘,換圖不換網址的話小孩會看到舊圖。\n'
-        'export const ITEM_URLS = {\n' + '\n'.join(lines) + '\n};\n')
+        'export const ITEM_URLS = {\n' + '\n'.join(lines) + '\n};\n\n'
+        '// 特效逐格動畫(撞擊火花、飛彈爆炸):一列 frames 格的橫條,照時間一格一格換\n'
+        'export const FX_URLS = {\n' + '\n'.join(fx_lines) + '\n};\n')
     write_preload_manifest()
     print('smash item icons done')
 
@@ -165,9 +263,13 @@ def main():
     g = sub.add_parser('gen'); g.add_argument('name', choices=ITEMS); g.add_argument('--seeds')
     r = sub.add_parser('review'); r.add_argument('--bg')
     p = sub.add_parser('pick'); p.add_argument('name', choices=ITEMS + ['sheet']); p.add_argument('n', type=int)
+    f = sub.add_parser('fx'); f.add_argument('name', choices=FX)
+    sub.add_parser('fx-review')
+    fp = sub.add_parser('fx-pick'); fp.add_argument('name', choices=FX); fp.add_argument('n', type=int)
     sub.add_parser('build')
     args = ap.parse_args()
-    {'sheet': cmd_sheet, 'gen': cmd_gen, 'review': cmd_review, 'pick': cmd_pick, 'build': cmd_build}[args.cmd](args)
+    {'sheet': cmd_sheet, 'gen': cmd_gen, 'review': cmd_review, 'pick': cmd_pick, 'build': cmd_build,
+     'fx': cmd_fx, 'fx-review': cmd_fx_review, 'fx-pick': cmd_fx_pick}[args.cmd](args)
 
 
 if __name__ == '__main__':

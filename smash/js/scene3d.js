@@ -22,7 +22,10 @@ import { BOUNDS, heightAt, bowlDistance } from './stadium.js';
 const GROUND = -4;        // 場地上表面的高度,角色站在這裡
 const SPARK_TIME = 0.4;   // 撞擊火花幾秒(逐格動畫 17 格)
 const SPARK_MAX = 5;      // 同時最多幾個火花,再多就是一團糊
-const BLAST_TIME = 1.1;   // 爆炸演出幾秒(蘑菇雲逐格動畫 17 格)
+// 生成的圖裡火球 / 衝擊波只佔格子中間一部分:整格要放大幾倍,畫出來才剛好是爆炸範圍的直徑
+const FX_BLAST_SPAN = 2.6;
+const FX_SHOCK_SPAN = 2.5;   // 衝擊波的圈在圖裡大約佔 80%,再隨時間從 35% 擴散到 100%
+const BLAST_TIME = 1.6;   // 爆炸演出幾秒(蘑菇雲逐格動畫 17 格)
 
 // 一顆鋸齒星(半徑 1,躺在 XY 平面朝 +Z)。爆炸畫成球體會變成一團半透明的糊,
 // 星形才是小孩認得的「爆炸」。
@@ -108,6 +111,20 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     }));
     m.center.set(0.5, anchorY);
     m.position.set(x, GROUND + heightAt(x, y) + lift, y);
+    m.scale.setScalar(size);
+    return m;
+  }
+
+  // 平貼在盤面上的逐格特效(大圓火球、衝擊波):大小 = 在盤面上佔多寬。
+  // 盤面是碗形,平面會插進碗壁,所以不做深度測試,直接疊在上面。
+  const FLAT = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  function fxFlat(name, k, x, y, size, opacity = 1) {
+    const frames = fxTex.get(name);
+    if (!frames || k < 0 || k >= 1) return null;
+    const m = new THREE.Mesh(FLAT, new THREE.MeshBasicMaterial({
+      map: frames[fxFrame(k, frames.length)], transparent: true, opacity, depthTest: false, depthWrite: false,
+    }));
+    m.position.set(x, GROUND + heightAt(x, y) + 0.5, y);
     m.scale.setScalar(size);
     return m;
   }
@@ -281,15 +298,23 @@ export function createScene(canvas, { pitch = 55 } = {}) {
       out.push(m);
     };
 
-    // 生成的蘑菇雲最後幾格還沒完全散掉,最後 30% 再淡出
-    const anim = fxSprite('blast', k, blast.x, blast.y, 0, BLAST_RADIUS * 2.2, { anchorY: 0.2, opacity: fade });
-    if (anim) {
-      out.push(anim);
-    } else {
-      const size = BLAST_RADIUS * (0.35 + 0.65 * ease);
-      star(STAR, INK, size * 1.1, fade);
-      star(STAR2, new THREE.Color(0xFFE9A8).lerp(new THREE.Color(0xFF6A2B), ease), size, fade);
+    // 三層疊起來:盤面上的大圓火球(大小 = 爆炸範圍,圈裡的都會被炸)、往外擴散的衝擊波、
+    // 從中心冒上來的蘑菇雲。生成的圖最後幾格還沒完全散掉,最後 30% 再淡出。
+    const shockK = (k - 0.12) / 0.6;
+    const layers = [
+      fxFlat('blast', k / 0.5, blast.x, blast.y, BLAST_RADIUS * FX_BLAST_SPAN),
+      fxFlat('shock', shockK, blast.x, blast.y,
+        BLAST_RADIUS * FX_SHOCK_SPAN * (0.35 + 0.65 * (1 - (1 - Math.min(1, Math.max(0, shockK) / 0.6)) ** 2))),
+      k > 0.1 ? fxSprite('cloud', (k - 0.1) / 0.9, blast.x, blast.y, 0, BLAST_RADIUS * 2, { anchorY: 0.2, opacity: fade }) : null,
+    ].filter(Boolean);
+    layers.forEach((m, i) => { m.renderOrder = 8100 + i; });   // 火球 → 衝擊波 → 蘑菇雲,由下往上疊
+    if (fxTex.has('blast')) {
+      out.push(...layers);
+      return out;
     }
+    const size = BLAST_RADIUS * (0.35 + 0.65 * ease);
+    star(STAR, INK, size * 1.1, fade);
+    star(STAR2, new THREE.Color(0xFFE9A8).lerp(new THREE.Color(0xFF6A2B), ease), size, fade);
 
     const shock = new THREE.Mesh(RING, new THREE.MeshBasicMaterial({
       color: 0xFF8A4C, transparent: true, opacity: fade * 0.65,

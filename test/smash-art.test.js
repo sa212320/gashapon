@@ -25,3 +25,19 @@ test('圖示檔案存在,網址的 ?v= 跟內容一致', () => {
     assert.equal(m[2], digest, `${type} 換了圖沒重跑 build`);
   }
 });
+
+test('特效逐格動畫:撞擊、爆炸三層(大圓火球、蘑菇雲、衝擊波)都有,網址的 ?v= 跟內容一致,格數對得上圖寬', async () => {
+  const { FX_URLS } = await import('../smash/js/art.js');
+  assert.deepEqual(Object.keys(FX_URLS ?? {}).sort(), ['blast', 'cloud', 'impact', 'shock']);
+  for (const [name, { url, frames }] of Object.entries(FX_URLS)) {
+    const m = url.match(/smash\/img\/fx\/(\w+)\.webp\?v=([0-9a-f]{8})$/);
+    assert.ok(m, url);
+    assert.equal(m[1], name);
+    const buf = readFileSync(join(root, 'smash', 'img', 'fx', `${name}.webp`));
+    assert.equal(m[2], createHash('sha1').update(buf).digest('hex').slice(0, 8), `${name} 換了圖沒重跑 build`);
+    // WebP VP8X 標頭:畫布寬高(各 24 bit,存的是減 1)
+    const w = buf.readUIntLE(24, 3) + 1;
+    const h = buf.readUIntLE(27, 3) + 1;
+    assert.equal(w / h, frames);
+  }
+});
