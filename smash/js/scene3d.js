@@ -14,7 +14,9 @@ import { INK, outlinable, part } from './outline3d.js';
 import { createStadium } from './stadium3d.js';
 import { createBey, setChipTexture, loadChipTextures } from './bey3d.js';
 import { HEAL_FLASH, MISSILE_FUSE, BLAST_RADIUS } from './items.js';
-import { ITEM_URLS } from './art.js';
+import * as ART from './art.js';
+import { fxFrame } from './fx-frame.js';
+import { landing } from './opening.js';
 import { BOUNDS, heightAt, bowlDistance } from './stadium.js';
 
 const GROUND = -4;        // 場地上表面的高度,角色站在這裡
@@ -78,8 +80,34 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   // 場景一建立就開始載(首頁也預先載過,通常是快取命中),不等第一個道具掉下來。
   const itemTex = new Map();
   const texLoader = new THREE.TextureLoader();
-  for (const [type, url] of Object.entries(ITEM_URLS)) {
+  for (const [type, url] of Object.entries(ART.ITEM_URLS)) {
     texLoader.load(url, t => { t.colorSpace = THREE.SRGBColorSpace; itemTex.set(type, t); });
+  }
+
+  // 逐格特效(ComfyUI 生成,黑底轉透明的橫條):每一格先備好一張共用同一份圖的貼圖,
+  // 換格只是換貼圖,不用每格重新上傳。圖還沒載好就先用程式畫的星星頂著。
+  const fxTex = new Map();   // name -> [每一格的貼圖]
+  for (const [name, { url, frames }] of Object.entries(ART.FX_URLS ?? {})) {
+    texLoader.load(url, t => {
+      t.colorSpace = THREE.SRGBColorSpace;
+      fxTex.set(name, Array.from({ length: frames }, (_, i) => {
+        const f = t.clone();
+        f.repeat.set(1 / frames, 1);
+        f.offset.set(i / frames, 0);
+        return f;
+      }));
+    });
+  }
+
+  function fxSprite(name, k, x, y, lift, size) {
+    const frames = fxTex.get(name);
+    if (!frames) return null;
+    const m = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: frames[fxFrame(k, frames.length)], transparent: true, depthTest: false, depthWrite: false,
+    }));
+    m.position.set(x, GROUND + heightAt(x, y) + lift, y);
+    m.scale.setScalar(size);
+    return m;
   }
 
   function itemVisual(item) {
@@ -207,6 +235,8 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   // 但同時好幾下還是會疊成一團,所以再壓一個同時存在的上限。
   // 星星小、命都很短(0.22 秒)—— 撞擊是一瞬間的事,拖長了會變成黏在場上的貼紙。
   function sparkVisual(spark, k) {
+    const anim = fxSprite('impact', k, spark.x, spark.y, 7, 26 + spark.k * 22);
+    if (anim) return [anim];
     // 大部分時間維持不透明,最後才淡出 —— 從頭淡到尾的話,
     // 淺色星星疊在米色地板上會糊成一團看不出是什麼的灰影。
     const fade = k < 0.6 ? 1 : (1 - k) / 0.4;
@@ -249,9 +279,14 @@ export function createScene(canvas, { pitch = 55 } = {}) {
       out.push(m);
     };
 
-    const size = BLAST_RADIUS * (0.35 + 0.65 * ease);
-    star(STAR, INK, size * 1.1, fade);
-    star(STAR2, new THREE.Color(0xFFE9A8).lerp(new THREE.Color(0xFF6A2B), ease), size, fade);
+    const anim = fxSprite('blast', k, blast.x, blast.y, 16, BLAST_RADIUS * 2.4);
+    if (anim) {
+      out.push(anim);
+    } else {
+      const size = BLAST_RADIUS * (0.35 + 0.65 * ease);
+      star(STAR, INK, size * 1.1, fade);
+      star(STAR2, new THREE.Color(0xFFE9A8).lerp(new THREE.Color(0xFF6A2B), ease), size, fade);
+    }
 
     const shock = new THREE.Mesh(RING, new THREE.MeshBasicMaterial({
       color: 0xFF8A4C, transparent: true, opacity: fade * 0.65,
@@ -511,8 +546,10 @@ export function createScene(canvas, { pitch = 55 } = {}) {
       const a = actorFor(c, team?.color ?? '#CCCCCC');
       const ground = GROUND + heightAt(c.x, c.y);
       if (c.alive) {
-        a.group.visible = true;
-        a.shadow.visible = true;
+        const land = landing(drop);
+        a.group.visible = land.visible;
+        a.shadow.visible = land.visible;
+        a.shadow.material.opacity = 0.22 * land.shadow;
         a.group.position.set(c.x, ground + fall, c.y);
         a.group.scale.setScalar(c.radius);
         // 轉速就是命:轉得愈慢,刃轉得愈慢
@@ -537,7 +574,7 @@ export function createScene(canvas, { pitch = 55 } = {}) {
           a.group.rotation.x = c.vy * 0.0016;
         }
         a.shadow.position.set(c.x, ground + 0.25, c.y);
-        a.shadow.scale.setScalar(c.radius * 0.95 * (drop < 1 ? 0.4 + 0.6 * easeOutBounce(Math.max(0, drop)) : 1));
+        a.shadow.scale.setScalar(c.radius * 0.95 * (0.4 + 0.6 * land.shadow));
         const shields = c.buffs?.shield?.length ?? 0;
         if (shields > (a.shields ?? 0)) a.shieldAt = world.time;
         a.shields = shields;

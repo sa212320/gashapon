@@ -10,3 +10,10 @@ export function openingAt(t) {
   const drop = index < LABELS.length - 1 ? 0 : (t - STEP * (LABELS.length - 1)) / STEP;
   return { label: LABELS[index], index, drop, done: false };
 }
+
+// 開場的陀螺與影子:倒數時陀螺還掛在畫面外的上方,什麼都不畫(只畫影子的話,盤面上會是一堆灰點);
+// Go Shoot! 落下時影子跟著變大變深(shadow 0~1),落地就是正常的影子。
+export function landing(drop) {
+  if (drop <= 0) return { visible: false, shadow: 0 };
+  return { visible: true, shadow: Math.min(1, drop) };
+}

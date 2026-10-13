@@ -36,6 +36,7 @@ let running = false;
 let raf = 0;
 let nextItem = ITEM_EVERY;
 let gone = new Set();         // 已經出局、放過音效的陀螺
+let waiting = true;           // 還沒按開打:只畫空盤子,陀螺 Go Shoot! 才落進來
 
 const nameMap = () => new Map(getActive(state).fighters.map(f => [f.id, f]));
 
@@ -67,9 +68,10 @@ function reset() {
   nextItem = ITEM_EVERY;
   gone = new Set();
   $('countdown').hidden = true;
+  waiting = true;
   scene.reset();
   scene.resize();
-  scene.draw(world, nameMap());
+  scene.draw(world, nameMap(), { drop: 0 });
 }
 
 // 撞擊音效。同一格可能有好幾下,只播最重的那一下 ——
@@ -91,6 +93,7 @@ function start() {
   if (running) return;
   $('winner').hidden = true;
   reset();
+  waiting = false;
   running = true;
   $('startBtn').disabled = true;
   mascots.setPose('watch');
@@ -196,7 +199,7 @@ function finish(teamId) {
 $('startBtn').addEventListener('click', start);
 $('againBtn').addEventListener('click', start);
 $('emptySettingsBtn').addEventListener('click', () => settings.open());
-addEventListener('resize', () => { scene.resize(); if (world) scene.draw(world, nameMap()); });
+addEventListener('resize', () => { scene.resize(); if (world) scene.draw(world, nameMap(), { drop: waiting ? 0 : 1 }); });
 
 // 切到別的 App 時瀏覽器會停掉 rAF,比賽會卡在半路。直接結束掉,不要留一個永遠打不完的場子。
 document.addEventListener('visibilitychange', () => {
