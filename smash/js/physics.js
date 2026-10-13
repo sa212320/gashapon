@@ -27,6 +27,7 @@ export { HIT_POWER, HIT_FULL };
 const RESTITUTION = 1.15;
 const FRICTION = 0.995;
 const SPAWN_MARGIN = 30;
+const BURST_GRACE = 3;   // 開場幾秒內不會爆裂:開場那一波重擊很密,不設保護期常常一開打就有人爆掉
 
 export function createWorld({ fighters, rng = Math.random }) {
   const total = fighters.reduce((n, f) => n + (Number.isFinite(f.count) ? Math.max(0, Math.floor(f.count)) : 0), 0);
@@ -106,6 +107,23 @@ function wallDirection(x, y, fast) {
   return l < 1e-9 ? null : { x: nx / l, y: ny / l };
 }
 
+// 中心已經在牆裡或盤外(多半是互撞時被推進去的):往最近的空位推出去,朝那個方向反彈
+function escape(c) {
+  for (let r = 0.5; r <= 30; r += 0.5) {   // 一群人擠在一起互推,一格能推出去十幾單位
+    for (let i = 0; i < 24; i++) {
+      const a = (i / 24) * Math.PI * 2;
+      const x = c.x + Math.cos(a) * r;
+      const y = c.y + Math.sin(a) * r;
+      const z = zoneAt(x, y);
+      if (z === ZONE.WALL || z === ZONE.PILLAR || z === ZONE.OUT) continue;
+      c.x = x;
+      c.y = y;
+      bounce(c, -Math.cos(a), -Math.sin(a));
+      return;
+    }
+  }
+}
+
 // 照盤子的規則處理這一步的位置:(px, py) 是這一步之前的位置。
 function contain(c, px, py) {
   // 軌道:碗裡的陀螺碰到軌道,往外夠快就跳上平台,不然彈回碗裡。
@@ -145,6 +163,9 @@ function contain(c, px, py) {
     c.y = py;
     bounce(c, n.x, n.y);
   }
+  // 退回去的位置本身也在牆裡(互撞推進去的):找最近的空位推出去
+  const here = zoneAt(c.x, c.y);
+  if (here === ZONE.WALL || here === ZONE.PILLAR || here === ZONE.OUT) escape(c);
 }
 
 export function step(world, dt, rng = Math.random) {
@@ -239,7 +260,7 @@ export function step(world, dt, rng = Math.random) {
       // 被打到的一方扣轉速、擲爆裂骰。兩邊各自算 —— 對撞時兩個都可能爆。
       for (const [me, them, p] of [[a, b, powerA], [b, a, powerB]]) {
         me.spin -= HIT_SPIN_COST * hitStrength(p);
-        if (p >= HIT_POWER && rng() < burstChance({ power: p, attacker: them, target: me })) {
+        if (world.time >= BURST_GRACE && p >= HIT_POWER && rng() < burstChance({ power: p, attacker: them, target: me })) {
           knockOut(me, 'burst');
         }
       }

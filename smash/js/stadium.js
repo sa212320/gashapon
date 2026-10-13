@@ -54,7 +54,7 @@ export const RAIL_HEIGHT = 3.6;   // 軌道高出地面多少(8mm)
 export const RAIL_ACCEL = 220;    // 在軌道上沿切線的加速度
 export const RAIL_MAX = 260;      // 沿切線超過這個速度就不再加速
 export const RAIL_FLING = 0.45;   // 離開軌道時,往中央甩的比例(乘上當下速度)
-export const RING_HOP = 35;      // 往外的速度超過這個,才跳得過軌道上到平台
+export const RING_HOP = 100;      // 往外的速度超過這個,才跳得過軌道上到平台
 
 /* ---------- 軌道外 ---------- */
 

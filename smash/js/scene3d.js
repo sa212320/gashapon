@@ -346,6 +346,9 @@ export function createScene(canvas, { pitch = 55 } = {}) {
   const SPIN_FALL = 0.6;    //        倒下花幾秒
   const SPIN_FADE = 0.8;    //        倒下後幾秒淡出
   const BURST_TIME = 1.4;   // 爆裂:零件飛幾秒
+  const FLY_TIME = 1.1;     // 場外(正前方):飛出去幾秒
+  const POCKET_STAY = 0.8;  // 場外:掉進出口後停幾秒
+  const POCKET_FADE = 0.8;  //        再幾秒淡出
   const GRAVITY = 260;
   const WOBBLE_FROM = 0.35; // 轉速低於這個開始晃
 
@@ -510,7 +513,6 @@ export function createScene(canvas, { pitch = 55 } = {}) {
     const dt = Math.max(0, Math.min(0.1, world.time - lastTime));
     lastTime = world.time;
     const live = [];
-    const pocketCount = new Map();   // 同一個出口裡已經有幾顆(錯開放)
     for (const c of world.combatants) {
       const team = teams.get(c.fighterId);
       const a = actorFor(c, team?.color ?? '#CCCCCC');
@@ -599,15 +601,36 @@ export function createScene(canvas, { pitch = 55 } = {}) {
         a.group.visible = t < fadeAt + SPIN_FADE;
         if (a.group.visible) live.push(a.group);
       } else {
-        // 場外:停在出口裡(物理已經放好位置),慢慢轉停;同一個出口依出局順序錯開
-        const n = pocketCount.get(c.pocket) ?? 0;
-        pocketCount.set(c.pocket, n + 1);
-        const off = n * c.radius * 0.6;
-        a.group.position.set(c.x + off, ground, c.y);
+        if (c.pocket === 'center') {
+          // 正前方(Xtreme Zone):整顆往前飛出去,劃一道弧線越過前牆,邊飛邊轉,最後淡掉
+          if (!a.fly) {
+            a.fly = {
+              x: c.x, y: ground, z: c.y,
+              vx: (a.vx ?? 0) * 0.3, vy: 70, vz: Math.max(90, (a.vy ?? 0) * 0.8),
+            };
+          }
+          const f = a.fly;
+          f.vy -= GRAVITY * dt;
+          f.x += f.vx * dt;
+          f.y += f.vy * dt;
+          f.z += f.vz * dt;
+          a.group.position.set(f.x, f.y, f.z);
+          a.group.rotation.x += dt * 7;
+          a.spin.rotation.y += dt * 20;
+          a.shadow.visible = false;
+          if (t > FLY_TIME * 0.6) setOpacity(a.group, Math.max(0, 1 - (t - FLY_TIME * 0.6) / (FLY_TIME * 0.4)));
+          a.group.visible = t < FLY_TIME;
+          if (a.group.visible) live.push(a.group);
+          continue;
+        }
+        // 前角方槽(Over Zone):掉進槽裡停一下、慢慢轉停,再淡出消失
+        a.group.position.set(c.x, ground, c.y);
         a.group.rotation.set(0, 0, 0.35);
-        a.spin.rotation.y += dt * 6 * Math.max(0, 1 - t / 1.5);
+        a.spin.rotation.y += dt * 6 * Math.max(0, 1 - t / 0.8);
         a.shadow.visible = false;
-        live.push(a.group);
+        if (t > POCKET_STAY) setOpacity(a.group, Math.max(0, 1 - (t - POCKET_STAY) / POCKET_FADE));
+        a.group.visible = t < POCKET_STAY + POCKET_FADE;
+        if (a.group.visible) live.push(a.group);
       }
     }
 

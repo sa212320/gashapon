@@ -60,12 +60,12 @@ export function hitStrength(power) {
 }
 
 const BURST_BASE = 0.5;    // 最重的一擊、雙方都中性、轉速快沒了的時候的爆裂機率
-const FULL_SPIN_BURST = 0.04;   // 滿轉速時只剩這個倍數 —— 開場大家都滿轉速,不能一撞就爆
+const FULL_SPIN_BURST = 0.01;   // 滿轉速時只剩這個倍數 —— 開場大家都滿轉速,不能一撞就爆
 const BURST_CAP = 0.9;     // 再怎麼疊也不會必爆
 
 // target 被 power 這麼重的一下打到時,爆裂的機率。attacker 是 null 代表飛彈。
 // 爆裂主要發生在轉速掉下來之後(真的陀螺也是轉慢了、零件鬆了才容易被撞散):
-// 滿轉速 ×0.04,轉速愈低愈脆,歸零時 ×1。這只影響爆裂,不影響撞擊力。
+// 滿轉速 ×0.01,轉速愈低愈脆,歸零時 ×1。這只影響爆裂,不影響撞擊力。
 export function burstChance({ power, attacker, target }) {
   const k = hitStrength(power);
   if (k === 0) return 0;

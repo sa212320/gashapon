@@ -160,8 +160,23 @@ function start() {
   raf = requestAnimationFrame(frame);
 }
 
+// 分出勝負之後再畫一小段:正在飛出去、淡出中的陀螺把演出播完,不會停在半空
+function afterglow() {
+  const until = world.time + 1.5;
+  let last = performance.now();
+  const tick = now => {
+    if (running) return;
+    world = { ...world, time: world.time + Math.min(0.033, (now - last) / 1000) };
+    last = now;
+    scene.draw(world, nameMap());
+    if (world.time < until) raf = requestAnimationFrame(tick);
+  };
+  raf = requestAnimationFrame(tick);
+}
+
 function finish(teamId) {
   running = false;
+  afterglow();
   $('startBtn').disabled = false;
   const f = nameMap().get(teamId);
   if (f) {

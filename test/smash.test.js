@@ -216,6 +216,26 @@ test('隨機高速也不會穿牆:除了出口,永遠不會出現在盤外或牆
   }
 });
 
+test('擠在牆邊互撞,也不會被推進牆裡或盤外', () => {
+  // 一群陀螺擠在平台上靠近外殼與柱子的地方,互相推來推去
+  let seed = 3;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const spots = [[93, 0], [-93, 0], [0, -86], [-60, 80], [60, 80], [70, -60]];
+  for (const [sx, sy] of spots) {
+    const crowd = Array.from({ length: 8 }, (_, i) => at(i % 2 ? 'red' : 'blue', sx + (rnd() - 0.5) * 12, sy + (rnd() - 0.5) * 12,
+      (rnd() - 0.5) * 400, (rnd() - 0.5) * 400, { ledge: true, id: `c${i}` }));
+    let w = { ...arena, combatants: crowd };
+    for (let f = 0; f < 60; f++) {
+      w = step(w, 1 / 60, noRng);
+      for (const c of w.combatants) {
+        if (!c.alive) continue;
+        const z = zoneAt(c.x, c.y);
+        assert.ok(z !== ZONE.OUT && z !== ZONE.WALL && z !== ZONE.PILLAR, `(${sx},${sy}) 第 ${f} 格:(${c.x.toFixed(1)}, ${c.y.toFixed(1)}) 在區域 ${z}`);
+      }
+    }
+  }
+});
+
 /* ---------- 坡度與軌道 ---------- */
 
 test('坡度把靜止在坡上的陀螺往中央拉', () => {
@@ -253,8 +273,17 @@ test('被重擊會多扣轉速', () => {
 
 test('重擊時擲骰中了就爆裂出局', () => {
   const always = () => 0;
-  const out = step({ ...arena, combatants: [at('red', -7.9, 0, 260, 0), at('blue', 7.9, 0, -260, 0)] }, 1 / 60, always);
+  const out = step({ ...arena, time: 5, combatants: [at('red', -7.9, 0, 260, 0), at('blue', 7.9, 0, -260, 0)] }, 1 / 60, always);
   assert.ok(out.combatants.some(c => c.outBy === 'burst'));
+});
+
+test('開場 3 秒內不會爆裂(剛射出去的保護期)', () => {
+  const always = () => 0;
+  const w = { ...arena, time: 1, combatants: [at('red', -7.9, 0, 260, 0, { spin: 0.1 }), at('blue', 7.9, 0, -260, 0, { spin: 0.1 })] };
+  const out = step(w, 1 / 60, always);
+  assert.ok(out.combatants.every(c => c.outBy !== 'burst'));
+  const later = step({ ...w, time: 3.5 }, 1 / 60, always);
+  assert.ok(later.combatants.some(c => c.outBy === 'burst'));
 });
 
 test('同隊再怎麼撞都不會爆裂', () => {
