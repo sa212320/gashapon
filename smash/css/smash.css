@@ -60,6 +60,8 @@ body { display: flex; flex-direction: column; min-height: 100svh; }
 .edit-row__count::-webkit-inner-spin-button,
 .edit-row__count::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .panel__hint { margin: 0 0 8px; font-size: 14px; opacity: .75; }
+.panel__credit { margin-top: 18px; font-size: 12px; }
+.panel__credit a { color: inherit; }
 
 /* three.js 有 168 KB,手機上會有一段看不到東西的空窗。
    空白會讓人以為壞掉,所以先講一句話,場景畫出第一格才收掉。 */
